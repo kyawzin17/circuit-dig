@@ -48,7 +48,7 @@ const BreadboardFullNode = ({ id, data }: NodeProps) => {
           transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)', // Smooth ဖြစ်အောင်
            width: `${nodeWidth}px`, height: `${nodeHeight}px` , 
         }}
-       className="relative bg-transparent border-2 border-red-500" >
+       className="relative bg-transparent border-2 border-transparent hover:border-blue-400/60" >
       
       {/* --- ၁။ BREADBOARD SVG VISUALS --- */}
       {/* viewBox ကို 440 1340 အတိုင်းထားပြီး width/height ကိုပဲ scale နဲ့ မြှောက်ပေးထားလို့ SVG ရုပ်ထွက်က အလိုအလျောက် သေးသွားပါမယ် */}

@@ -17,6 +17,7 @@ import 'reactflow/dist/style.css';
 import Sidebar from './Sidebar.tsx';
 import ElectronicNode from './ElectronicNode.tsx';
 
+import { MdDeleteForever } from "react-icons/md";
 import { ImUndo2, ImRedo2 } from "react-icons/im";
 import { FaRegSave, FaPlay, FaStop } from "react-icons/fa";
 import { FaArrowsRotate } from "react-icons/fa6";
@@ -30,7 +31,7 @@ import PropertiesPanel from './PropertiesPanel';
 import BreadboardMiniNode from './nodes/BreadboardMiniNode';
 import BreadboardHalfNode from './nodes/BreadboardHalfNode.tsx';
 import BreadboardFullNode from './nodes/BreadboardFullNode.tsx';
-
+import PicoNode from "./nodes/Respberrypipico.tsx";
 
 
 // ၁။ Error ပျောက်အောင် EdgeTypes ကို ဒီလို သတ်မှတ်ပါ
@@ -43,6 +44,7 @@ const nodeTypes = {
  breadboardMiniNode: BreadboardMiniNode,
  breadboardHalfNode: BreadboardHalfNode,
  breadboardFullNode: BreadboardFullNode,
+ picoNode: PicoNode,
 };
 
 const getEdgeColor = (handleId: string | null) => {
@@ -300,27 +302,36 @@ const onDragOver = useCallback((event: React.DragEvent) => {
 
     // Sidebar က အစိတ်အပိုင်းအလိုက် Tag နှင့် Props များ သတ်မှတ်ခြင်း
     const componentConfigs: Record<string, any> = {
-      'mini-board': { label: 'Mini Board' },
-      'half-board': { label: 'Half Board' },
-      'full-board': { label: 'Full Board' },
-      'arduino-uno': { tag: 'wokwi-arduino-uno', label: 'Arduino Uno' },
-      'arduino-mega': { tag: 'wokwi-arduino-mega', label: 'Arduino Mega' },
-      'arduino-nano': { tag: 'wokwi-arduino-nano', label: 'Arduino Nano' },
-      'led-red': { tag: 'wokwi-led', props: { color: 'red' }, label: 'Red LED' },
-      'led-green': { tag: 'wokwi-led', props: { color: 'green' }, label: 'Green LED' },
-      'led-blue': { tag: 'wokwi-led', props: { color: 'blue' }, label: 'Blue LED' },
-      'resistor': { tag: 'wokwi-resistor', props: { value: '1000' }, label: 'Resistor' },
-      'pushbutton': { tag: 'wokwi-pushbutton', label: 'Pushbutton' },
-      'potentiometer': { tag: 'wokwi-potentiometer', label: 'Potentiometer' },
-      'slide-switch': { tag: 'wokwi-slide-switch', label: 'Slide Switch' },
-      '7segment': { tag: 'wokwi-7segment', label: '7-Segment' },
-      'lcd1602': { tag: 'wokwi-lcd1602', label: 'LCD 16x2' },
-      'lcd1602-i2c': { tag: 'wokwi-lcd1602', props: { pins: 'i2c'}, label: 'LCD 16x2 (I2C)' },
-      'neopixel': { tag: 'wokwi-neopixel', label: 'NeoPixel' },
-      'buzzer': { tag: 'wokwi-buzzer', label: 'Buzzer' },
-      'servo': { tag: 'wokwi-servo', label: 'Servo' },
-      'hc-sr04': { tag: 'wokwi-hc-sr04', label: 'Ultrasonic Sensor HC-SR04' },
-      'membrane-keypad': { tag: 'wokwi-membrane-keypad', label: 'Keypad Membrane' },
+      'mini-board': { label: 'Mini Board', stubLength: 0 },
+      'half-board': { label: 'Half Board', stubLength: 0 },
+      'full-board': { label: 'Full Board', stubLength: 0 },
+      'arduino-uno': { tag: 'wokwi-arduino-uno', label: 'Arduino Uno', stubLength: 15 },
+      'arduino-mega': { tag: 'wokwi-arduino-mega', label: 'Arduino Mega', stubLength: 15 },
+      'arduino-nano': { tag: 'wokwi-arduino-nano', label: 'Arduino Nano', stubLength: 15 },
+      'respberry-pico': { label: "Raspberry Pi Pico", stubLength: 15 },
+      'led-red': { tag: 'wokwi-led', props: { color: 'red' }, label: 'Red LED', stubLength: 15 },
+      'led-green': { tag: 'wokwi-led', props: { color: 'green' }, label: 'Green LED', stubLength: 15 },
+      'led-blue': { tag: 'wokwi-led', props: { color: 'blue' }, label: 'Blue LED', stubLength: 15 },
+      'resistor': { tag: 'wokwi-resistor', props: { value: '1000' }, label: 'Resistor', stubLength: 15 },
+      'pushbutton': { tag: 'wokwi-pushbutton', label: 'Pushbutton', stubLength: 15 },
+      'potentiometer': { tag: 'wokwi-potentiometer', label: 'Potentiometer', stubLength: 15 },
+      'slide-switch': { tag: 'wokwi-slide-switch', label: 'Slide Switch', stubLength: 15 },
+      '7segment': { tag: 'wokwi-7segment', label: '7-Segment', stubLength: 15 },
+      'lcd1602': { tag: 'wokwi-lcd1602', label: 'LCD 16x2', stubLength: 15 },
+      'lcd1602-i2c': { tag: 'wokwi-lcd1602', props: { pins: 'i2c'}, label: 'LCD 16x2 (I2C)', stubLength: 15 },
+      'neopixel': { tag: 'wokwi-neopixel', label: 'NeoPixel', stubLength: 15 },
+      'buzzer': { tag: 'wokwi-buzzer', label: 'Buzzer', stubLength: 15 },
+      'servo': { tag: 'wokwi-servo', label: 'Servo', stubLength: 15 },
+      'hc-sr04': { tag: 'wokwi-hc-sr04', label: 'Ultrasonic Sensor HC-SR04', stubLength: 15 },
+      'membrane-keypad': { tag: 'wokwi-membrane-keypad', label: 'Keypad Membrane', stubLength: 15 },
+      'rgb-led': { tag: 'wokwi-rgb-led', label: 'RGB Led', stubLength: 15 },
+      'stepper-motor': { tag: 'wokwi-stepper-motor', label: 'Stepper Motor', stubLength: 15 },
+      'ldr': { tag: 'wokwi-photoresistor-sensor', label: 'LDR Sensor', stubLength: 15 },
+      'pir': { tag: 'wokwi-pir-motion-sensor', label: 'PIR Motion Sensor', stubLength: 15 },
+      'ds1307': { tag: 'wokwi-ds1307', label: 'RTC DS1307', stubLength: 15 },
+      'ssd1306': { tag: 'wokwi-ssd1306', label: 'OLED SSD1306', stubLength: 15 },
+      'joystick': { tag: 'wokwi-analog-joystick', label: 'Joystick', stubLength: 15 },
+      'esp32': { tag: 'wokwi-esp32-devkit-v1', label: 'ESP32 DevKit', stubLength: 15 },
       // ... ကျန်တဲ့ ၂၀ လုံးကို ဒီမှာ ထည့်ပေးပါ
     };
 
@@ -341,6 +352,10 @@ const onDragOver = useCallback((event: React.DragEvent) => {
       customNodeType = 'breadboardFullNode';
       isBreadboard = true;
     }
+    else if (type === 'respberry-pico') {
+      customNodeType = 'picoNode';
+      isBreadboard = true;
+    }
     
     const newNode = {
       id: `${type}-${Date.now()}`,
@@ -350,7 +365,8 @@ const onDragOver = useCallback((event: React.DragEvent) => {
         componentType: type,
         tag: config.tag, 
         props: config.props,
-        label: config.label 
+        label: config.label ,
+        stubLength: config.stubLength || 5,
       },
       zIndex: isBreadboard ? 0 : 10,
     };
@@ -497,7 +513,7 @@ const rotateNode = useCallback((nodeId: string) => {
               <div className="flex gap-4">
 
             {/* //? Play Mode! */}
-                <div className="relative group inline-block">
+                {/* <div className="relative group inline-block">
                   <button onClick={() => {
                     setPlay(!play)
                   }} className="text-white cursor-pointer text-xl p-2 rounded-full hover:bg-slate-400 transition-colors">
@@ -508,7 +524,7 @@ const rotateNode = useCallback((nodeId: string) => {
                     }
                   </button>
                   <span className="absolute top-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap shadow-md">{ play ? "Play" : "Stop" }</span>
-                </div>
+                </div> */}
 
             {/* //? Grid Mode! */}
                 <div className="relative group inline-block">
@@ -528,10 +544,11 @@ const rotateNode = useCallback((nodeId: string) => {
                 <div className="relative group inline-block">
                   <button disabled={!selectedNode} // Node ရွေးထားမှ အလုပ်လုပ်မယ်
                           onClick={() => selectedNode && rotateNode(selectedNode.id)}
-                           className={`${selectedNode ? "text-gray-100" : "text-gray-400"} cursor-pointer text-xl p-2 rounded-full hover:bg-slate-400 transition-colors`}>
+                           className={`${selectedNode ? "text-gray-100 hover:bg-slate-400" : "text-gray-400"} cursor-pointer text-xl p-2 rounded-full transition-colors`}
+                           title="Rotate">
                     <FaArrowsRotate />
                   </button>
-                  <span className="absolute top-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap shadow-md">Rotate</span>
+                  {/* <span className="absolute top-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap shadow-md">Rotate</span> */}
                 </div>
 
             {/* //? Undo Mode! */}
@@ -542,7 +559,7 @@ const rotateNode = useCallback((nodeId: string) => {
                    ${
                       history.index <= 0 
                         ? 'text-gray-400 cursor-not-allowed' 
-                        : 'text-gray-100 hover:bg-gray-100'
+                        : 'text-gray-100 hover:bg-slate-400'
                     }`}
                     title="Undo (Ctrl+Z)"
                     >
@@ -559,7 +576,7 @@ const rotateNode = useCallback((nodeId: string) => {
                    ${
                      history.index >= history.stack.length - 1
                         ? 'text-gray-400 cursor-not-allowed' 
-                        : 'text-gray-100 hover:bg-gray-100'
+                        : 'text-gray-100 hover:bg-slate-400'
                     }`}
                     title="Redo (Ctrl+Y)"
                     >
@@ -567,13 +584,36 @@ const rotateNode = useCallback((nodeId: string) => {
                   </button>
                   {/* <span className="absolute top-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap shadow-md">Redo</span> */}
                 </div>
+            {/* //? Delete Mode! */}
+                <div className="relative group inline-block">
+                  <button disabled={!selectedNode} // Node ရွေးထားမှ အလုပ်လုပ်မယ်
+                          onClick={() => selectedNode && deleteNode(selectedNode.id)}
+                   className={`cursor-pointer text-xl p-2 rounded-full transition-colors
+                   ${
+                     !selectedNode
+                        ? 'text-gray-400 cursor-not-allowed' 
+                        : 'text-red-500 hover:bg-slate-400'
+                    }`}
+                    title="Delete"
+                    >
+                    <MdDeleteForever />
+                  </button>
+                  {/* <span className="absolute top-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap shadow-md">Redo</span> */}
+                </div>
 
             {/* //? Save Mode! */}
                 <div className="relative group inline-block">
-                  <button className="text-white cursor-pointer text-xl p-2 rounded-full hover:bg-slate-400 transition-colors">
+                  <button disabled={history.index <= 2}
+                           className={`cursor-pointer text-xl p-2 rounded-full transition-colors
+                   ${
+                     history.index <= history.stack.length - 1
+                        ? 'text-gray-400 cursor-not-allowed' 
+                        : 'text-gray-100 hover:bg-slate-400'
+                    }`}
+                    title="Save">
                     <FaRegSave />
                   </button>
-                  <span className="absolute top-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap shadow-md">Save</span>
+                  {/* <span className="absolute top-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap shadow-md">Save</span> */}
                 </div>
                 
               </div>
@@ -640,7 +680,7 @@ const rotateNode = useCallback((nodeId: string) => {
             </button>
           </div>
         )}
-        <PropertiesPanel selectedNode={selectedNode} onDelete={deleteNode} onRotate={rotateNode} />
+        <PropertiesPanel selectedNode={selectedNode} />
       </div>
     </div>
   );

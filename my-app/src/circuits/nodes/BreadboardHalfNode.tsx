@@ -42,7 +42,7 @@ const BreadboardHalfNode = ({ id, data }: NodeProps) => {
   const nodeHeight = 680 * SCALE;
 
   return (
-    <div className="relative bg-transparent border-2 border-red-500"
+    <div className="relative bg-transparent border-2 border-transparent hover:border-blue-400/60"
      style={{
            width: `${nodeWidth}px`,
             height: `${nodeHeight}px`,

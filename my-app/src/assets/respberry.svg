@@ -1,0 +1,135 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 210 510" width="100%" height="100%">
+  <defs>
+    <g id="pad-left">
+      <rect x="0" y="-7" width="16" height="14" fill="#D4AF37" rx="2" />
+      <circle cx="6" cy="0" r="4.5" fill="#045A30" />
+      <circle cx="6" cy="0" r="2.5" fill="#000000" opacity="0.4" />
+    </g>
+
+    <g id="pad-right">
+      <rect x="194" y="-7" width="16" height="14" fill="#D4AF37" rx="2" />
+      <circle cx="204" cy="0" r="4.5" fill="#045A30" />
+      <circle cx="204" cy="0" r="2.5" fill="#000000" opacity="0.4" />
+    </g>
+
+    <g id="smd-small">
+      <rect x="0" y="0" width="8" height="4" fill="#222" />
+      <rect x="0" y="0" width="2" height="4" fill="#bbb" />
+      <rect x="6" y="0" width="2" height="4" fill="#bbb" />
+    </g>
+    <g id="smd-cap">
+      <rect x="0" y="0" width="10" height="6" fill="#C5A059" />
+      <rect x="0" y="0" width="2" height="6" fill="#A4A4A4" />
+      <rect x="8" y="0" width="2" height="6" fill="#A4A4A4" />
+    </g>
+
+    <g id="mounting-hole">
+      <circle cx="0" cy="0" r="10" fill="#D4AF37" />
+      <circle cx="0" cy="0" r="7" fill="#045A30" />
+      <circle cx="0" cy="0" r="5" fill="#111111" />
+    </g>
+  </defs>
+
+  <rect width="210" height="510" rx="10" fill="#087541" stroke="#06542F" stroke-width="2" />
+  <path d="M 30,100 L 60,100 L 70,110 L 70,220 M 180,150 L 140,150 L 130,160 L 130,220" fill="none" stroke="#0B9B56" stroke-width="2" opacity="0.6"/>
+
+  <use href="#mounting-hole" x="22" y="24" />
+  <use href="#mounting-hole" x="188" y="24" />
+  <use href="#mounting-hole" x="22" y="486" />
+  <use href="#mounting-hole" x="188" y="486" />
+
+  <g id="usb-port" transform="translate(65, 0)">
+    <rect x="0" y="-2" width="80" height="38" fill="#B0B5B9" rx="3" />
+    <rect x="2" y="0" width="76" height="35" fill="#D9DFE3" rx="2" stroke="#8E959B" stroke-width="1.5" />
+    <path d="M 15,35 L 15,20 L 65,20 L 65,35" fill="none" stroke="#8E959B" stroke-width="1.5" />
+    <rect x="18" y="3" width="44" height="6" fill="#111" rx="1" />
+    <rect x="10" y="20" width="4" height="6" fill="#8E959B" />
+    <rect x="66" y="20" width="4" height="6" fill="#8E959B" />
+  </g>
+
+  <g id="bootsel" transform="translate(130, 85)">
+    <rect x="0" y="0" width="35" height="24" fill="#E6E8EA" rx="2" stroke="#A9B0B5" />
+    <circle cx="17.5" cy="12" r="7" fill="#2A2E32" />
+    <rect x="-3" y="4" width="4" height="4" fill="#A9B0B5" />
+    <rect x="-3" y="16" width="4" height="4" fill="#A9B0B5" />
+    <rect x="34" y="4" width="4" height="4" fill="#A9B0B5" />
+    <rect x="34" y="16" width="4" height="4" fill="#A9B0B5" />
+  </g>
+  <text x="147" y="120" fill="#E6E8EA" fontSize="10" textAnchor="middle" fontFamily="sans-serif" fontWeight="bold" letterSpacing="1">BOOTSEL</text>
+
+  <g id="rp2040" transform="translate(70, 220)">
+    <rect x="-2" y="-2" width="74" height="74" fill="#1A1C1D" rx="2" />
+    <rect x="0" y="0" width="70" height="70" fill="#2A2D2F" rx="3" />
+    <circle cx="8" cy="8" r="3" fill="#666" />
+    <text x="35" y="32" fill="#888" fontSize="11" textAnchor="middle" fontFamily="sans-serif" fontWeight="bold">RP2040</text>
+    <text x="35" y="46" fill="#777" fontSize="8" textAnchor="middle" fontFamily="monospace">20/21</text>
+    <text x="35" y="56" fill="#777" fontSize="7" textAnchor="middle" fontFamily="monospace">P84M15.00</text>
+  </g>
+
+  <g id="crystal" transform="translate(75, 150)">
+    <rect x="0" y="0" width="28" height="18" fill="#BCC1C5" rx="3" />
+    <text x="14" y="11" fill="#555" fontSize="6" textAnchor="middle" fontFamily="sans-serif">12.000</text>
+  </g>
+
+  <use href="#smd-cap" x="75" y="180" transform="rotate(90, 75, 180)" />
+  <use href="#smd-cap" x="120" y="185" transform="rotate(90, 120, 185)" />
+  <use href="#smd-small" x="110" y="195" />
+  <use href="#smd-small" x="90" y="205" />
+  <use href="#smd-small" x="90" y="100" />
+  <use href="#smd-small" x="90" y="110" />
+
+  <rect x="120" y="340" width="20" height="20" fill="#222" rx="1" /> <text x="50" y="440" transform="rotate(-90, 50, 440)" fill="#E6E8EA" fontSize="15" fontFamily="sans-serif" fontWeight="bold" letterSpacing="1">Raspberry Pi Pico</text>
+  <text x="70" y="440" transform="rotate(-90, 70, 440)" fill="#E6E8EA" fontSize="9" fontFamily="sans-serif">© 2020</text>
+  <text x="105" y="480" fill="#E6E8EA" fontSize="10" textAnchor="middle" fontFamily="sans-serif" fontWeight="bold">DEBUG</text>
+  
+  <use href="#pad-left" x="90" y="495" transform="rotate(90, 90, 495) scale(0.7)" />
+  <use href="#pad-left" x="105" y="495" transform="rotate(90, 105, 495) scale(0.7)" />
+  <use href="#pad-left" x="120" y="495" transform="rotate(90, 120, 495) scale(0.7)" />
+
+  <g id="left-pins">
+    <use href="#pad-left" x="0" y="60" />  <use href="#pad-left" x="0" y="81" />  <use href="#pad-left" x="0" y="102" /> <use href="#pad-left" x="0" y="123" />
+    <use href="#pad-left" x="0" y="144" />
+    <use href="#pad-left" x="0" y="165" />
+    <use href="#pad-left" x="0" y="186" />
+    <use href="#pad-left" x="0" y="207" />
+    <use href="#pad-left" x="0" y="228" />
+    <use href="#pad-left" x="0" y="249" />
+    <use href="#pad-left" x="0" y="270" />
+    <use href="#pad-left" x="0" y="291" />
+    <use href="#pad-left" x="0" y="312" />
+    <use href="#pad-left" x="0" y="333" />
+    <use href="#pad-left" x="0" y="354" />
+    <use href="#pad-left" x="0" y="375" />
+    <use href="#pad-left" x="0" y="396" />
+    <use href="#pad-left" x="0" y="417" />
+    <use href="#pad-left" x="0" y="438" />
+    <use href="#pad-left" x="0" y="459" /> </g>
+
+  <g id="right-pins">
+    <use href="#pad-right" x="0" y="60" />  <use href="#pad-right" x="0" y="81" />
+    <use href="#pad-right" x="0" y="102" />
+    <use href="#pad-right" x="0" y="123" />
+    <use href="#pad-right" x="0" y="144" />
+    <use href="#pad-right" x="0" y="165" />
+    <use href="#pad-right" x="0" y="186" />
+    <use href="#pad-right" x="0" y="207" />
+    <use href="#pad-right" x="0" y="228" />
+    <use href="#pad-right" x="0" y="249" />
+    <use href="#pad-right" x="0" y="270" />
+    <use href="#pad-right" x="0" y="291" />
+    <use href="#pad-right" x="0" y="312" />
+    <use href="#pad-right" x="0" y="333" />
+    <use href="#pad-right" x="0" y="354" />
+    <use href="#pad-right" x="0" y="375" />
+    <use href="#pad-right" x="0" y="396" />
+    <use href="#pad-right" x="0" y="417" />
+    <use href="#pad-right" x="0" y="438" />
+    <use href="#pad-right" x="0" y="459" /> </g>
+  
+  <text x="22" y="63" fill="#E6E8EA" fontSize="8" fontFamily="sans-serif" fontWeight="bold">1</text>
+  <text x="22" y="84" fill="#E6E8EA" fontSize="8" fontFamily="sans-serif" fontWeight="bold">2</text>
+  
+  <text x="188" y="63" fill="#E6E8EA" fontSize="8" textAnchor="end" fontFamily="sans-serif" fontWeight="bold">39</text>
+  <text x="188" y="462" fill="#E6E8EA" fontSize="8" textAnchor="end" fontFamily="sans-serif" fontWeight="bold">21</text>
+
+</svg>

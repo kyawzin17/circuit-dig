@@ -34,7 +34,7 @@ const BreadboardMiniNode = ({ id, data }: NodeProps) => {
   const nodeHeight = 420 * SCALE;
 
   return (
-    <div className="relative bg-transparent"
+    <div className="relative bg-transparent border-2 border-transparent hover:border-blue-400/70"
          style={{ 
                   width: `${nodeWidth}px`,
                    height: `${nodeHeight}px`,

@@ -5,9 +5,7 @@ type Point = { x: number; y: number };
 
 const GRID_SIZE = 10; 
 const CORNER_RADIUS = 8; 
-const STUB_LENGTH = 0; 
 const HANDLE_RADIUS = 2.8; 
-
 function createRoundedPath(points: Point[], radius: number) {
   if (points.length < 2) return '';
   let path = `M ${points[0].x},${points[0].y}`;
@@ -38,6 +36,9 @@ function createRoundedPath(points: Point[], radius: number) {
 export default function EditableEdge({
   id, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, style = {}, data, markerStart, markerEnd,
 }: EdgeProps) {
+  const stubLength = data?.stubLength;
+  console.log("this is stub length", stubLength);
+
   const { setEdges } = useReactFlow();
   const zoom = useStore((s) => s.transform[2]);
   
@@ -59,10 +60,10 @@ export default function EditableEdge({
 
   const getInitialPoints = useCallback((): Point[] => {
     const getOffset = (pos: Position, x: number, y: number) => {
-      if (pos === Position.Top) return { x, y: y - STUB_LENGTH };
-      if (pos === Position.Bottom) return { x, y: y + STUB_LENGTH };
-      if (pos === Position.Left) return { x: x - STUB_LENGTH, y };
-      return { x: x + STUB_LENGTH, y };
+      if (pos === Position.Top) return { x, y: y - stubLength };
+      if (pos === Position.Bottom) return { x, y: y + stubLength };
+      if (pos === Position.Left) return { x: x - stubLength, y };
+      return { x: x + stubLength, y };
     };
 
     const p1 = { x: trueSource.x, y: trueSource.y };
@@ -103,10 +104,10 @@ export default function EditableEdge({
       newPts[len - 1] = { x: trueTarget.x, y: trueTarget.y };
 
       const updateStub = (pos: Position, x: number, y: number) => {
-        if (pos === Position.Top) return { x, y: y - STUB_LENGTH };
-        if (pos === Position.Bottom) return { x, y: y + STUB_LENGTH };
-        if (pos === Position.Left) return { x: x - STUB_LENGTH, y };
-        return { x: x + STUB_LENGTH, y };
+        if (pos === Position.Top) return { x, y: y - stubLength };
+        if (pos === Position.Bottom) return { x, y: y + stubLength };
+        if (pos === Position.Left) return { x: x - stubLength, y };
+        return { x: x + stubLength, y };
       };
 
       newPts[1] = updateStub(sourcePosition, trueSource.x, trueSource.y);
@@ -209,7 +210,7 @@ export default function EditableEdge({
           d={`M ${seg.p1.x},${seg.p1.y} L ${seg.p2.x},${seg.p2.y}`}
           fill="none"
           stroke={hoveredIndex === index ? "rgba(100,149,237,0.3)" : "transparent"}
-          strokeWidth={seg.isDraggable ? 20 : 0} 
+          strokeWidth={seg.isDraggable ? 10 : 0} 
           style={{ cursor: !seg.isDraggable ? 'default' : seg.isVertical ? 'col-resize' : 'row-resize' }}
           onMouseEnter={() => seg.isDraggable && setHoveredIndex(index)}
           onMouseLeave={() => setHoveredIndex(null)}
@@ -258,7 +259,7 @@ export default function EditableEdge({
 
 // const GRID_SIZE = 10.5; 
 // const CORNER_RADIUS = 8; 
-// const STUB_LENGTH = 15; 
+// const stubLength = 15; 
 // const HANDLE_RADIUS = 2.8; // 🌟 6px Pin ရဲ့ အလယ်ဗဟိုကို ရောက်ရန် 3px အသုံးပြုပါမည်
 
 // function createRoundedPath(points: Point[], radius: number) {

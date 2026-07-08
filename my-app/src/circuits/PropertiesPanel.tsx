@@ -3,14 +3,10 @@ import "./circuit.css";
 
 type Props = {
   selectedNode: any;
-  onDelete: (id: string) => void;
-  onRotate: (id: string) => void; // Prop အသစ်လက်ခံမယ်
 };
 
 export default function PropertiesPanel({
   selectedNode,
-  onDelete,
-  onRotate
 }: Props) {
   if (!selectedNode) {
     return (
@@ -30,19 +26,6 @@ export default function PropertiesPanel({
       <p>ID : {selectedNode.id}</p>
 
       <p>Type : {selectedNode.type}</p>
-      {/* 🌟 လှည့်မယ့် Button */}
-        <button
-          onClick={() => onRotate(selectedNode.id)}
-          className="w-full cursor-pointer bg-cyan-50 hover:bg-cyan-500 hover:text-white text-cyan-600 border border-cyan-200 text-sm py-1.5 px-3 rounded-lg transition-colors font-medium"
-        >
-          🔄 ၉၀ ဒီဂရီ လှည့်မည်
-        </button>
-      <button
-        onClick={() => onDelete(selectedNode.id)}
-        className="w-full mt-4 bg-red-500 hover:bg-red-600 text-white py-2 rounded-lg flex justify-center items-center"
-      >
-        <MdDelete  className="text-xl"/> <span>ဖျတ်မည်!</span>
-      </button>
     </div>
   );
 }

@@ -30,7 +30,7 @@ const ElectronicNode = ({ id, data }: NodeProps) => {
         transform: `rotate(${rotation}deg)`,
         transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)', // Smooth ဖြစ်အောင်
       }}
-            className='border-2 border-red-500 relative' >
+            className='border-2 border-transparent hover:border-blue-400/60 relative' >
               {/* style={{ 
           transform: `rotate(${rotation}deg)`, 
           transition: 'transform 0.2s ease' // လှည့်တဲ့အခါ Smooth ဖြစ်အောင်

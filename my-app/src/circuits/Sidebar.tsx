@@ -30,6 +30,7 @@ const Sidebar = () => {
     { type: 'arduino-uno', name: 'Arduino Uno', tag: 'wokwi-arduino-uno', props: {}, scale: 0.2, yOffset: '-15px' },
     { type: 'arduino-mega', name: 'Arduino Mega', tag: 'wokwi-arduino-mega', props: {}, scale: 0.2, yOffset: '-10px' },
     { type: 'arduino-nano', name: 'Arduino Nano', tag: 'wokwi-arduino-nano', props: {}, scale: 0.3, yOffset: '0px' },
+    { type: 'respberry-pico', name: "Raspberry Pi Pico", tag: "wokwi-respberrypico", props: {}, scale: 0.3, yOffset: '0px' },
     { type: 'led-red', name: 'Red LED', tag: 'wokwi-led', props: { color: 'red' }, scale: 0.8, yOffset: '0px' },
     { type: 'led-green', name: 'Green LED', tag: 'wokwi-led', props: { color: 'green' }, scale: 0.8, yOffset: '0px' },
     { type: 'led-blue', name: 'Blue LED', tag: 'wokwi-led', props: { color: 'blue' }, scale: 0.8, yOffset: '0px' },
@@ -45,6 +46,77 @@ const Sidebar = () => {
     { type: 'servo', name: 'Servo Motor', tag: 'wokwi-servo', props: {}, scale: 0.2, yOffset: '0px' },
     { type: 'hc-sr04', name: 'Ultrasonic Sensor', tag: 'wokwi-hc-sr04', props: {}, scale: 0.4, yOffset: '0px' },
     { type: 'membrane-keypad', name: 'Keypad', tag: 'wokwi-membrane-keypad', props: {}, scale: 0.15, yOffset: '0px' },
+    // LEDs
+{
+  type: "rgb-led",
+  name: "RGB LED",
+  tag: "wokwi-rgb-led",
+  props: {},
+  scale: 0.6,
+  yOffset: "0px",
+},
+{
+  type: "stepper-motor",
+  name: "Stepper Motor",
+  tag: "wokwi-stepper-motor",
+  props: {},
+  scale: 0.25,
+  yOffset: "0px",
+},{
+  type: "ldr",
+  name: "LDR Sensor",
+  tag: "wokwi-photoresistor-sensor",
+  props: {},
+  scale: 0.4,
+  yOffset: "0px",
+},
+
+{
+  type: "pir",
+  name: "PIR Motion Sensor",
+  tag: "wokwi-pir-motion-sensor",
+  props: {},
+  scale: 0.3,
+  yOffset: "0px",
+},
+// RTC
+{
+  type: "ds1307",
+  name: "RTC DS1307",
+  tag: "wokwi-ds1307",
+  props: {},
+  scale: 0.3,
+  yOffset: "0px",
+},
+
+// OLED
+{
+  type: "ssd1306",
+  name: "OLED SSD1306",
+  tag: "wokwi-ssd1306",
+  props: {},
+  scale: 0.3,
+  yOffset: "0px",
+},
+// Joystick
+{
+  type: "joystick",
+  name: "Joystick",
+  tag: "wokwi-analog-joystick",
+  props: {},
+  scale: 0.35,
+  yOffset: "0px",
+},
+
+// ESP32
+{
+  type: "esp32",
+  name: "ESP32 DevKit",
+  tag: "wokwi-esp32-devkit-v1",
+  props: {},
+  scale: 0.18,
+  yOffset: "0px",
+},
   ];
 
   // Search filter လုပ်ခြင်း
@@ -96,7 +168,7 @@ const Sidebar = () => {
               >
                 {comp.type === 'mini-board' && 
                 <div>
-                  <img src={miniBoard} alt={comp.name} className="w-20 h-20" />
+                  <img src={miniBoard} alt={comp.name} className="w-14 h-14" />
                 </div>
                 }
 
