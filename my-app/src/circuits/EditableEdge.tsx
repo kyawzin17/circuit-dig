@@ -3,7 +3,7 @@ import { type EdgeProps, BaseEdge, EdgeLabelRenderer, Position, useReactFlow, us
 
 type Point = { x: number; y: number };
 
-const GRID_SIZE = 10; 
+const GRID_SIZE = 10;
 const CORNER_RADIUS = 8; 
 const HANDLE_RADIUS = 2.8; 
 function createRoundedPath(points: Point[], radius: number) {
@@ -36,7 +36,7 @@ function createRoundedPath(points: Point[], radius: number) {
 export default function EditableEdge({
   id, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, style = {}, data, markerStart, markerEnd,
 }: EdgeProps) {
-  const stubLength = data?.stubLength;
+  const stubLength = data?.stubLength || 0;
   console.log("this is stub length", stubLength);
 
   const { setEdges } = useReactFlow();

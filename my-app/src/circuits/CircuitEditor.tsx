@@ -8,6 +8,7 @@ import ReactFlow, {
  useNodesState,
  useEdgesState,
   ConnectionMode,
+  useReactFlow,
  type EdgeTypes,
  type Connection,
  type Edge,
@@ -17,8 +18,34 @@ import 'reactflow/dist/style.css';
 import Sidebar from './Sidebar.tsx';
 import ElectronicNode from './ElectronicNode.tsx';
 
+import { arduinoUnoPins } from './Pins/arduinoUnoPins.ts';
+import { resistorPins } from './Pins/resistorPins.ts';
+
+
+import {
+  ChevronDown,
+  ZoomIn,
+  ZoomOut,
+  Maximize,
+  RotateCcw,
+  Check,
+  Undo,
+  Redo,
+  
+} from "lucide-react";
+
+
+const zoomLevels = [
+  0.25,
+  0.5,
+  0.75,
+  1,
+  1.25,
+  1.5,
+  2,
+];
+
 import { MdDeleteForever } from "react-icons/md";
-import { ImUndo2, ImRedo2 } from "react-icons/im";
 import { FaRegSave, FaPlay, FaStop } from "react-icons/fa";
 import { FaArrowsRotate } from "react-icons/fa6";
 import { LuGrid2X2X, LuGrid2X2Plus } from "react-icons/lu";
@@ -305,14 +332,34 @@ const onDragOver = useCallback((event: React.DragEvent) => {
       'mini-board': { label: 'Mini Board', stubLength: 0 },
       'half-board': { label: 'Half Board', stubLength: 0 },
       'full-board': { label: 'Full Board', stubLength: 0 },
-      'arduino-uno': { tag: 'wokwi-arduino-uno', label: 'Arduino Uno', stubLength: 15 },
+      'arduino-uno': {
+  tag: 'wokwi-arduino-uno',
+
+  label: 'Arduino Uno',
+
+  stubLength: 15,
+
+  pins: arduinoUnoPins,
+},
       'arduino-mega': { tag: 'wokwi-arduino-mega', label: 'Arduino Mega', stubLength: 15 },
       'arduino-nano': { tag: 'wokwi-arduino-nano', label: 'Arduino Nano', stubLength: 15 },
       'respberry-pico': { label: "Raspberry Pi Pico", stubLength: 15 },
       'led-red': { tag: 'wokwi-led', props: { color: 'red' }, label: 'Red LED', stubLength: 15 },
       'led-green': { tag: 'wokwi-led', props: { color: 'green' }, label: 'Green LED', stubLength: 15 },
       'led-blue': { tag: 'wokwi-led', props: { color: 'blue' }, label: 'Blue LED', stubLength: 15 },
-      'resistor': { tag: 'wokwi-resistor', props: { value: '1000' }, label: 'Resistor', stubLength: 15 },
+      'resistor': {
+  tag: 'wokwi-resistor',
+
+  props: {
+    value: '1000',
+  },
+
+  label: 'Resistor',
+
+  stubLength: 15,
+
+  pins: resistorPins,
+},
       'pushbutton': { tag: 'wokwi-pushbutton', label: 'Pushbutton', stubLength: 15 },
       'potentiometer': { tag: 'wokwi-potentiometer', label: 'Potentiometer', stubLength: 15 },
       'slide-switch': { tag: 'wokwi-slide-switch', label: 'Slide Switch', stubLength: 15 },
@@ -356,7 +403,40 @@ const onDragOver = useCallback((event: React.DragEvent) => {
       customNodeType = 'picoNode';
       isBreadboard = true;
     }
-    
+     const currentNodes = nodesRef.current;
+
+     // =====================================
+    // SAME COMPONENT COUNT
+    // =====================================
+
+    const sameComponentNodes =
+      currentNodes.filter(
+        (node) =>
+          node.data?.componentType === type
+      );
+
+    const instanceNumbers =
+  sameComponentNodes.map(
+    (node) =>
+      node.data?.instanceNumber ?? -1
+  );
+
+const instanceNumber =
+  instanceNumbers.length > 0
+    ? Math.max(...instanceNumbers) + 1
+    : 0;
+
+    // =====================================
+    // AUTO NAME
+    // =====================================
+
+    const autoLabel =
+      `${config.label}-${instanceNumber}`;
+
+    // =====================================
+    // NEW NODE
+    // =====================================
+
     const newNode = {
       id: `${type}-${Date.now()}`,
       type: customNodeType, 
@@ -365,14 +445,16 @@ const onDragOver = useCallback((event: React.DragEvent) => {
         componentType: type,
         tag: config.tag, 
         props: config.props,
-        label: config.label ,
+        label: autoLabel,
+        pins: config.pins || [],
         stubLength: config.stubLength || 5,
+        instanceNumber: instanceNumber,
       },
       zIndex: isBreadboard ? 0 : 10,
     };
 
     // 🌟 History အတွက် ပြင်ဆင်ထားသော အပိုင်း 🌟
-    const currentNodes = nodesRef.current;
+   
     const nextNodes = [...currentNodes, newNode];
     
     // ၁။ Canvas ပေါ်မှာ Component အသစ်ပေါ်လာအောင် update လုပ်မယ်
@@ -384,6 +466,40 @@ const onDragOver = useCallback((event: React.DragEvent) => {
   },
   [reactFlowInstance, setNodes, pushToHistory] // 🌟 Dependency တွေ စနစ်တကျ ထည့်ပေးထားပါတယ်
 );
+
+const handleRename = (
+  nodeId: string,
+  newName: string
+) => {
+
+  const currentNodes =
+    nodesRef.current;
+
+  const nextNodes =
+    currentNodes.map((node) => {
+
+      if (node.id === nodeId) {
+        return {
+          ...node,
+
+          data: {
+            ...node.data,
+
+            label: newName,
+          },
+        };
+      }
+
+      return node;
+    });
+
+  setNodes(nextNodes);
+
+  pushToHistory(
+    nextNodes,
+    edgesRef.current
+  );
+};
 
  const onEdgeClick = useCallback((event: React.MouseEvent, edge: Edge) => {
  event.stopPropagation(); // Canvas ကိုပါ နှိပ်မိသလို မဖြစ်အောင် တားထားခြင်း
@@ -470,19 +586,32 @@ const deleteNode = (nodeId: string) => {
   
 // };
 
-const rotateNode = useCallback((nodeId: string) => {
+let rotateNumber;
+const rotateNode = useCallback((nodeId: string, rotation?: number) => {
   // ၁။ State update မလုပ်ခင် nodes array အသစ်ကို အရင် ပတ်ပြီး ရှာပါမယ်
   const nextNodes = nodes.map((node) => {
     if (node.id === nodeId) {
+
+      if (rotation) {
+        rotateNumber = rotation;
+        console.log(`Rotation is defined, using provided rotation: ${rotation}`);
+      } else {
+        console.log("Rotation is undefined, using current rotation.");
       const currentRotation = node.data.rotation || 0;
       // 🌟 ၃၆၀ ဒီဂရီပြည့်ရင် ၀ ပြန်ဖြစ်သွားအောင် % 360 ပါ တစ်ခါတည်း ထည့်ပေးထားပါတယ်
-      const nextRotation = currentRotation + 90; 
+      if (currentRotation === 360) {
+        rotateNumber = 0;
+      } else {
+        const nextRotation = currentRotation + 90; 
+        rotateNumber = nextRotation;
+      }
+    }
       
       const updatedNode = {
         ...node,
         data: {
           ...node.data,
-          rotation: nextRotation,
+          rotation: rotateNumber,
         },
       };
 
@@ -504,13 +633,446 @@ const rotateNode = useCallback((nodeId: string) => {
 
 }, [nodes, selectedNode, setNodes, pushToHistory]); // 🌟 Dependency များကို စနစ်တကျ ထည့်သွင်းထားပါတယ်
 
+// ! Zoom Controls Component
+const ZoomControls = () => {
+  const {
+    zoomIn,
+    zoomOut,
+    setViewport,
+    getViewport,
+    getZoom,
+    fitView,
+  } = useReactFlow();
+
+
+  const [isOpen, setIsOpen] =
+    useState(false);
+
+
+  // UI မှာပြမယ့် zoom
+  const [zoom, setZoom] =
+    useState(() => getZoom());
+
+
+  // ----------------------------
+  // SET ZOOM
+  // ----------------------------
+
+  const handleSetZoom = (
+    zoomLevel: number
+  ) => {
+
+    const viewport =
+      getViewport();
+
+    setViewport(
+      {
+        x: viewport.x,
+        y: viewport.y,
+        zoom: zoomLevel,
+      },
+      {
+        duration: 200,
+      }
+    );
+
+    setZoom(zoomLevel);
+
+    setIsOpen(false);
+  };
+
+
+  // ----------------------------
+  // ZOOM IN
+  // ----------------------------
+
+  const handleZoomIn = async () => {
+
+    await zoomIn({
+      duration: 200,
+    });
+
+    setZoom(getZoom());
+  };
+
+
+  // ----------------------------
+  // ZOOM OUT
+  // ----------------------------
+
+  const handleZoomOut = async () => {
+
+    await zoomOut({
+      duration: 200,
+    });
+
+    setZoom(getZoom());
+  };
+
+
+  // ----------------------------
+  // FIT VIEW
+  // ----------------------------
+
+  const handleFitView = async () => {
+
+    await fitView({
+      duration: 300,
+      padding: 0.2,
+    });
+
+    setZoom(getZoom());
+
+    setIsOpen(false);
+  };
+
+
+  // ----------------------------
+  // RESET
+  // ----------------------------
+
+  const handleResetZoom = () => {
+
+    const viewport =
+      getViewport();
+
+    setViewport(
+      {
+        x: viewport.x,
+        y: viewport.y,
+        zoom: 1,
+      },
+      {
+        duration: 200,
+      }
+    );
+
+    setZoom(1);
+
+    setIsOpen(false);
+  };
+
+
+  return (
+    <div className="relative">
+
+      {/* =====================
+          MAIN TOOLBAR
+      ===================== */}
+
+      <div
+        className="
+          flex
+          items-center
+          h-9
+          bg-[#111b2b]
+          border
+          border-[#26364d]
+          rounded-md
+          shadow-md
+          overflow-hidden
+        "
+      >
+
+        {/* Zoom Percentage */}
+
+        <button
+          onClick={() =>
+            setIsOpen(!isOpen)
+          }
+          className="
+            flex
+            items-center
+            gap-2
+            h-full
+            px-3
+            text-xs
+            font-semibold
+            text-slate-200
+            border-r
+            border-[#26364d]
+            hover:bg-[#17243a]
+            transition
+          "
+        >
+
+          {Math.round(zoom * 100)}%
+
+          <ChevronDown
+            size={13}
+            className={`
+              transition-transform
+              ${isOpen ? "rotate-180" : ""}
+            `}
+          />
+
+        </button>
+
+
+        {/* Zoom Out */}
+
+        <button
+          onClick={handleZoomOut}
+          className="
+            w-9
+            h-full
+            flex
+            items-center
+            justify-center
+            text-slate-400
+            hover:text-white
+            hover:bg-[#17243a]
+            transition
+          "
+        >
+          <ZoomOut size={15} />
+        </button>
+
+
+        {/* Zoom In */}
+
+        <button
+          onClick={handleZoomIn}
+          className="
+            w-9
+            h-full
+            flex
+            items-center
+            justify-center
+            text-slate-400
+            hover:text-white
+            hover:bg-[#17243a]
+            transition
+          "
+        >
+          <ZoomIn size={15} />
+        </button>
+
+      </div>
+
+
+      {/* =====================
+          DROPDOWN
+      ===================== */}
+
+      {isOpen && (
+
+        <div
+          className="
+            absolute
+            top-full
+            left-0
+            mt-2
+            w-40
+            bg-[#111b2b]
+            border
+            border-[#26364d]
+            rounded-md
+            shadow-xl
+            overflow-hidden
+            z-9999
+          "
+        >
+
+          {/* Zoom Levels */}
+
+          {zoomLevels.map(
+            (level) => {
+
+              const percentage =
+                level * 100;
+
+              const isActive =
+                Math.round(zoom * 100) ===
+                percentage;
+
+
+              return (
+
+                <button
+                  key={level}
+
+                  onClick={() =>
+                    handleSetZoom(level)
+                  }
+
+                  className={`
+                    w-full
+                    flex
+                    items-center
+                    justify-between
+                    px-4
+                    py-2
+                    text-left
+                    text-sm
+                    transition
+
+                    ${
+                      isActive
+                        ? "bg-blue-600 text-white"
+                        : `
+                          text-slate-300
+                          hover:bg-[#17243a]
+                          hover:text-white
+                        `
+                    }
+                  `}
+                >
+
+                  {percentage}%
+
+                  {isActive && (
+                    <Check size={15} />
+                  )}
+
+                </button>
+
+              );
+
+            }
+          )}
+
+
+          {/* Divider */}
+
+          <div className="h-px bg-[#26364d] my-1" />
+
+
+          {/* Fit View */}
+
+          <button
+            onClick={handleFitView}
+            className="
+              w-full
+              flex
+              items-center
+              gap-2
+              px-4
+              py-2
+              text-sm
+              text-slate-300
+              hover:bg-[#17243a]
+              hover:text-white
+              transition
+            "
+          >
+
+            <Maximize size={15} />
+
+            Fit View
+
+          </button>
+
+
+          {/* Reset Zoom */}
+
+          <button
+            onClick={handleResetZoom}
+            className="
+              w-full
+              flex
+              items-center
+              gap-2
+              px-4
+              py-2
+              text-sm
+              text-slate-300
+              hover:bg-[#17243a]
+              hover:text-white
+              transition
+            "
+          >
+
+            <RotateCcw size={15} />
+
+            Reset Zoom
+
+          </button>
+
+        </div>
+
+      )}
+
+    </div>
+  );
+}
+
  return (
-   <div className="flex w-full bg-gray-100">
+   <div className="flex w-full bg-gray-100 font-monospace">
       
-      <header className="w-full h-12 bg-slate-600 flex items-center justify-between px-4 md:px-12 absolute top-0 left-0 z-100">
+      <header className="w-full h-12 bg-[#0D1B31] flex items-center justify-between px-4 md:px-12 absolute top-0 left-0 z-100 shadow-[0_2px_4px_rgba(255,255,255,0.2)]">
               <h3 className="font-bold font-serif text-white text-2xl">Circuit Editor</h3>
               
-              <div className="flex gap-4">
+
+              <div className="flex gap-4 items-center">
+                  <div className="flex items-center rounded-md border border-slate-700 bg-[#111b2b] shadow-lg overflow-hidden">
+                    {/* //? Undo Mode! */}
+                    <div className="relative group h-full inline-block">
+                      <button onClick={() => undo()}
+                      disabled={history.index <= 0}
+                      className={`cursor-pointer w-8
+                          h-8
+                          flex
+                          items-center
+                          justify-center
+                          transition-colors
+                      ${
+                          history.index <= 0 
+                            ? 'text-gray-400 cursor-not-allowed' 
+                            : 'text-gray-100 hover:bg-slate-800'
+                        }`}
+                        title="Undo (Ctrl+Z)"
+                        >
+                        <Undo size={20} className="font-bold"  />
+                      </button>
+                      {/* <span className="absolute top-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap shadow-md">Undo</span> */}
+                    </div>
+
+                    <div className="w-px h-6 bg-slate-700 rounded-full"></div>
+
+                {/* //? Redo Mode! */}
+                    <div className="relative group h-full inline-block">
+                      <button onClick={() => redo()}
+                      disabled={history.index >= history.stack.length - 1}
+                      className={`cursor-pointer w-8
+                                    h-8
+                                    flex
+                                    items-center
+                                    justify-center
+                                    transition-colors
+                      ${
+                        history.index >= history.stack.length - 1
+                            ? 'text-gray-400 cursor-not-allowed' 
+                            : 'text-gray-100 hover:bg-slate-800'
+                        }`}
+                        title="Redo (Ctrl+Y)"
+                        >
+                        <Redo size={20} />
+                      </button>
+                      {/* <span className="absolute top-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap shadow-md">Redo</span> */}
+                    </div>
+                  </div>
+
+                  <ZoomControls />
+
+                  {/* //? Grid Mode! */}
+                <div className="relative group inline-block">
+                  <button onClick={() => {
+                    setGrid(!grid)
+                  }} className="text-white h-8 w-8 cursor-pointer flex items-center justify-center rounded-md hover:bg-slate-400/20 transition-colors">
+                    { grid ? 
+                      <LuGrid2X2X size={20} />
+                    : 
+                      <LuGrid2X2Plus size={20} />
+                    }
+                  </button>
+                  <span className="absolute top-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap shadow-md">{ grid ? "Grid Remove" : "Grid Add" }</span>
+                </div>
+
+              </div>
+
+
+              <div className="flex gap-2.5 items-center">
 
             {/* //? Play Mode! */}
                 {/* <div className="relative group inline-block">
@@ -526,92 +1088,51 @@ const rotateNode = useCallback((nodeId: string) => {
                   <span className="absolute top-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap shadow-md">{ play ? "Play" : "Stop" }</span>
                 </div> */}
 
-            {/* //? Grid Mode! */}
-                <div className="relative group inline-block">
-                  <button onClick={() => {
-                    setGrid(!grid)
-                  }} className="text-white cursor-pointer text-xl p-2 rounded-full hover:bg-slate-400 transition-colors">
-                    { grid ? 
-                      <LuGrid2X2X />
-                    : 
-                      <LuGrid2X2Plus />
-                    }
-                  </button>
-                  <span className="absolute top-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap shadow-md">{ grid ? "Grid Remove" : "Grid Add" }</span>
-                </div>
+            
 
             {/* //? Rotate Mode! */}
                 <div className="relative group inline-block">
                   <button disabled={!selectedNode} // Node ရွေးထားမှ အလုပ်လုပ်မယ်
-                          onClick={() => selectedNode && rotateNode(selectedNode.id)}
-                           className={`${selectedNode ? "text-gray-100 hover:bg-slate-400" : "text-gray-400"} cursor-pointer text-xl p-2 rounded-full transition-colors`}
+                          onClick={() => 
+                                        selectedNode && rotateNode(selectedNode.id, 0)
+                                      }
+                                      className={`${selectedNode ? "text-gray-100 hover:bg-slate-800" : "text-gray-400"} cursor-pointer h-8 w-8 flex items-center justify-center rounded-md transition-colors`}
                            title="Rotate">
-                    <FaArrowsRotate />
+                    <FaArrowsRotate size={20} />
                   </button>
                   {/* <span className="absolute top-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap shadow-md">Rotate</span> */}
                 </div>
 
-            {/* //? Undo Mode! */}
-                <div className="relative group inline-block">
-                  <button onClick={() => undo()}
-                  disabled={history.index <= 0}
-                   className={`cursor-pointer text-xl p-2 rounded-full transition-colors
-                   ${
-                      history.index <= 0 
-                        ? 'text-gray-400 cursor-not-allowed' 
-                        : 'text-gray-100 hover:bg-slate-400'
-                    }`}
-                    title="Undo (Ctrl+Z)"
-                    >
-                    <ImUndo2 />
-                  </button>
-                  {/* <span className="absolute top-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap shadow-md">Undo</span> */}
-                </div>
-
-            {/* //? Redo Mode! */}
-                <div className="relative group inline-block">
-                  <button onClick={() => redo()}
-                  disabled={history.index >= history.stack.length - 1}
-                   className={`cursor-pointer text-xl p-2 rounded-full transition-colors
-                   ${
-                     history.index >= history.stack.length - 1
-                        ? 'text-gray-400 cursor-not-allowed' 
-                        : 'text-gray-100 hover:bg-slate-400'
-                    }`}
-                    title="Redo (Ctrl+Y)"
-                    >
-                    <ImRedo2 />
-                  </button>
-                  {/* <span className="absolute top-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap shadow-md">Redo</span> */}
-                </div>
+            
             {/* //? Delete Mode! */}
                 <div className="relative group inline-block">
                   <button disabled={!selectedNode} // Node ရွေးထားမှ အလုပ်လုပ်မယ်
                           onClick={() => selectedNode && deleteNode(selectedNode.id)}
-                   className={`cursor-pointer text-xl p-2 rounded-full transition-colors
+                   className={`cursor-pointer h-8 w-8 flex items-center justify-center rounded-md transition-colors
                    ${
                      !selectedNode
                         ? 'text-gray-400 cursor-not-allowed' 
-                        : 'text-red-500 hover:bg-slate-400'
+                        : 'text-red-500 hover:bg-slate-800'
                     }`}
                     title="Delete"
                     >
-                    <MdDeleteForever />
+                    <MdDeleteForever size={20} />
                   </button>
                   {/* <span className="absolute top-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap shadow-md">Redo</span> */}
                 </div>
 
             {/* //? Save Mode! */}
-                <div className="relative group inline-block">
+                <div className="relative group h-8 flex items-center justify-center px-1.5 inline-blockbg-[#0A162A]/90 border border-slate-400/30 backdrop-blur-md rounded-md">
                   <button disabled={history.index <= 2}
-                           className={`cursor-pointer text-xl p-2 rounded-full transition-colors
+                           className={`cursor-pointer flex items-center gap-2 rounded-md transition-colors
                    ${
                      history.index <= history.stack.length - 1
-                        ? 'text-gray-400 cursor-not-allowed' 
-                        : 'text-gray-100 hover:bg-slate-400'
+                        ? 'text-gray-300 cursor-not-allowed' 
+                        : 'text-gray-100 hover:bg-slate-800'
                     }`}
                     title="Save">
-                    <FaRegSave />
+                    <FaRegSave size={20} />
+                    <span className="text-md text-white/80 font-bold p-0">Save</span>
                   </button>
                   {/* <span className="absolute top-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap shadow-md">Save</span> */}
                 </div>
@@ -680,10 +1201,11 @@ const rotateNode = useCallback((nodeId: string) => {
             </button>
           </div>
         )}
-        <PropertiesPanel selectedNode={selectedNode} />
+        <PropertiesPanel nodes={nodes} edges={edges} onRename={handleRename} rotateNode={rotateNode} onDelete={deleteNode} selectedNode={selectedNode} />
       </div>
     </div>
   );
 };
 
 export default CircuitEditor;
+
