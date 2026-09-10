@@ -1,7 +1,7 @@
 import type { CircuitPin } from "../types/pin.types";
 
 // =====================================================
-// RESISTOR PIN DEFINITIONS
+// BUZZER PIN DEFINITIONS
 // =====================================================
 //
 // IMPORTANT
@@ -10,41 +10,42 @@ import type { CircuitPin } from "../types/pin.types";
 //
 // React Flow Handle IDs must be exactly the same:
 //
-// Pin A → Handle A
-// Pin B → Handle B
+// Positive → Handle positive
+// Negative → Handle negative
 //
-// A resistor is non-polarized, so A and B are
+// Most buzzers (especially active buzzers) are polarized, 
+// so the Positive (+) and Negative (-) terminals are NOT 
 // electrically interchangeable.
 //
 // =====================================================
 
-export const resistorPins: CircuitPin[] = [
+export const buzzerPins: CircuitPin[] = [
   // =====================================================
-  // TERMINAL A
+  // POSITIVE TERMINAL (+)
   // =====================================================
 
   {
-    id: "pin1",
-    label: "Pin 1",
-    alias: "Terminal 1",
+    id: "positive",
+    label: "Positive",
+    alias: "VCC / Signal (+)",
     type: "terminal",
     direction: "passive",
     description:
-      "First passive terminal of the resistor. Because a resistor is non-polarized, terminal A and terminal B are electrically interchangeable.",
+      "The positive terminal of the buzzer. For active buzzers, this connects to a DC voltage source. For passive buzzers, it connects to a PWM or audio signal.",
   },
 
   // =====================================================
-  // TERMINAL B
+  // NEGATIVE TERMINAL (-)
   // =====================================================
 
   {
-    id: "pin2",
-    label: "Pin 2",
-    alias: "Terminal 2",
+    id: "negative",
+    label: "Negative",
+    alias: "GND (-)",
     type: "terminal",
     direction: "passive",
     description:
-      "Second passive terminal of the resistor. Because a resistor is non-polarized, terminal B and terminal A are electrically interchangeable.",
+      "The negative terminal of the buzzer. This terminal should typically be connected to the ground (GND) of the circuit.",
   },
 ];
 
@@ -52,6 +53,6 @@ export const resistorPins: CircuitPin[] = [
 // PIN LOOKUP
 // =====================================================
 
-export const resistorPinsById = Object.fromEntries(
-  resistorPins.map((pin) => [pin.id, pin])
+export const buzzerPinsById = Object.fromEntries(
+  buzzerPins.map((pin) => [pin.id, pin])
 ) as Record<string, CircuitPin>;

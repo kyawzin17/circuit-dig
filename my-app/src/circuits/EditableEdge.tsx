@@ -37,7 +37,6 @@ export default function EditableEdge({
   id, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, style = {}, data, markerStart, markerEnd,
 }: EdgeProps) {
   const stubLength = data?.stubLength || 0;
-  console.log("this is stub length", stubLength);
 
   const { setEdges } = useReactFlow();
   const zoom = useStore((s) => s.transform[2]);

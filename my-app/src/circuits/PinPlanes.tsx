@@ -1,5 +1,7 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { Edge, Node } from "reactflow";
+
+import { getPinIdFromHandle } from "./utils/pin.utils";
 
 import {
   Search,
@@ -8,8 +10,6 @@ import {
   Cpu,
   CircleDot,
   Zap,
-  Radio,
-  Wifi,
 } from "lucide-react";
 
 import type {
@@ -31,12 +31,156 @@ type PinFilter =
   | PinProtocol;
 
 
+type ConnectedPinInfo = {
+  edgeId: string;
+  nodeId: string;
+  nodeLabel: string;
+  pin: string;
+};
+
+
 type Props = {
   selectedNode: Node | null;
-
   nodes: Node[];
-
   edges: Edge[];
+  setConnected: (connected: boolean) => void;
+};
+
+
+// =====================================================
+// PIN NORMALIZATION
+//
+// Handle IDs and CircuitPin IDs may not always match.
+//
+// Examples:
+//
+// pin.id       = "digital-13"
+// pin.label    = "D13"
+// handle       = "D13"
+//
+// pin.id       = "terminal-a"
+// pin.label    = "A"
+// handle       = "A-target"
+//
+// This normalization allows them to be compared safely.
+// =====================================================
+
+const normalizePinId = (
+  value: string | null | undefined
+): string => {
+
+  if (!value) {
+    return "";
+  }
+
+  return value
+    .trim()
+    .toUpperCase()
+    .replace(/[-_\s]/g, "");
+};
+
+
+// =====================================================
+// GET CANONICAL PIN ID FROM HANDLE
+// =====================================================
+
+const getCanonicalHandlePinId = (
+  handleId: string | null | undefined
+): string => {
+  if (!handleId) {
+    return "";
+  }
+
+  let value = handleId.trim();
+
+  // React Flow handle suffixes
+  value = value
+    .replace(/-source$/i, "")
+    .replace(/-target$/i, "");
+
+  // Other possible suffix formats
+  value = value
+    .replace(/:source$/i, "")
+    .replace(/:target$/i, "");
+
+  return normalizePinId(value);
+};
+
+
+// =====================================================
+// GET ALL POSSIBLE PIN IDENTIFIERS
+//
+// Example:
+//
+// {
+//   id: "digital-13",
+//   label: "D13",
+//   alias: "TX"
+// }
+//
+// becomes:
+//
+// ["DIGITAL13", "D13", "TX"]
+// =====================================================
+
+const getPinIdentifiers = (
+  pin: CircuitPin
+): string[] => {
+
+  const identifiers = [
+    normalizePinId(pin.id),
+    normalizePinId(pin.label),
+  ];
+
+
+  if (pin.alias) {
+    identifiers.push(
+      normalizePinId(pin.alias)
+    );
+  }
+
+
+  return identifiers.filter(
+    Boolean
+  );
+};
+
+
+// =====================================================
+// CHECK HANDLE BELONGS TO PIN
+// =====================================================
+
+const isHandleMatchingPin = (
+  handleId: string | null | undefined,
+  pin: CircuitPin
+): boolean => {
+
+  const normalizedHandle =
+    getCanonicalHandlePinId(
+      handleId
+    );
+
+
+  if (!normalizedHandle) {
+    return false;
+  }
+
+
+  const pinIdentifiers =
+    getPinIdentifiers(pin);
+
+    console.log("PIN MATCH DEBUG", {
+    handleId,
+    normalizedHandle,
+    pinId: pin.id,
+    pinLabel: pin.label,
+    pinIdentifiers,
+  });
+
+
+  return pinIdentifiers.includes(
+    normalizedHandle
+  );
 };
 
 
@@ -101,7 +245,7 @@ const filters: {
 
 
 // =====================================================
-// GROUP CONFIG
+// PIN GROUPS
 // =====================================================
 
 const pinGroups: {
@@ -130,8 +274,8 @@ const pinGroups: {
 
   {
     type: "terminal",
-    label: "Terminal Pins",
-  }
+    label: "Component Terminals",
+  },
 ];
 
 
@@ -139,11 +283,16 @@ const pinGroups: {
 // COMPONENT
 // =====================================================
 
-export default function PinsPanel({
+export default function PinPlanes({
   selectedNode,
+  setConnected,
   nodes,
   edges,
 }: Props) {
+
+  // =====================================================
+  // STATE
+  // =====================================================
 
   const [search, setSearch] =
     useState("");
@@ -153,7 +302,7 @@ export default function PinsPanel({
 
 
   // =====================================================
-  // GET PINS
+  // GET SELECTED NODE PINS
   // =====================================================
 
   const pins = useMemo<CircuitPin[]>(() => {
@@ -162,106 +311,192 @@ export default function PinsPanel({
       return [];
     }
 
+
     return (
       (selectedNode.data?.pins as CircuitPin[]) ||
       []
     );
 
-  }, [selectedNode]);
+  }, [
+    selectedNode,
+  ]);
 
 
   // =====================================================
-  // GET CONNECTIONS
+  // GET CONNECTIONS FOR PIN
+  //
+  // IMPORTANT:
+  //
+  // A wire can be:
+  //
+  // Arduino D13
+  //     SOURCE
+  //        ↓
+  // Resistor A
+  //     TARGET
+  //
+  // OR:
+  //
+  // Resistor B
+  //     SOURCE
+  //        ↓
+  // Arduino D12
+  //     TARGET
+  //
+  // Therefore we MUST check BOTH source and target.
   // =====================================================
 
   const getPinConnections = (
-    pinId: string
-  ) => {
+    nodeId: string,
+    pin: CircuitPin
+  ): Edge[] => {
 
-    if (!selectedNode) {
-      return [];
-    }
+    return edges.filter(
+      (edge) => {
 
-    return edges.filter((edge) => {
+        // =========================================
+        // CURRENT NODE IS SOURCE
+        // =========================================
 
-      const isSource =
-        edge.source === selectedNode.id &&
-        edge.sourceHandle === pinId;
+        const isSourcePin =
 
-      const isTarget =
-        edge.target === selectedNode.id &&
-        edge.targetHandle === pinId;
+          edge.source === nodeId &&
 
-      return (
-        isSource ||
-        isTarget
-      );
+          isHandleMatchingPin(
+            edge.sourceHandle,
+            pin
+          );
 
-    });
+
+        // =========================================
+        // CURRENT NODE IS TARGET
+        // =========================================
+
+        const isTargetPin =
+
+          edge.target === nodeId &&
+
+          isHandleMatchingPin(
+            edge.targetHandle,
+            pin
+          );
+
+
+        return (
+          isSourcePin ||
+          isTargetPin
+        );
+
+      }
+    );
 
   };
 
 
   // =====================================================
-  // GET CONNECTED COMPONENT
+  // GET CONNECTED COMPONENT INFORMATION
   // =====================================================
 
   const getConnectedInfo = (
-    pinId: string
-  ) => {
+    pin: CircuitPin
+  ): ConnectedPinInfo[] => {
 
     if (!selectedNode) {
       return [];
     }
 
+
     const connections =
-      getPinConnections(pinId);
+      getPinConnections(
+        selectedNode.id,
+        pin
+      );
 
 
-    return connections.map((edge) => {
+    return connections.map(
+      (edge) => {
 
-      const isSource =
-        edge.source === selectedNode.id &&
-        edge.sourceHandle === pinId;
+        // =========================================
+        // DETERMINE WHICH SIDE IS SELECTED PIN
+        // =========================================
 
+        const currentNodeIsSource =
 
-      const otherNodeId =
-        isSource
-          ? edge.target
-          : edge.source;
+          edge.source === selectedNode.id &&
 
-
-      const otherPin =
-        isSource
-          ? edge.targetHandle
-          : edge.sourceHandle;
+          isHandleMatchingPin(
+            edge.sourceHandle,
+            pin
+          );
 
 
-      const otherNode =
-        nodes.find(
-          (node) =>
-            node.id === otherNodeId
-        );
+        // =========================================
+        // GET OTHER NODE ID
+        // =========================================
+
+        const otherNodeId =
+          currentNodeIsSource
+            ? edge.target
+            : edge.source;
 
 
-      return {
+        // =========================================
+        // GET OTHER HANDLE ID
+        // =========================================
 
-        edgeId: edge.id,
+        const otherHandleId =
+          currentNodeIsSource
+            ? edge.targetHandle
+            : edge.sourceHandle;
 
-        nodeId: otherNodeId,
 
-        nodeLabel:
-          String(
-            otherNode?.data?.label ||
-            otherNodeId
-          ),
+        // =========================================
+        // FIND OTHER NODE
+        // =========================================
 
-        pin:
-          otherPin || "Unknown",
+        const otherNode =
+          nodes.find(
+            (node) =>
+              node.id === otherNodeId
+          );
 
-      };
 
-    });
+        // =========================================
+        // GET OTHER PIN ID
+        // =========================================
+
+        const otherPinId =
+          getCanonicalHandlePinId(
+            otherHandleId
+          );
+
+
+        return {
+
+          edgeId:
+            edge.id,
+
+
+          nodeId:
+            otherNodeId,
+
+
+          nodeLabel:
+            String(
+              otherNode?.data?.label ||
+              otherNode?.data?.componentType ||
+              otherNodeId
+            ),
+
+
+          pin:
+            otherPinId ||
+            "Unknown",
+
+        };
+
+      }
+    );
 
   };
 
@@ -272,7 +507,11 @@ export default function PinsPanel({
 
   const matchesFilter = (
     pin: CircuitPin
-  ) => {
+  ): boolean => {
+
+    // =========================================
+    // ALL
+    // =========================================
 
     if (
       activeFilter === "all"
@@ -281,7 +520,10 @@ export default function PinsPanel({
     }
 
 
-    // Main Pin Type
+    // =========================================
+    // MAIN PIN TYPE
+    // =========================================
+
     if (
       pin.type === activeFilter
     ) {
@@ -289,7 +531,10 @@ export default function PinsPanel({
     }
 
 
-    // Pin Features
+    // =========================================
+    // PIN FEATURES
+    // =========================================
+
     if (
       pin.features?.includes(
         activeFilter as PinFeature
@@ -299,7 +544,10 @@ export default function PinsPanel({
     }
 
 
-    // Pin Protocols
+    // =========================================
+    // PIN PROTOCOLS
+    // =========================================
+
     if (
       pin.protocols?.includes(
         activeFilter as PinProtocol
@@ -327,40 +575,51 @@ export default function PinsPanel({
           .toLowerCase();
 
 
-      return pins.filter((pin) => {
+      return pins.filter(
+        (pin) => {
 
-        const searchMatch =
-          !normalizedSearch ||
+          // =====================================
+          // SEARCH
+          // =====================================
 
-          pin.label
-            .toLowerCase()
-            .includes(
-              normalizedSearch
-            ) ||
+          const searchMatch =
 
-          pin.alias
-            ?.toLowerCase()
-            .includes(
-              normalizedSearch
-            ) ||
+            !normalizedSearch ||
 
-          pin.description
-            ?.toLowerCase()
-            .includes(
-              normalizedSearch
-            );
+            pin.label
+              .toLowerCase()
+              .includes(
+                normalizedSearch
+              ) ||
+
+            pin.alias
+              ?.toLowerCase()
+              .includes(
+                normalizedSearch
+              ) ||
+
+            pin.description
+              ?.toLowerCase()
+              .includes(
+                normalizedSearch
+              );
 
 
-        const filterMatch =
-          matchesFilter(pin);
+          // =====================================
+          // FILTER
+          // =====================================
+
+          const filterMatch =
+            matchesFilter(pin);
 
 
-        return (
-          searchMatch &&
-          filterMatch
-        );
+          return (
+            searchMatch &&
+            filterMatch
+          );
 
-      });
+        }
+      );
 
     }, [
       pins,
@@ -370,16 +629,100 @@ export default function PinsPanel({
 
 
   // =====================================================
-  // SUMMARY
+  // PIN CONNECTION MAP
+  //
+  // Each pin's connections are calculated once.
+  // =====================================================
+
+  const pinConnectionsMap =
+    useMemo(() => {
+
+      const map =
+        new Map<
+          string,
+          Edge[]
+        >();
+
+
+      if (!selectedNode) {
+        return map;
+      }
+
+
+      pins.forEach(
+        (pin) => {
+
+          const connections =
+            getPinConnections(
+              selectedNode.id,
+              pin
+            );
+
+
+          map.set(
+            pin.id,
+            connections
+          );
+
+        }
+      );
+
+
+      return map;
+
+    }, [
+      selectedNode,
+      pins,
+      edges,
+    ]);
+
+
+  // =====================================================
+  // CONNECTED COUNT
+  //
+  // Count pins, NOT wires.
+  //
+  // Example:
+  //
+  // D13 → 2 wires
+  //
+  // Connected count = 1
   // =====================================================
 
   const connectedCount =
-    pins.filter((pin) =>
-      getPinConnections(
-        pin.id
-      ).length > 0
-    ).length;
+    useMemo(() => {
 
+      return pins.filter(
+        (pin) => {
+
+          const connections =
+            pinConnectionsMap.get(
+              pin.id
+            );
+
+
+          return Boolean(
+            connections &&
+            connections.length > 0
+          );
+
+        }
+      ).length;
+
+    }, [
+      pins,
+      pinConnectionsMap,
+    ]);
+
+    useEffect(() => {
+      setConnected(
+        connectedCount > 0
+      );
+    }, [connectedCount, setConnected]);
+
+  // =====================================================
+  // FREE COUNT
+  // =====================================================
 
   const freeCount =
     pins.length -
@@ -421,7 +764,9 @@ export default function PinsPanel({
 
           <Plug
             size={22}
-            className="text-slate-500"
+            className="
+              text-slate-500
+            "
           />
 
         </div>
@@ -738,60 +1083,66 @@ export default function PinsPanel({
         "
       >
 
-        {filters.map((filter) => {
+        {filters.map(
+          (filter) => {
 
-          const isActive =
-            activeFilter ===
-            filter.id;
+            const isActive =
+              activeFilter ===
+              filter.id;
 
 
-          return (
+            return (
 
-            <button
-              key={filter.id}
+              <button
+                key={filter.id}
 
-              onClick={() =>
-                setActiveFilter(
-                  filter.id
-                )
-              }
+                type="button"
 
-              className={`
-                flex-none
-                px-2.5
-                py-1.5
-                rounded-md
-                text-[9px]
-                font-medium
-                border
-                transition-all
-                cursor-pointer
-
-                ${
-                  isActive
-
-                    ? `
-                      bg-cyan-500/15
-                      border-cyan-500/50
-                      text-cyan-400
-                    `
-
-                    : `
-                      bg-slate-800/50
-                      border-slate-700/70
-                      text-slate-500
-                      hover:text-slate-300
-                      hover:border-slate-600
-                    `
+                onClick={() =>
+                  setActiveFilter(
+                    filter.id
+                  )
                 }
-              `}
-            >
-              {filter.label}
-            </button>
 
-          );
+                className={`
+                  flex-none
+                  px-2.5
+                  py-1.5
+                  rounded-md
+                  text-[9px]
+                  font-medium
+                  border
+                  transition-all
+                  cursor-pointer
 
-        })}
+                  ${
+                    isActive
+
+                      ? `
+                        bg-cyan-500/15
+                        border-cyan-500/50
+                        text-cyan-400
+                      `
+
+                      : `
+                        bg-slate-800/50
+                        border-slate-700/70
+                        text-slate-500
+                        hover:text-slate-300
+                        hover:border-slate-600
+                      `
+                  }
+                `}
+              >
+
+                {filter.label}
+
+              </button>
+
+            );
+
+          }
+        )}
 
       </div>
 
@@ -806,357 +1157,133 @@ export default function PinsPanel({
         "
       >
 
-        {pinGroups.map((group) => {
+        {pinGroups.map(
+          (group) => {
 
-          const groupPins =
-            filteredPins.filter(
-              (pin) =>
-                pin.type ===
-                group.type
-            );
-
-
-          if (
-            groupPins.length === 0
-          ) {
-            return null;
-          }
+            const groupPins =
+              filteredPins.filter(
+                (pin) =>
+                  pin.type ===
+                  group.type
+              );
 
 
-          return (
+            if (
+              groupPins.length === 0
+            ) {
+              return null;
+            }
 
-            <section
-              key={group.type}
-            >
 
-              {/* GROUP HEADER */}
+            return (
 
-              <div
-                className="
-                  flex
-                  items-center
-                  gap-2
-                  mb-2
-                "
+              <section
+                key={group.type}
               >
 
-                <span
-                  className="
-                    text-[9px]
-                    font-bold
-                    tracking-[0.15em]
-                    text-slate-500
-                    uppercase
-                    whitespace-nowrap
-                  "
-                >
-                  {group.label}
-                </span>
-
+                {/* GROUP HEADER */}
 
                 <div
                   className="
-                    h-px
-                    flex-1
-                    bg-slate-800
+                    flex
+                    items-center
+                    gap-2
+                    mb-2
                   "
-                />
+                >
 
-              </div>
-
-
-              {/* PIN LIST */}
-
-              <div
-                className="
-                  space-y-2
-                "
-              >
-
-                {groupPins.map(
-                  (pin) => {
-
-                    const connections =
-                      getPinConnections(
-                        pin.id
-                      );
+                  <span
+                    className="
+                      text-[9px]
+                      font-bold
+                      tracking-[0.15em]
+                      text-slate-500
+                      uppercase
+                      whitespace-nowrap
+                    "
+                  >
+                    {group.label}
+                  </span>
 
 
-                    const isConnected =
-                      connections.length >
-                      0;
+                  <div
+                    className="
+                      h-px
+                      flex-1
+                      bg-slate-800
+                    "
+                  />
+
+                </div>
 
 
-                    const connectedInfo =
-                      getConnectedInfo(
-                        pin.id
-                      );
+                {/* PIN LIST */}
+
+                <div
+                  className="
+                    space-y-2
+                  "
+                >
+
+                  {groupPins.map(
+                    (pin) => {
+
+                      // =============================
+                      // GET CONNECTIONS
+                      // =============================
+
+                      const connections =
+                        pinConnectionsMap.get(
+                          pin.id
+                        ) || [];
 
 
-                    return (
+                      const isConnected =
+                        connections.length > 0;
 
-                      <div
-                        key={pin.id}
 
-                        className="
-                          bg-slate-800/50
-                          border
-                          border-slate-700/60
-                          rounded-lg
-                          p-3
-                          transition-all
-                          hover:border-slate-600
-                        "
-                      >
+                      const connectedInfo =
+                        isConnected
+                          ? getConnectedInfo(
+                              pin
+                            )
+                          : [];
 
-                        {/* TOP */}
+
+                      return (
 
                         <div
-                          className="
-                            flex
-                            items-start
-                            justify-between
-                            gap-2
-                          "
+                          key={pin.id}
+
+                          className={`
+                            bg-slate-800/50
+                            border
+                            rounded-lg
+                            p-3
+                            transition-all
+
+                            ${
+                              isConnected
+                                ? `
+                                  border-cyan-500/20
+                                  hover:border-cyan-500/40
+                                `
+                                : `
+                                  border-slate-700/60
+                                  hover:border-slate-600
+                                `
+                            }
+                          `}
                         >
 
+                          {/* PIN HEADER */}
+
                           <div
                             className="
                               flex
-                              items-center
+                              items-start
+                              justify-between
                               gap-2
-                              min-w-0
-                            "
-                          >
-
-                            {/* STATUS DOT */}
-
-                            <span
-                              className={`
-                                flex-none
-                                w-2
-                                h-2
-                                rounded-full
-
-                                ${
-                                  isConnected
-                                    ? "bg-cyan-400"
-                                    : "bg-slate-600"
-                                }
-                              `}
-                            />
-
-
-                            {/* PIN NAME */}
-
-                            <span
-                              className="
-                                text-sm
-                                font-bold
-                                text-white
-                              "
-                            >
-                              {pin.label}
-                            </span>
-
-
-                            {/* ALIAS */}
-
-                            {pin.alias && (
-
-                              <span
-                                className="
-                                  text-[9px]
-                                  px-1.5
-                                  py-0.5
-                                  rounded
-                                  bg-slate-900
-                                  text-slate-500
-                                  border
-                                  border-slate-800
-                                  truncate
-                                "
-                              >
-                                {pin.alias}
-                              </span>
-
-                            )}
-
-                          </div>
-
-
-                          {/* STATUS */}
-
-                          <span
-                            className={`
-                              flex-none
-                              text-[8px]
-                              font-bold
-                              tracking-wide
-                              px-2
-                              py-1
-                              rounded
-
-                              ${
-                                isConnected
-
-                                  ? `
-                                    bg-cyan-500/10
-                                    text-cyan-400
-                                  `
-
-                                  : `
-                                    bg-slate-700/60
-                                    text-slate-500
-                                  `
-                              }
-                            `}
-                          >
-
-                            {isConnected
-                              ? "CONNECTED"
-                              : "FREE"}
-
-                          </span>
-
-                        </div>
-
-
-                        {/* BADGES */}
-
-                        {(
-                          pin.features?.length ||
-                          pin.protocols?.length
-                        ) && (
-
-                          <div
-                            className="
-                              flex
-                              flex-wrap
-                              gap-1.5
-                              mt-2
-                            "
-                          >
-
-                            {/* FEATURES */}
-
-                            {pin.features?.map(
-                              (feature: any) => (
-
-                                <span
-                                  key={feature}
-
-                                  className="
-                                    text-[8px]
-                                    px-1.5
-                                    py-0.5
-                                    rounded
-                                    bg-violet-500/10
-                                    text-violet-400
-                                    border
-                                    border-violet-500/20
-                                    uppercase
-                                  "
-                                >
-                                  {feature}
-                                </span>
-
-                              )
-                            )}
-
-
-                            {/* PROTOCOLS */}
-
-                            {pin.protocols?.map(
-                              (protocol: any) => (
-
-                                <span
-                                  key={protocol}
-
-                                  className="
-                                    text-[8px]
-                                    px-1.5
-                                    py-0.5
-                                    rounded
-                                    bg-orange-500/10
-                                    text-orange-400
-                                    border
-                                    border-orange-500/20
-                                    uppercase
-                                  "
-                                >
-                                  {protocol}
-                                </span>
-
-                              )
-                            )}
-
-                          </div>
-
-                        )}
-
-
-                        {/* VOLTAGE */}
-
-                        {pin.voltage && (
-
-                          <div
-                            className="
-                              flex
-                              items-center
-                              gap-1.5
-                              mt-2
-                              text-[10px]
-                              text-yellow-400
-                            "
-                          >
-
-                            <Zap
-                              size={11}
-                            />
-
-
-                            <span>
-
-                              {pin.voltage.nominal}
-
-                              {pin.voltage.unit}
-
-                            </span>
-
-                          </div>
-
-                        )}
-
-
-                        {/* DESCRIPTION */}
-
-                        {pin.description && (
-
-                          <p
-                            className="
-                              mt-2
-                              text-[10px]
-                              leading-relaxed
-                              text-slate-500
-                            "
-                          >
-                            {pin.description}
-                          </p>
-
-                        )}
-
-
-                        {/* CONNECTIONS */}
-
-                        {isConnected && (
-
-                          <div
-                            className="
-                              mt-3
-                              pt-3
-                              border-t
-                              border-slate-700/50
                             "
                           >
 
@@ -1164,121 +1291,368 @@ export default function PinsPanel({
                               className="
                                 flex
                                 items-center
-                                gap-1.5
-                                mb-2
-                                text-[9px]
-                                font-medium
-                                tracking-wide
-                                text-slate-500
+                                gap-2
+                                min-w-0
                               "
                             >
 
-                              <Cable
-                                size={11}
+                              {/* STATUS DOT */}
+
+                              <span
+                                className={`
+                                  flex-none
+                                  w-2
+                                  h-2
+                                  rounded-full
+
+                                  ${
+                                    isConnected
+                                      ? `
+                                        bg-cyan-400
+                                        shadow-[0_0_8px_rgba(34,211,238,0.7)]
+                                      `
+                                      : `
+                                        bg-slate-600
+                                      `
+                                  }
+                                `}
                               />
 
-                              CONNECTED TO
+
+                              {/* PIN LABEL */}
+
+                              <span
+                                className="
+                                  text-sm
+                                  font-bold
+                                  text-white
+                                "
+                              >
+                                {pin.label}
+                              </span>
+
+
+                              {/* PIN ALIAS */}
+
+                              {pin.alias && (
+
+                                <span
+                                  className="
+                                    text-[9px]
+                                    px-1.5
+                                    py-0.5
+                                    rounded
+                                    bg-slate-900
+                                    text-slate-500
+                                    border
+                                    border-slate-800
+                                    truncate
+                                  "
+                                >
+                                  {pin.alias}
+                                </span>
+
+                              )}
 
                             </div>
 
 
+                            {/* STATUS */}
+
+                            <span
+                              className={`
+                                flex-none
+                                text-[8px]
+                                font-bold
+                                tracking-wide
+                                px-2
+                                py-1
+                                rounded
+
+                                ${
+                                  isConnected
+
+                                    ? `
+                                      bg-cyan-500/10
+                                      text-cyan-400
+                                    `
+
+                                    : `
+                                      bg-slate-700/60
+                                      text-slate-500
+                                    `
+                                }
+                              `}
+                            >
+
+                              {isConnected
+                                ? "CONNECTED"
+                                : "FREE"}
+
+                            </span>
+
+                          </div>
+
+
+                          {/* FEATURES / PROTOCOLS */}
+
+                          {(
+                            pin.features?.length ||
+                            pin.protocols?.length
+                          ) && (
+
                             <div
                               className="
-                                space-y-1.5
+                                flex
+                                flex-wrap
+                                gap-1.5
+                                mt-2
                               "
                             >
 
-                              {connectedInfo.map(
-                                (
-                                  connection
-                                ) => (
+                              {pin.features?.map(
+                                (feature) => (
 
-                                  <div
-                                    key={
-                                      connection.edgeId
-                                    }
+                                  <span
+                                    key={feature}
 
                                     className="
-                                      flex
-                                      items-center
-                                      justify-between
-                                      gap-3
-                                      bg-slate-900/50
-                                      rounded-md
-                                      px-2
-                                      py-1.5
+                                      text-[8px]
+                                      px-1.5
+                                      py-0.5
+                                      rounded
+                                      bg-violet-500/10
+                                      text-violet-400
+                                      border
+                                      border-violet-500/20
+                                      uppercase
                                     "
                                   >
+                                    {feature}
+                                  </span>
 
-                                    <div
-                                      className="
-                                        flex
-                                        items-center
-                                        gap-1.5
-                                        min-w-0
-                                      "
-                                    >
-
-                                      <Cpu
-                                        size={11}
-                                        className="
-                                          flex-none
-                                          text-slate-500
-                                        "
-                                      />
-
-                                      <span
-                                        className="
-                                          text-[10px]
-                                          text-slate-300
-                                          truncate
-                                        "
-                                      >
-                                        {
-                                          connection.nodeLabel
-                                        }
-                                      </span>
-
-                                    </div>
+                                )
+                              )}
 
 
-                                    <span
-                                      className="
-                                        flex-none
-                                        text-[9px]
-                                        text-cyan-400
-                                      "
-                                    >
-                                      {
-                                        connection.pin
-                                      }
-                                    </span>
+                              {pin.protocols?.map(
+                                (protocol) => (
 
-                                  </div>
+                                  <span
+                                    key={protocol}
+
+                                    className="
+                                      text-[8px]
+                                      px-1.5
+                                      py-0.5
+                                      rounded
+                                      bg-orange-500/10
+                                      text-orange-400
+                                      border
+                                      border-orange-500/20
+                                      uppercase
+                                    "
+                                  >
+                                    {protocol}
+                                  </span>
 
                                 )
                               )}
 
                             </div>
 
-                          </div>
+                          )}
 
-                        )}
 
-                      </div>
+                          {/* VOLTAGE */}
 
-                    );
+                          {pin.voltage && (
 
-                  }
-                )}
+                            <div
+                              className="
+                                flex
+                                items-center
+                                gap-1.5
+                                mt-2
+                                text-[10px]
+                                text-yellow-400
+                              "
+                            >
 
-              </div>
+                              <Zap
+                                size={11}
+                              />
 
-            </section>
+                              <span>
+                                {pin.voltage.nominal}
+                                {pin.voltage.unit}
+                              </span>
 
-          );
+                            </div>
 
-        })}
+                          )}
+
+
+                          {/* DESCRIPTION */}
+
+                          {pin.description && (
+
+                            <p
+                              className="
+                                mt-2
+                                text-[10px]
+                                leading-relaxed
+                                text-slate-500
+                              "
+                            >
+                              {pin.description}
+                            </p>
+
+                          )}
+
+
+                          {/* CONNECTED COMPONENTS */}
+
+                          {isConnected && (
+
+                            <div
+                              className="
+                                mt-3
+                                pt-3
+                                border-t
+                                border-slate-700/50
+                              "
+                            >
+
+                              <div
+                                className="
+                                  flex
+                                  items-center
+                                  gap-1.5
+                                  mb-2
+                                  text-[9px]
+                                  font-medium
+                                  tracking-wide
+                                  text-slate-500
+                                "
+                              >
+
+                                <Cable
+                                  size={11}
+                                />
+
+                                CONNECTED TO
+
+                              </div>
+
+
+                              <div
+                                className="
+                                  space-y-1.5
+                                "
+                              >
+
+                                {connectedInfo.map(
+                                  (
+                                    connection
+                                  ) => (
+
+                                    <div
+                                      key={
+                                        connection.edgeId
+                                      }
+
+                                      className="
+                                        flex
+                                        items-center
+                                        justify-between
+                                        gap-3
+                                        bg-slate-900/50
+                                        rounded-md
+                                        px-2
+                                        py-1.5
+                                      "
+                                    >
+
+                                      <div
+                                        className="
+                                          flex
+                                          items-center
+                                          gap-1.5
+                                          min-w-0
+                                        "
+                                      >
+
+                                        <Cpu
+                                          size={11}
+
+                                          className="
+                                            flex-none
+                                            text-slate-500
+                                          "
+                                        />
+
+                                        <span
+                                          className="
+                                            text-[10px]
+                                            text-slate-300
+                                            truncate
+                                          "
+                                        >
+
+                                          {
+                                            connection.nodeLabel
+                                          }
+
+                                        </span>
+
+                                      </div>
+
+
+                                      <span
+                                        className="
+                                          flex-none
+                                          text-[9px]
+                                          text-cyan-400
+                                          bg-cyan-500/10
+                                          px-1.5
+                                          py-0.5
+                                          rounded
+                                        "
+                                      >
+
+                                        {
+                                          connection.pin
+                                        }
+
+                                      </span>
+
+                                    </div>
+
+                                  )
+                                )}
+
+                              </div>
+
+                            </div>
+
+                          )}
+
+                        </div>
+
+                      );
+
+                    }
+                  )}
+
+                </div>
+
+              </section>
+
+            );
+
+          }
+        )}
 
       </div>
 
@@ -1302,6 +1676,7 @@ export default function PinsPanel({
 
           <CircleDot
             size={26}
+
             className="
               text-slate-700
               mb-3

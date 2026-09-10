@@ -1,7 +1,7 @@
 import type { CircuitPin } from "../types/pin.types";
 
 // =====================================================
-// RESISTOR PIN DEFINITIONS
+// LED PIN DEFINITIONS
 // =====================================================
 //
 // IMPORTANT
@@ -10,41 +10,41 @@ import type { CircuitPin } from "../types/pin.types";
 //
 // React Flow Handle IDs must be exactly the same:
 //
-// Pin A → Handle A
-// Pin B → Handle B
+// Anode → Handle anode
+// Cathode → Handle cathode
 //
-// A resistor is non-polarized, so A and B are
-// electrically interchangeable.
+// An LED is polarized, so the Anode (+) and Cathode (-)
+// are NOT electrically interchangeable.
 //
 // =====================================================
 
-export const resistorPins: CircuitPin[] = [
+export const ledPins: CircuitPin[] = [
   // =====================================================
-  // TERMINAL A
+  // ANODE (+)
   // =====================================================
 
   {
-    id: "pin1",
-    label: "Pin 1",
-    alias: "Terminal 1",
+    id: "anode",
+    label: "Anode",
+    alias: "Positive (+)",
     type: "terminal",
     direction: "passive",
     description:
-      "First passive terminal of the resistor. Because a resistor is non-polarized, terminal A and terminal B are electrically interchangeable.",
+      "The positive terminal (Anode) of the LED. Current must flow from Anode to Cathode for the LED to emit light.",
   },
 
   // =====================================================
-  // TERMINAL B
+  // CATHODE (-)
   // =====================================================
 
   {
-    id: "pin2",
-    label: "Pin 2",
-    alias: "Terminal 2",
+    id: "cathode",
+    label: "Cathode",
+    alias: "Negative (-)",
     type: "terminal",
     direction: "passive",
     description:
-      "Second passive terminal of the resistor. Because a resistor is non-polarized, terminal B and terminal A are electrically interchangeable.",
+      "The negative terminal (Cathode) of the LED. This terminal should typically point towards the ground or negative side of the voltage source.",
   },
 ];
 
@@ -52,6 +52,6 @@ export const resistorPins: CircuitPin[] = [
 // PIN LOOKUP
 // =====================================================
 
-export const resistorPinsById = Object.fromEntries(
-  resistorPins.map((pin) => [pin.id, pin])
+export const ledPinsById = Object.fromEntries(
+  ledPins.map((pin) => [pin.id, pin])
 ) as Record<string, CircuitPin>;

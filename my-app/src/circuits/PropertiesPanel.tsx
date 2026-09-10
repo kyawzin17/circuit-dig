@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Pencil,
   Copy,
@@ -41,6 +41,12 @@ type Props = {
     nodeId: string,
     rotation?: number
   ) => void;
+
+  updateResistorValue: (
+    nodeId: string,
+    value: string
+  ) => void;
+
 };
 
 
@@ -53,7 +59,8 @@ export default function PropertiesPanel({
   rotateNode,
   nodes,
   edges,
-}: Props) {
+  updateResistorValue,
+  }: Props) {
 
   const [activeTab, setActiveTab] =
     useState("properties");
@@ -61,13 +68,22 @@ export default function PropertiesPanel({
   const [isEditingName, setIsEditingName] =
     useState(false);
 
+    const [isEditingValue, setIsEditingValue] =
+    useState(false);
+
   const [name, setName] =
     useState("");
+
+    const [value, setValue] =
+    useState<string>("1000");
 
   const [copied, setCopied] =
     useState(false);
 
   const [additionalOpen, setAdditionalOpen] =
+    useState(false);
+
+    const [connected, setConnected] =
     useState(false);
 
 
@@ -220,15 +236,32 @@ export default function PropertiesPanel({
     return null;
   }
 
+  function isResistor(componentType: string) {
+  return componentType?.toLowerCase().includes("resistor");
+}
+
+const COLOR_MAP: Record<number, string> = {
+  0: "bg-black",
+  1: "bg-amber-900", // Brown
+  2: "bg-red-600",
+  3: "bg-orange-500",
+  4: "bg-yellow-400",
+  5: "bg-green-600",
+  6: "bg-blue-600",
+  7: "bg-purple-600",
+  8: "bg-gray-500",
+  9: "bg-white",
+};
+
 
   return (
     <aside
       className="
         w-[320px]
-        h-[calc(100vh-48px)]
+        h-[calc(100vh-64px)]
         fixed
         custom-scrollbar 
-        -right-1 top-12 border-3 rounded-md border-green
+        -right-1 top-16 border-3 rounded-md border-green
         bg-[#0d1726]
         border-l
         border-[#1e3148]
@@ -305,7 +338,37 @@ export default function PropertiesPanel({
                 "
               />
 
-            ) : (
+            ) : data.tag ? (
+            
+                      /* WOKWI COMPONENT */
+            
+                      <div
+                        className="
+                          flex
+                          items-center
+                          justify-center
+                          transition-transform
+                          duration-200
+                          group-hover:scale-100
+                        "
+                        style={{
+                          transform: `
+                            scale(${data.scale})
+                            translateY(${data.yOffset})
+                          `,
+                          transformOrigin:
+                            "center center",
+                        }}
+                      >
+            
+                        {React.createElement(
+                          data.tag,
+                          data.props || {}
+                        )}
+            
+                      </div>
+            
+                    ) : (
 
               <div
                 className="
@@ -397,12 +460,9 @@ export default function PropertiesPanel({
               />
 
               <span
-                className="
-                  text-xs
-                  text-emerald-400
-                "
+                className={`${connected ? "text-emerald-400" : "text-red-400"} text-xs`}
               >
-                Connected
+                {connected ? "Connected" : "Not Connected"}
               </span>
 
             </div>
@@ -818,6 +878,192 @@ export default function PropertiesPanel({
 
             </div>
 
+              {/* =================================
+    RESISTOR SETTINGS
+================================= */}
+{isResistor(componentType) && (
+  <div className="mt-6">
+
+  {/* NAME */}
+
+            <PropertyRow
+              label="Resistance Value (Ohms)"
+            >
+
+              {!isEditingValue ? (
+
+                <div
+                  className="
+                    flex
+                    items-center
+                    justify-between
+                    w-full
+                    px-3
+                    py-2
+                    rounded-md
+                    bg-[#111e2f]
+                    border
+                    border-[#29405b]
+                  "
+                >
+
+                  <span
+                    className="
+                      text-xs
+                      text-slate-200
+                      truncate
+                    "
+                  >
+                    {value}
+                  </span>
+
+
+                  <button
+                    onClick={() =>
+                      setIsEditingValue(true)
+                    }
+                    className="
+                      text-slate-400
+                      hover:text-blue-400
+                    "
+                  >
+                    <Pencil size={14} />
+                  </button>
+
+                </div>
+
+              ) : (
+
+                <div
+                  className="
+                    flex
+                    items-center
+                    gap-2
+                  "
+                >
+
+                  <input
+                    type="number"
+                    autoFocus
+                    value={value}
+                    onChange={(event) =>
+                      setValue(
+                        event.target.value
+                      )
+                    }
+                    onKeyDown={(event) => {
+
+                      if (
+                        event.key === "Enter"
+                      ) {
+                        () => {
+                                updateResistorValue(
+                                  selectedNode.id,
+                                  value
+                                );
+                                setIsEditingValue(false);
+                              }
+                      }
+
+                      if (
+                        event.key === "Escape"
+                      ) {
+                        () => {
+                                setIsEditingValue(false);
+                              }}
+                      }
+
+                    }
+                    className="
+                      flex-1
+                      min-w-0
+                      px-3
+                      py-2
+                      text-xs
+                      text-white
+                      bg-[#111e2f]
+                      border
+                      border-blue-500
+                      rounded-md
+                      outline-none
+                    "
+                  />
+
+
+                  <button
+                    onClick={() => {
+                                updateResistorValue(
+                                  selectedNode.id,
+                                  value
+                                );
+                                setIsEditingValue(false);
+                              }}
+                    className="
+                      p-2
+                      text-emerald-400
+                      hover:bg-emerald-500/10
+                      rounded
+                    "
+                  >
+                    <Check size={15} />
+                  </button>
+
+
+                  <button
+                    onClick={() => {
+                      setIsEditingValue(false);
+                    }}
+                    className="
+                      p-2
+                      text-red-400
+                      hover:bg-red-500/10
+                      rounded
+                    "
+                  >
+                    <X size={15} />
+                  </button>
+
+                </div>
+
+              )}
+
+            </PropertyRow>
+
+    {/* Preset Values (Quick Select) */}
+    <div className="mt-3">
+      <p className="text-xs text-slate-400 mb-2">Quick Presets</p>
+      <div className="grid grid-cols-4 gap-2">
+        {["220", "1000", "4700", "10000"].map((val) => (
+          <button
+            key={val}
+            onClick={() => {
+              setValue(val);
+              updateResistorValue(
+                                  selectedNode.id,
+                                  val
+                                );
+              }
+            }
+            className={`
+              py-1.5
+              rounded-md
+              text-[10px]
+              border
+              transition
+              ${
+                (data.props?.value || String(data.value)) === val
+                  ? "bg-blue-500/20 border-blue-500 text-blue-400"
+                  : "bg-[#111e2f] border-[#29405b] text-slate-400 hover:border-blue-500/50"
+              }
+            `}
+          >
+            {Number(val) >= 1000 ? `${Number(val) / 1000}kΩ` : `${val}Ω`}
+          </button>
+        ))}
+      </div>
+    </div>
+  </div>
+)}
 
             {/* =================================
                 BOARD SETTINGS
@@ -1004,6 +1250,7 @@ export default function PropertiesPanel({
             selectedNode={selectedNode}
             nodes={nodes}
             edges={edges}
+            setConnected={setConnected}
           />
 
         )}

@@ -27,20 +27,6 @@ import ElectronicNode from "./ElectronicNode.tsx";
 
 import { arduinoUnoPins } from "./pins/arduinoUnoPins.ts";
 import { resistorPins } from "./pins/resistorPins.ts";
-import { ledPins } from "./pins/ledPins.ts";
-import { buzzerPins } from "./pins/buzzerPins.ts";
-import { hcsr04Pins } from "./pins/hcsr04Pins.ts";
-import { servoPins } from "./pins/servoMotorPins.ts";
-import { lcd1602I2cPins } from "./pins/lcd1602_i2cPins.ts";
-import { lcd1602Pins } from "./pins/lcd1602Pins.ts";
-import { miniBreadboardPins } from "./pins/miniBreadBoardPins.ts";
-import { halfBreadboardPins } from "./pins/halfBreadBoardPins.ts";
-import { fullBreadboardPins } from "./pins/fullBreadBoardPins.ts";
-import { pushbuttonPins } from "./pins/pushButtonPins.ts";
-import { potentiometerPins } from "./pins/potentiometerPins.ts";
-import { slideSwitchPins } from "./pins/slideSwitchPins.ts";
-
-
 
 import {
   ChevronDown,
@@ -418,36 +404,6 @@ const CircuitEditor = () => {
     index: 0,
   });
 
-  const updateResistorValue = useCallback(
-  (nodeId: string, value: string) => {
-    setNodes((currentNodes) =>
-      currentNodes.map((node) => {
-        if (node.id !== nodeId) {
-          return node;
-        }
-
-        if (node.data?.componentType !== "resistor") {
-          return node;
-        }
-
-        return {
-          ...node,
-
-          data: {
-            ...node.data,
-
-            props: {
-              ...(node.data.props ?? {}),
-              value,
-            },
-          },
-        };
-      })
-    );
-  },
-  [setNodes]
-);
-
   /* =======================================================
      PUSH HISTORY
   ======================================================= */
@@ -721,7 +677,6 @@ const CircuitEditor = () => {
         event.dataTransfer.getData(
           "application/reactflow"
         );
-        console.log(type);
 
       if (!type) {
         return;
@@ -740,8 +695,6 @@ const CircuitEditor = () => {
           tag: "wokwi-arduino-uno",
           props: {},
           pins: arduinoUnoPins,
-          scale: 0.2,
-          yOffset: "-15px",
         },
 
         resistor: {
@@ -753,80 +706,62 @@ const CircuitEditor = () => {
 
         "led-blue": {
           label: "Blue LED",
-          tag: "wokwi-led",
-          props: {
-            color: "blue",
-          },
-          pins: ledPins,
+          tag: "wokwi-led-blue",
+          props: {},
         },
 
         "led-green": {
           label: "Green LED",
-          tag: "wokwi-led",
-          props: {
-            color: "green",
-          },
-          pins: ledPins,
+          tag: "wokwi-led-green",
+          props: {},
         },
 
         "led-red": {
           label: "Red LED",
-          tag: "wokwi-led",
-          props: {
-            color: "red",
-          },
-          pins: ledPins,
+          tag: "wokwi-led-red",
+          props: {},
         },
 
         pushbutton: {
           label: "Push Button",
           tag: "wokwi-pushbutton",
           props: {},
-          pins: pushbuttonPins,
         },
 
         potentiometer: {
           label: "Potentiometer",
           tag: "wokwi-potentiometer",
           props: {},
-          pins: potentiometerPins,
         },
 
         "slide-switch": {
           label: "Slide Switch",
           tag: "wokwi-slide-switch",
           props: {},
-          pins: slideSwitchPins,
         },
 
         "hc-sr04": {
           label: "HC-SR04",
           tag: "wokwi-hc-sr04",
           props: {},
-          pins: hcsr04Pins,
         },
 
         lcd1602: {
           label: "LCD 1602",
           tag: "wokwi-lcd1602",
           props: {},
-          pins: lcd1602Pins,
         },
 
         "lcd1602-i2c": {
           label: "LCD 1602 I2C",
-          tag: "wokwi-lcd1602",
-          props: {
-            pins: "i2c",
-          },
-          pins: lcd1602I2cPins,
+          tag: "wokwi-lcd1602-i2c",
+          props: {},
         },
 
         buzzer: {
           label: "Buzzer",
           tag: "wokwi-buzzer",
           props: {},
-          pins: buzzerPins,
         },
 
         neopixel: {
@@ -841,11 +776,10 @@ const CircuitEditor = () => {
           props: {},
         },
 
-        "servo": {
+        servo: {
           label: "Servo",
           tag: "wokwi-servo",
           props: {},
-          pins: servoPins,
         },
 
         "membrane-keypad": {
@@ -858,24 +792,27 @@ const CircuitEditor = () => {
           label: "Mini Breadboard",
           tag: "wokwi-mini-board",
           props: {},
-          pins: miniBreadboardPins,
         },
 
-        "half-board": {
+        "breadboard-mini": {
+          label: "Mini Breadboard",
+          tag: "wokwi-mini-board",
+          props: {},
+        },
+
+        "breadboard-half": {
           label: "Half Breadboard",
-          tag: "wokwi-half-board",
+          tag: "wokwi-breadboard-half",
           props: {},
-          pins: halfBreadboardPins,
         },
 
-        "full-board": {
+        "breadboard-full": {
           label: "Full Breadboard",
-          tag: "wokwi-full-board",
+          tag: "wokwi-breadboard-full",
           props: {},
-          pins: fullBreadboardPins,
         },
 
-        "pico": {
+        pico: {
           label: "Raspberry Pi Pico",
           tag: "wokwi-pico",
           props: {},
@@ -930,7 +867,6 @@ const CircuitEditor = () => {
       const autoLabel =
         `${config.label}-${instanceNumber}`;
 
-
       /* ===================================================
          NODE TYPE
       =================================================== */
@@ -940,32 +876,35 @@ const CircuitEditor = () => {
 
       const isBreadboard =
         type === "mini-board" ||
-        type === "half-board" ||
-        type === "full-board";
+        type === "breadboard-mini" ||
+        type === "breadboard-half" ||
+        type === "breadboard-full";
 
       if (
-        type === "mini-board"
+        type === "mini-board" ||
+        type === "breadboard-mini"
       ) {
         customNodeType =
           "breadboardMiniNode";
       }
 
       if (
-        type === "half-board"
+        type === "breadboard-half"
       ) {
         customNodeType =
           "breadboardHalfNode";
       }
 
       if (
-        type === "full-board"
+        type === "breadboard-full"
       ) {
         customNodeType =
           "breadboardFullNode";
       }
 
       if (
-        type === "pico"
+        type === "pico" ||
+        type === "raspberry-pi-pico"
       ) {
         customNodeType = "picoNode";
       }
@@ -988,7 +927,7 @@ const CircuitEditor = () => {
 
           tag: config.tag,
 
-          props: { ...config.props },
+          props: config.props,
 
           label: autoLabel,
 
@@ -1721,7 +1660,6 @@ const CircuitEditor = () => {
         rotateNode={rotateNode}
         onDelete={deleteNode}
         selectedNode={selectedNode}
-        updateResistorValue={updateResistorValue}
       />
     </div>
   );

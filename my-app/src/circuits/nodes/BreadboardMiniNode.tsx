@@ -1,141 +1,354 @@
-import React from 'react';
-import { Handle, Position, type NodeProps, useUpdateNodeInternals } from 'reactflow';
-import { useEffect } from 'react';
+import React, {
+  useEffect,
+  useMemo,
+} from "react";
+
+import {
+  Handle,
+  Position,
+  type NodeProps,
+  useUpdateNodeInternals,
+} from "reactflow";
+
+// =====================================================
+// TYPES
+// =====================================================
+
+type BreadboardPinType = "terminal";
+
+type BreadboardPin = {
+  id: string;
+  label: string;
+  type: BreadboardPinType;
+  direction: "bidirectional" | "passive";
+  description?: string;
+  group?: string;
+  row?: number;
+  column?: string;
+  x: number;
+  y: number;
+  handleId: string;
+};
+
+// =====================================================
+// CONSTANTS (MINI BREADBOARD - 17 ROWS)
+// =====================================================
+
+const SCALE = 0.5;
+const ROW_COUNT = 17;
+
+const leftCols = [
+  { label: "A", x: 30 },
+  { label: "B", x: 50 },
+  { label: "C", x: 70 },
+  { label: "D", x: 90 },
+  { label: "E", x: 110 },
+];
+
+const rightCols = [
+  { label: "F", x: 170 },
+  { label: "G", x: 190 },
+  { label: "H", x: 210 },
+  { label: "I", x: 230 },
+  { label: "J", x: 250 },
+];
+
+// =====================================================
+// ROW POSITION
+// =====================================================
+
+const getRowY = (row: number) => {
+  return 35 + row * 20;
+};
+
+// =====================================================
+// BREADBOARD PIN BUILDER
+// =====================================================
+
+function createMiniBreadboardPins(): BreadboardPin[] {
+  const pins: BreadboardPin[] = [];
+
+  for (let row = 1; row <= ROW_COUNT; row++) {
+    const y = getRowY(row);
+
+    // -----------------------------------------------
+    // LEFT A-E
+    // -----------------------------------------------
+    leftCols.forEach((column) => {
+      const pinId = `${column.label}${row}`;
+
+      pins.push({
+        id: pinId,
+        label: pinId,
+        type: "terminal",
+        direction: "bidirectional",
+        description: `Mini breadboard terminal ${pinId}`,
+        group: `row-${row}-left`,
+        row,
+        column: column.label,
+        x: column.x,
+        y,
+        handleId: `pin_${pinId}`,
+      });
+    });
+
+    // -----------------------------------------------
+    // RIGHT F-J
+    // -----------------------------------------------
+    rightCols.forEach((column) => {
+      const pinId = `${column.label}${row}`;
+
+      pins.push({
+        id: pinId,
+        label: pinId,
+        type: "terminal",
+        direction: "bidirectional",
+        description: `Mini breadboard terminal ${pinId}`,
+        group: `row-${row}-right`,
+        row,
+        column: column.label,
+        x: column.x,
+        y,
+        handleId: `pin_${pinId}`,
+      });
+    });
+  }
+
+  return pins;
+}
+
+// =====================================================
+// COMPONENT
+// =====================================================
 
 const BreadboardMiniNode = ({ id, data }: NodeProps) => {
-  const rotation = data.rotation || 0;
-   const updateNodeInternals = useUpdateNodeInternals();
-   
-   useEffect(() => {
-      const timer= setTimeout(() => {
-        updateNodeInternals(id);
-      }, 300);
-      return () => clearTimeout(timer);
-      
-    }, [rotation, updateNodeInternals, id]);
-   
-  // 🌟 SCALE တန်ဖိုးကို အခြားဘုတ်များအတိုင်း 0.6 ပဲ ထားရှိပေးထားပါတယ်
-  const SCALE = 0.5; 
+  const rotation = typeof data?.rotation === "number" ? data.rotation : 0;
+  const updateNodeInternals = useUpdateNodeInternals();
 
-  // Mini Breadboard တွင် ပုံမှန်အားဖြင့် အတန်းပေါင်း ၁၇ တန်း ပါဝင်သည်
-  const rows = Array.from({ length: 17 }, (_, i) => i + 1);
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      updateNodeInternals(id);
+    }, 100);
 
-  const leftCols = [
-    { label: 'A', x: 90 }, { label: 'B', x: 110 }, { label: 'C', x: 130 }, { label: 'D', x: 150 }, { label: 'E', x: 170 }
-  ];
-  const rightCols = [
-    { label: 'F', x: 270 }, { label: 'G', x: 290 }, { label: 'H', x: 310 }, { label: 'I', x: 330 }, { label: 'J', x: 350 }
-  ];
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [id, rotation, updateNodeInternals]);
 
-  const getRowY = (row: number) => 30 + row * 20;
+  const pins = useMemo(() => createMiniBreadboardPins(), []);
 
-  // Mini Board အတွက် အမြင့်ကို 420px သို့ ကျုံ့ထားသည်
-  const nodeWidth = 440 * SCALE;
-  const nodeHeight = 420 * SCALE;
+  // MINI BOARD SIZE
+  const nodeWidth = 280 * SCALE;
+  const nodeHeight = 410 * SCALE;
 
   return (
-    <div className="relative bg-transparent border-2 border-transparent hover:border-blue-400/70"
-         style={{ 
-                  width: `${nodeWidth}px`,
-                   height: `${nodeHeight}px`,
-                   transform: `rotate(${rotation}deg)`,
-                   transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)', // Smooth ဖြစ်အောင်
-                   }}>
-      
-      {/* --- ၁။ BREADBOARD SVG VISUALS --- */}
-      <svg viewBox="0 0 440 420" width={nodeWidth} height={nodeHeight} className="absolute top-0 left-0 pointer-events-none">
+    <div
+      className="
+        relative
+        bg-transparent
+        border-2
+        border-transparent
+        hover:border-blue-400/60
+      "
+      style={{
+        width: `${nodeWidth}px`,
+        height: `${nodeHeight}px`,
+        transform: `rotate(${rotation}deg)`,
+        transition: "transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+      }}
+    >
+      {/* =================================================
+          SVG BREADBOARD
+      ================================================= */}
+      <svg
+        viewBox="0 0 280 410"
+        width={nodeWidth}
+        height={nodeHeight}
+        className="
+          absolute
+          z-5
+          top-0
+          left-0
+          pointer-events-none
+        "
+      >
         <defs>
           <g id="wokwi-3d-hole">
-            <rect x="0" y="0" width="11" height="11" rx="1" fill="#FFFFFF" opacity="0.9"/>
-            <rect x="-1" y="-1" width="11" height="11" rx="1" fill="#A0A0A0" opacity="0.5"/>
-            <rect x="0" y="0" width="10" height="10" rx="1" fill="#242424"/>
-            <rect x="0" y="0" width="9" height="2" fill="#121212"/>
-            <rect x="0" y="0" width="2" height="9" fill="#121212"/>
+            <rect
+              x="0"
+              y="0"
+              width="11"
+              height="11"
+              rx="1"
+              fill="#FFFFFF"
+              opacity="0.9"
+            />
+            <rect
+              x="-1"
+              y="-1"
+              width="11"
+              height="11"
+              rx="1"
+              fill="#A0A0A0"
+              opacity="0.5"
+            />
+            <rect
+              x="0"
+              y="0"
+              width="10"
+              height="10"
+              rx="1"
+              fill="#242424"
+            />
+            <rect x="0" y="0" width="9" height="2" fill="#121212" />
+            <rect x="0" y="0" width="2" height="9" fill="#121212" />
           </g>
         </defs>
 
-        {/* Board Base Panel */}
-        <rect x="0" y="0" width="440" height="420" rx="12" fill="#E5E7EB" stroke="#D1D5DB" strokeWidth="2"/>
-        
-        {/* Center Trench Divider (အလယ်မြောင်းတိုလေး) */}
-        <rect x="212" y="40" width="16" height="340" rx="2" fill="#CDD1D6"/>
+        {/* BOARD BASE */}
+        <rect
+          x="0"
+          y="0"
+          width="280"
+          height="410"
+          rx="12"
+          fill="#E5E7EB"
+          stroke="#D1D5DB"
+          strokeWidth="2"
+        />
 
-        {rows.map((row) => {
+        {/* CENTER TRENCH */}
+        <rect
+          x="132"
+          y="40"
+          width="16"
+          height="350"
+          rx="2"
+          fill="#CDD1D6"
+        />
+
+        {/* =============================================
+            COLUMN LABELS (A-E & F-J)
+        ============================================= */}
+        {leftCols.map((column) => (
+          <text
+            key={`col-label-${column.label}`}
+            x={column.x}
+            y="28"
+            fontFamily="Arial"
+            fontSize="12"
+            fontWeight="bold"
+            fill="#4B5563"
+            textAnchor="middle"
+          >
+            {column.label}
+          </text>
+        ))}
+
+        {rightCols.map((column) => (
+          <text
+            key={`col-label-${column.label}`}
+            x={column.x}
+            y="28"
+            fontFamily="Arial"
+            fontSize="12"
+            fontWeight="bold"
+            fill="#4B5563"
+            textAnchor="middle"
+          >
+            {column.label}
+          </text>
+        ))}
+
+        {/* =============================================
+            ROWS + HOLES
+        ============================================= */}
+        {Array.from({ length: ROW_COUNT }, (_, index) => index + 1).map((row) => {
           const y = getRowY(row);
+
           return (
             <g key={`row-group-${row}`}>
-              {/* Row Numbers */}
-              <text x="198" y={y + 8} fontFamily="Arial" fontSize="10" fontWeight="bold" fill="#6B7280" textAnchor="middle">{row}</text>
-              <text x="242" y={y + 8} fontFamily="Arial" fontSize="10" fontWeight="bold" fill="#6B7280" textAnchor="middle">{row}</text>
+              {/* LEFT NUMBER */}
+              <text
+                x="12"
+                y={y + 4}
+                fontFamily="Arial"
+                fontSize="9"
+                fontWeight="bold"
+                fill="#6B7280"
+                textAnchor="middle"
+              >
+                {row}
+              </text>
 
-              {/* Left Column Holes (A-E) */}
-              {leftCols.map((c) => (
-                <use key={`col-${c.label}-${row}`} href="#wokwi-3d-hole" x={c.x - 5} y={y - 5} />
+              {/* RIGHT NUMBER */}
+              <text
+                x="268"
+                y={y + 4}
+                fontFamily="Arial"
+                fontSize="9"
+                fontWeight="bold"
+                fill="#6B7280"
+                textAnchor="middle"
+              >
+                {row}
+              </text>
+
+              {/* A-E HOLES */}
+              {leftCols.map((column) => (
+                <use
+                  key={`${column.label}-${row}`}
+                  href="#wokwi-3d-hole"
+                  x={column.x - 5}
+                  y={y - 5}
+                />
               ))}
 
-              {/* Right Column Holes (F-J) */}
-              {rightCols.map((c) => (
-                <use key={`col-${c.label}-${row}`} href="#wokwi-3d-hole" x={c.x - 5} y={y - 5} />
+              {/* F-J HOLES */}
+              {rightCols.map((column) => (
+                <use
+                  key={`${column.label}-${row}`}
+                  href="#wokwi-3d-hole"
+                  x={column.x - 5}
+                  y={y - 5}
+                />
               ))}
             </g>
           );
         })}
       </svg>
 
-      {/* --- ၂။ REACT FLOW INTERACTIVE HANDLES --- */}
-      {rows.map((row) => {
-        const y = getRowY(row);
-
-        return (
-          <React.Fragment key={`handles-${row}`}>
-            {/* Left Column Handles (A-E) */}
-            {leftCols.map((c) => (
-              <Handle
-                key={`h-${c.label}-${row}`}
-                type="source"
-                position={Position.Top}
-                id={`pin_${c.label}${row}`}
-                style={{
-                  left: `${c.x * SCALE}px`,
-                  top: `${y * SCALE}px`,
-                  width: `${10 * SCALE}px`,
-                  height: `${10 * SCALE}px`,
-                  transform: `translate(${-5 * SCALE}px, ${-5 * SCALE}px)`,
-                  background: 'transparent',
-                  border: 'none',
-                  minWidth: 0,
-                  minHeight: 0,
-                  cursor: 'crosshair',
-                  zIndex: 10
-                }}
-              />
-            ))}
-
-            {/* Right Column Handles (F-J) */}
-            {rightCols.map((c) => (
-              <Handle
-                key={`h-${c.label}-${row}`}
-                type="source"
-                position={Position.Top}
-                id={`pin_${c.label}${row}`}
-                style={{
-                  left: `${c.x * SCALE}px`,
-                  top: `${y * SCALE}px`,
-                  width: `${10 * SCALE}px`,
-                  height: `${10 * SCALE}px`,
-                  transform: `translate(${-5 * SCALE}px, ${-5 * SCALE}px)`,
-                  background: 'transparent',
-                  border: 'none',
-                  minWidth: 0,
-                  minHeight: 0,
-                  cursor: 'crosshair',
-                  zIndex: 10
-                }}
-              />
-            ))}
-          </React.Fragment>
-        );
-      })}
+      {/* =================================================
+          REACT FLOW HANDLES
+      ================================================= */}
+      {pins.map((pin) => (
+        <Handle
+          key={pin.id}
+          id={pin.handleId}
+          type="source"
+          position={Position.Top}
+          title={pin.label}
+          style={{
+            left: `${pin.x * SCALE}px`,
+            top: `${pin.y * SCALE}px`,
+            width: `${10 * SCALE}px`,
+            height: `${10 * SCALE}px`,
+            transform: `translate(${-5 * SCALE}px, ${-5 * SCALE}px)`,
+            background: "transparent",
+            border: "none",
+            minWidth: 0,
+            minHeight: 0,
+            cursor: "crosshair",
+            zIndex: 10,
+          }}
+          data-pin-id={pin.id}
+          data-pin-name={pin.label}
+          data-pin-type={pin.type}
+          data-row={pin.row}
+          data-column={pin.column}
+          data-group={pin.group}
+        />
+      ))}
     </div>
   );
 };
