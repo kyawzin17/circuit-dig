@@ -17,6 +17,11 @@ import { MINI_BOARD_PIN } from "./mini-board";
 import SEVEN_SEGMENT_1DIGIT from "./7segment";
 import SERVO_PIN from "./servo";
 import MEMBRANE_KEYPAD from "./membrane-keypad";
+import { ESP32_PIN } from "./esp32";
+import { LDR_PIN } from "./ldr";
+import { PIR_PIN } from "./pir";
+import { RTC_DS1307_PIN } from "./ds1307";
+import { OLED_SSD1306_SPI_PIN } from "./ssd1306";
 
 
 interface PinDefinition {
@@ -50,4 +55,9 @@ export const PIN_CONFIGS: Record<string, PinDefinition[]> = {
     '7segment': SEVEN_SEGMENT_1DIGIT,
     'servo': SERVO_PIN,
     'membrane-keypad': MEMBRANE_KEYPAD,
+    'esp32': ESP32_PIN,
+    'ldr': LDR_PIN,
+    'pir': PIR_PIN,
+    'ds1307': RTC_DS1307_PIN,
+    'ssd1306': OLED_SSD1306_SPI_PIN,
 }

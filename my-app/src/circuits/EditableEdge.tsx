@@ -208,7 +208,7 @@ export default function EditableEdge({
           key={index}
           d={`M ${seg.p1.x},${seg.p1.y} L ${seg.p2.x},${seg.p2.y}`}
           fill="none"
-          stroke={hoveredIndex === index ? "rgba(100,149,237,0.3)" : "transparent"}
+          stroke={hoveredIndex === index ? "rgba(239,68,68,0.3)" : "transparent"}
           strokeWidth={seg.isDraggable ? 10 : 0} 
           style={{ cursor: !seg.isDraggable ? 'default' : seg.isVertical ? 'col-resize' : 'row-resize' }}
           onMouseEnter={() => seg.isDraggable && setHoveredIndex(index)}
@@ -224,8 +224,8 @@ export default function EditableEdge({
             position: 'absolute',
             left: 0, top: 0,
             transform: `translate(${trueSource.x}px, ${trueSource.y}px) translate(-50%, -50%)`,
-            width: '6px',
-            height: '6px',
+            width: '5px',
+            height: '5px',
             background: wireColor,
             borderRadius: '50%',
             pointerEvents: 'none',
@@ -238,8 +238,8 @@ export default function EditableEdge({
             position: 'absolute',
             left: 0, top: 0,
             transform: `translate(${trueTarget.x}px, ${trueTarget.y}px) translate(-50%, -50%)`,
-            width: '6px',
-            height: '6px',
+            width: '5px',
+            height: '5px',
             background: wireColor,
             borderRadius: '50%',
             pointerEvents: 'none',

@@ -502,15 +502,15 @@ const Sidebar = () => {
       category: "microcontroller",
     },
 
-    {
-      type: "respberry-pico",
-      name: "Raspberry Pi Pico",
-      tag: "wokwi-pi-pico",
-      props: {},
-      scale: 0.3,
-      yOffset: "0px",
-      category: "microcontroller",
-    },
+    // {
+    //   type: "respberry-pico",
+    //   name: "Raspberry Pi Pico",
+    //   tag: "wokwi-pi-pico",
+    //   props: {},
+    //   scale: 0.3,
+    //   yOffset: "0px",
+    //   category: "microcontroller",
+    // },
 
     {
       type: "esp32",

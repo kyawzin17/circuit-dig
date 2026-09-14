@@ -10,7 +10,6 @@ import {
   useUpdateNodeInternals,
 } from "reactflow";
 
-
 // =====================================================
 // TYPES
 // =====================================================
@@ -26,7 +25,9 @@ type BreadboardPin = {
 
   type: BreadboardPinType;
 
-  direction: "bidirectional" | "passive";
+  direction:
+    | "bidirectional"
+    | "passive";
 
   description?: string;
 
@@ -45,30 +46,67 @@ type BreadboardPin = {
   handleId: string;
 };
 
-
 // =====================================================
-// CONSTANTS (FULL BREADBOARD - 63 ROWS)
+// CONSTANTS
 // =====================================================
 
 const SCALE = 0.5;
 
 const ROW_COUNT = 63;
 
+// =====================================================
+// MAIN TERMINAL COLUMNS
+// =====================================================
+
 const leftCols = [
-  { label: "A", x: 90 },
-  { label: "B", x: 110 },
-  { label: "C", x: 130 },
-  { label: "D", x: 150 },
-  { label: "E", x: 170 },
+  {
+    label: "A",
+    x: 90,
+  },
+  {
+    label: "B",
+    x: 110,
+  },
+  {
+    label: "C",
+    x: 130,
+  },
+  {
+    label: "D",
+    x: 150,
+  },
+  {
+    label: "E",
+    x: 170,
+  },
 ];
 
 const rightCols = [
-  { label: "F", x: 270 },
-  { label: "G", x: 290 },
-  { label: "H", x: 310 },
-  { label: "I", x: 330 },
-  { label: "J", x: 350 },
+  {
+    label: "F",
+    x: 270,
+  },
+  {
+    label: "G",
+    x: 290,
+  },
+  {
+    label: "H",
+    x: 310,
+  },
+  {
+    label: "I",
+    x: 330,
+  },
+  {
+    label: "J",
+    x: 350,
+  },
 ];
+
+// =====================================================
+// POWER RAIL COLUMNS
+// =====================================================
 
 const powerCols = [
   {
@@ -77,18 +115,21 @@ const powerCols = [
     type: "gnd" as const,
     label: "GND-L",
   },
+
   {
     id: "vcc-l",
     x: 50,
     type: "vcc" as const,
     label: "VCC-L",
   },
+
   {
     id: "vcc-r",
     x: 390,
     type: "vcc" as const,
     label: "VCC-R",
   },
+
   {
     id: "gnd-r",
     x: 410,
@@ -96,7 +137,6 @@ const powerCols = [
     label: "GND-R",
   },
 ];
-
 
 // =====================================================
 // ROW POSITION
@@ -106,18 +146,15 @@ const getRowY = (row: number) => {
   return 30 + row * 20;
 };
 
-
 // =====================================================
 // BREADBOARD PIN BUILDER
 // =====================================================
 
 function createBreadboardPins(): BreadboardPin[] {
-
   const pins: BreadboardPin[] = [];
 
-
   // ===================================================
-  // MAIN TERMINAL HOLES
+  // MAIN TERMINAL + POWER RAILS
   // ===================================================
 
   for (
@@ -125,31 +162,28 @@ function createBreadboardPins(): BreadboardPin[] {
     row <= ROW_COUNT;
     row++
   ) {
-
     const y = getRowY(row);
 
-
-    // -----------------------------------------------
+    // ===============================================
     // LEFT A-E
-    // -----------------------------------------------
+    // ===============================================
 
     leftCols.forEach((column) => {
-
       const pinId =
         `${column.label}${row}`;
 
       pins.push({
-
         id: pinId,
 
         label: pinId,
 
         type: "terminal",
 
-        direction: "bidirectional",
+        direction:
+          "bidirectional",
 
         description:
-          `Full breadboard terminal ${pinId}`,
+          `Breadboard terminal ${pinId}`,
 
         group:
           `row-${row}-left`,
@@ -159,39 +193,36 @@ function createBreadboardPins(): BreadboardPin[] {
         column:
           column.label,
 
-        x: column.x,
+        x:
+          column.x,
 
         y,
 
         handleId:
           `pin_${pinId}`,
-
       });
-
     });
 
-
-    // -----------------------------------------------
+    // ===============================================
     // RIGHT F-J
-    // -----------------------------------------------
+    // ===============================================
 
     rightCols.forEach((column) => {
-
       const pinId =
         `${column.label}${row}`;
 
       pins.push({
-
         id: pinId,
 
         label: pinId,
 
         type: "terminal",
 
-        direction: "bidirectional",
+        direction:
+          "bidirectional",
 
         description:
-          `Full breadboard terminal ${pinId}`,
+          `Breadboard terminal ${pinId}`,
 
         group:
           `row-${row}-right`,
@@ -201,24 +232,21 @@ function createBreadboardPins(): BreadboardPin[] {
         column:
           column.label,
 
-        x: column.x,
+        x:
+          column.x,
 
         y,
 
         handleId:
           `pin_${pinId}`,
-
       });
-
     });
 
-
-    // =================================================
+    // ===============================================
     // POWER RAILS
-    // =================================================
+    // ===============================================
 
     powerCols.forEach((power) => {
-
       const pinId =
         `${power.label}_${row}`;
 
@@ -226,51 +254,43 @@ function createBreadboardPins(): BreadboardPin[] {
         power.type === "gnd";
 
       pins.push({
-
         id: pinId,
 
         label: pinId,
 
-        type:
-          isGround
-            ? "ground"
-            : "power",
+        type: isGround
+          ? "ground"
+          : "power",
 
         direction:
           "bidirectional",
 
-        description:
-          isGround
-            ? `Ground rail ${power.label} row ${row}`
-            : `Power rail ${power.label} row ${row}`,
+        description: isGround
+          ? `Ground rail ${power.label} row ${row}`
+          : `Power rail ${power.label} row ${row}`,
 
         group:
           `${power.type}-rail`,
 
         row,
 
-        rail:
-          isGround
-            ? "gnd"
-            : "vcc",
+        rail: isGround
+          ? "gnd"
+          : "vcc",
 
-        x: power.x,
+        x:
+          power.x,
 
         y,
 
         handleId:
           `${power.type}_${power.id}_${row}`,
-
       });
-
     });
-
   }
-
 
   return pins;
 }
-
 
 // =====================================================
 // COMPONENT
@@ -281,7 +301,6 @@ const BreadboardFullNode = ({
   data,
 }: NodeProps) => {
 
-
   // ===================================================
   // ROTATION
   // ===================================================
@@ -291,7 +310,6 @@ const BreadboardFullNode = ({
       ? data.rotation
       : 0;
 
-
   // ===================================================
   // REACT FLOW INTERNALS
   // ===================================================
@@ -299,42 +317,32 @@ const BreadboardFullNode = ({
   const updateNodeInternals =
     useUpdateNodeInternals();
 
-
   useEffect(() => {
-
     const timer =
       window.setTimeout(() => {
-
         updateNodeInternals(id);
-
-      }, 100);
+      }, 300);
 
     return () => {
-
       window.clearTimeout(timer);
-
     };
-
   }, [
     id,
     rotation,
     updateNodeInternals,
   ]);
 
-
   // ===================================================
   // CREATE PINS
   // ===================================================
 
-  const pins =
-    useMemo(
-      () => createBreadboardPins(),
-      []
-    );
-
+  const pins = useMemo(
+    () => createBreadboardPins(),
+    []
+  );
 
   // ===================================================
-  // BOARD SIZE (63 ROWS)
+  // BOARD SIZE
   // ===================================================
 
   const nodeWidth =
@@ -343,15 +351,12 @@ const BreadboardFullNode = ({
   const nodeHeight =
     1340 * SCALE;
 
-
   // ===================================================
   // RENDER
   // ===================================================
 
   return (
-
-    <div
-
+   <div
       className="
         relative
         bg-transparent
@@ -359,23 +364,32 @@ const BreadboardFullNode = ({
         border-transparent
         hover:border-blue-400/60
       "
-
       style={{
-
         width:
           `${nodeWidth}px`,
 
         height:
           `${nodeHeight}px`,
 
+        /*
+         * IMPORTANT
+         *
+         * SVG + ALL HANDLES
+         * are children of this same
+         * rotated container.
+         *
+         * Therefore they rotate
+         * together.
+         */
         transform:
           `rotate(${rotation}deg)`,
 
+        transformOrigin:
+          "center center",
+
         transition:
           "transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-
       }}
-
     >
 
       {/* =================================================
@@ -383,13 +397,9 @@ const BreadboardFullNode = ({
       ================================================= */}
 
       <svg
-
         viewBox="0 0 440 1340"
-
         width={nodeWidth}
-
         height={nodeHeight}
-
         className="
           absolute
           z-5
@@ -397,11 +407,13 @@ const BreadboardFullNode = ({
           left-0
           pointer-events-none
         "
-
       >
 
-        <defs>
+        {/* =================================================
+            HOLE DEFINITION
+        ================================================= */}
 
+        <defs>
           <g id="wokwi-3d-hole">
 
             <rect
@@ -450,307 +462,244 @@ const BreadboardFullNode = ({
             />
 
           </g>
-
         </defs>
 
-
-        {/* =============================================
+        {/* =================================================
             BOARD BASE
-        ============================================= */}
+        ================================================= */}
 
         <rect
-
           x="0"
           y="0"
           width="440"
           height="1340"
           rx="12"
-
           fill="#E5E7EB"
-
           stroke="#D1D5DB"
-
           strokeWidth="2"
-
         />
 
-
-        {/* =============================================
+        {/* =================================================
             CENTER TRENCH
-        ============================================= */}
+        ================================================= */}
 
         <rect
-
           x="212"
           y="40"
-
           width="16"
           height="1260"
-
           rx="2"
-
           fill="#CDD1D6"
-
         />
 
-
-        {/* =============================================
+        {/* =================================================
             POWER RAILS
-        ============================================= */}
+        ================================================= */}
+
+        {/* LEFT GND */}
 
         <line
-
-          x1="20"
+          x1="15"
           y1="45"
-          x2="20"
+          x2="15"
           y2="1295"
-
           stroke="#3498DB"
-
           strokeWidth="2"
-
           strokeLinecap="round"
-
         />
 
-        <line
+        {/* LEFT VCC */}
 
+        <line
           x1="65"
           y1="45"
           x2="65"
           y2="1295"
-
           stroke="#E74C3C"
-
           strokeWidth="2"
-
           strokeLinecap="round"
-
         />
 
-        <line
+        {/* RIGHT VCC */}
 
+        <line
           x1="375"
           y1="45"
           x2="375"
           y2="1295"
-
           stroke="#E74C3C"
-
           strokeWidth="2"
-
           strokeLinecap="round"
-
         />
+
+        {/* RIGHT GND */}
 
         <line
-
-          x1="420"
+          x1="425"
           y1="45"
-          x2="420"
+          x2="425"
           y2="1295"
-
           stroke="#3498DB"
-
           strokeWidth="2"
-
           strokeLinecap="round"
-
         />
 
-
-        {/* =============================================
-            COLUMN LABELS (A-E & F-J)
-        ============================================= */}
+        {/* =================================================
+            COLUMN LABELS
+        ================================================= */}
 
         {leftCols.map((column) => (
-
           <text
-
             key={`col-top-${column.label}`}
-
             x={column.x}
-
             y="32"
-
             fontFamily="Arial"
-
             fontSize="12"
-
             fontWeight="bold"
-
             fill="#4B5563"
-
             textAnchor="middle"
-
           >
             {column.label}
           </text>
-
         ))}
 
         {rightCols.map((column) => (
-
           <text
-
             key={`col-top-${column.label}`}
-
             x={column.x}
-
             y="32"
-
             fontFamily="Arial"
-
             fontSize="12"
-
             fontWeight="bold"
-
             fill="#4B5563"
-
             textAnchor="middle"
-
           >
             {column.label}
           </text>
-
         ))}
 
-
-        {/* =============================================
+        {/* =================================================
             ROWS + HOLES
-        ============================================= */}
+        ================================================= */}
 
         {Array.from(
-          { length: ROW_COUNT },
-          (_, index) => index + 1
+          {
+            length: ROW_COUNT,
+          },
+          (_, index) =>
+            index + 1
         ).map((row) => {
 
           const y =
             getRowY(row);
 
-
           return (
-
             <g
-              key={`row-group-${row}`}
+              key={
+                `row-group-${row}`
+              }
             >
 
-              {/* LEFT NUMBER */}
+              {/* =========================================
+                  LEFT ROW NUMBER
+              ========================================= */}
 
               <text
-
                 x="198"
-
                 y={y + 8}
-
                 fontFamily="Arial"
-
                 fontSize="10"
-
                 fontWeight="bold"
-
                 fill="#6B7280"
-
                 textAnchor="middle"
-
               >
                 {row}
               </text>
 
-
-              {/* RIGHT NUMBER */}
+              {/* =========================================
+                  RIGHT ROW NUMBER
+              ========================================= */}
 
               <text
-
                 x="242"
-
                 y={y + 8}
-
                 fontFamily="Arial"
-
                 fontSize="10"
-
                 fontWeight="bold"
-
                 fill="#6B7280"
-
                 textAnchor="middle"
-
               >
                 {row}
               </text>
 
+              {/* =========================================
+                  POWER HOLES
+              ========================================= */}
 
-              {/* POWER HOLES */}
+              {powerCols.map(
+                (power) => (
+                  <use
+                    key={
+                      `${power.id}-${row}`
+                    }
+                    href="#wokwi-3d-hole"
+                    x={
+                      power.x - 5
+                    }
+                    y={
+                      y - 5
+                    }
+                  />
+                )
+              )}
 
-              {powerCols.map((power) => (
+              {/* =========================================
+                  A-E HOLES
+              ========================================= */}
 
-                <use
+              {leftCols.map(
+                (column) => (
+                  <use
+                    key={
+                      `${column.label}-${row}`
+                    }
+                    href="#wokwi-3d-hole"
+                    x={
+                      column.x - 5
+                    }
+                    y={
+                      y - 5
+                    }
+                  />
+                )
+              )}
 
-                  key={
-                    `${power.id}-${row}`
-                  }
+              {/* =========================================
+                  F-J HOLES
+              ========================================= */}
 
-                  href="#wokwi-3d-hole"
-
-                  x={power.x - 5}
-
-                  y={y - 5}
-
-                />
-
-              ))}
-
-
-              {/* A-E */}
-
-              {leftCols.map((column) => (
-
-                <use
-
-                  key={
-                    `${column.label}-${row}`
-                  }
-
-                  href="#wokwi-3d-hole"
-
-                  x={column.x - 5}
-
-                  y={y - 5}
-
-                />
-
-              ))}
-
-
-              {/* F-J */}
-
-              {rightCols.map((column) => (
-
-                <use
-
-                  key={
-                    `${column.label}-${row}`
-                  }
-
-                  href="#wokwi-3d-hole"
-
-                  x={column.x - 5}
-
-                  y={y - 5}
-
-                />
-
-              ))}
+              {rightCols.map(
+                (column) => (
+                  <use
+                    key={
+                      `${column.label}-${row}`
+                    }
+                    href="#wokwi-3d-hole"
+                    x={
+                      column.x - 5
+                    }
+                    y={
+                      y - 5
+                    }
+                  />
+                )
+              )}
 
             </g>
-
           );
-
         })}
 
       </svg>
-
 
       {/* =================================================
           REACT FLOW HANDLES
@@ -759,7 +708,6 @@ const BreadboardFullNode = ({
       {pins.map((pin) => (
 
         <Handle
-
           key={pin.id}
 
           id={pin.handleId}
@@ -771,6 +719,15 @@ const BreadboardFullNode = ({
           title={pin.label}
 
           style={{
+
+            /*
+             * IMPORTANT
+             *
+             * Pin coordinate is based on
+             * the original 440 x 1340 SVG.
+             *
+             * SCALE is applied here.
+             */
 
             left:
               `${pin.x * SCALE}px`,
@@ -785,7 +742,10 @@ const BreadboardFullNode = ({
               `${10 * SCALE}px`,
 
             transform:
-              `translate(${-5 * SCALE}px, ${-5 * SCALE}px)`,
+              `translate(
+                ${-5 * SCALE}px,
+                ${-5 * SCALE}px
+              )`,
 
             background:
               "transparent",
@@ -837,10 +797,8 @@ const BreadboardFullNode = ({
       ))}
 
     </div>
-
   );
 };
-
 
 // =====================================================
 // EXPORT

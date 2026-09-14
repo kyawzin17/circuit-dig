@@ -25,6 +25,11 @@ export type PinSignalInfo =
   | {
       type: 'analog';
       channel?: number;
+    }
+  | {
+
+      type: 'digital';
+      channel?: number;
     };
 
 export interface ElementPin {
@@ -81,6 +86,13 @@ export const usart = (signal: 'RX' | 'TX', bus = 0): PinSignalInfo => ({
   signal,
   bus,
 });
+
+export const digital = (channel: number): PinSignalInfo => ({
+  type: 'digital',
+  channel,
+});
+
+
 
 export const GND = (): PinSignalInfo => ({ type: 'power', signal: 'GND' });
 export const VCC = (voltage?: number): PinSignalInfo => ({ type: 'power', signal: 'VCC', voltage });

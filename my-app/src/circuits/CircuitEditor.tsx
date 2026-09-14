@@ -39,8 +39,16 @@ import { fullBreadboardPins } from "./pins/fullBreadBoardPins.ts";
 import { pushbuttonPins } from "./pins/pushButtonPins.ts";
 import { potentiometerPins } from "./pins/potentiometerPins.ts";
 import { slideSwitchPins } from "./pins/slideSwitchPins.ts";
-
-
+import { sevenSegmentPins } from "./pins/7-segmentPins.ts";
+import { keypadPins } from "./pins/keypadPins.ts";
+import { neopixelPins } from "./pins/neoPixelPins.ts";
+import { arduinoMegaPins } from "./pins/arduinoMegaPins.ts";
+import { arduinoNanoPins } from "./pins/arduinoNanoPins.ts";  
+import { esp32Pins } from "./pins/esp32Pins.ts";
+import { ldrModulePins } from "./pins/ldrSensorPins.ts";
+import { pirPins } from "./pins/pirMotionSensorPins.ts";
+import { ds1307Pins } from "./pins/ds1307Pins.ts";
+import { oledSsd1306SpiPins } from "./pins/ssd1306Pins.ts";
 
 import {
   ChevronDown,
@@ -744,6 +752,33 @@ const CircuitEditor = () => {
           yOffset: "-15px",
         },
 
+        "arduino-mega": {
+          label: "Arduino Mega",
+          tag: "wokwi-arduino-mega",
+          props: {},
+          pins: arduinoMegaPins,
+          scale: 0.2,
+          yOffset: "-15px",
+        },
+
+        "arduino-nano": {
+          label: "Arduino Nano",
+          tag: "wokwi-arduino-nano",
+          props: {},
+          pins: arduinoNanoPins,
+          scale: 0.2,
+          yOffset: "-15px",
+        },
+
+        "esp32": {
+          label: "ESP32 DevKit",
+          tag: "wokwi-esp32-devkit-v1",
+          props: {},
+          pins: esp32Pins,
+          scale: 0.18,
+          yOffset: "0px",
+        },
+
         resistor: {
           label: "Resistor",
           tag: "wokwi-resistor",
@@ -776,6 +811,34 @@ const CircuitEditor = () => {
             color: "red",
           },
           pins: ledPins,
+        },
+
+        "ldr": {
+        label: "LDR Sensor",
+        tag: "wokwi-photoresistor-sensor",
+        props: {},
+        pins: ldrModulePins,
+        },
+
+        "pir": {
+          label: "PIR Sensor",
+          tag: "wokwi-pir-motion-sensor",
+          props: {},
+          pins: pirPins,
+        },
+
+        "ds1307": {
+          label: "DS1307 RTC",
+          tag: "wokwi-ds1307",
+          props: {},
+          pins: ds1307Pins,
+        },
+
+        "ssd1306": {
+          label: "SSD1306 OLED",
+          tag: "wokwi-ssd1306",
+          props: {},
+          pins: oledSsd1306SpiPins,
         },
 
         pushbutton: {
@@ -833,12 +896,14 @@ const CircuitEditor = () => {
           label: "NeoPixel",
           tag: "wokwi-neopixel",
           props: {},
+          pins: neopixelPins,
         },
 
         "7segment": {
           label: "7 Segment",
           tag: "wokwi-7segment",
           props: {},
+          pins: sevenSegmentPins,
         },
 
         "servo": {
@@ -852,6 +917,7 @@ const CircuitEditor = () => {
           label: "Membrane Keypad",
           tag: "wokwi-membrane-keypad",
           props: {},
+          pins: keypadPins,
         },
 
         "mini-board": {
@@ -875,13 +941,7 @@ const CircuitEditor = () => {
           pins: fullBreadboardPins,
         },
 
-        "pico": {
-          label: "Raspberry Pi Pico",
-          tag: "wokwi-pico",
-          props: {},
-        },
-
-        "raspberry-pi-pico": {
+        "raspberry-pico": {
           label: "Raspberry Pi Pico",
           tag: "wokwi-pico",
           props: {},
