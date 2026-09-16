@@ -25,6 +25,20 @@ import "reactflow/dist/style.css";
 import Sidebar from "./Sidebar.tsx";
 import ElectronicNode from "./ElectronicNode.tsx";
 
+import CodeSection from "./CodeSection.tsx";
+
+import {
+  useSimulationStore,
+} from "../stores/simulationStore";
+
+import {
+  SimulationEngine
+} from "./simulator/core/SimulationEngine.ts";
+
+import type {
+  SimulationStatus,
+} from "./simulator/types/simulator.types";
+
 import { arduinoUnoPins } from "./pins/arduinoUnoPins.ts";
 import { resistorPins } from "./pins/resistorPins.ts";
 import { ledPins } from "./pins/ledPins.ts";
@@ -63,7 +77,7 @@ import {
 import { MdDeleteForever } from "react-icons/md";
 import { FaRegSave } from "react-icons/fa";
 import { FaArrowsRotate } from "react-icons/fa6";
-import { LuGrid2X2X, LuGrid2X2Plus } from "react-icons/lu";
+import { LuGrid2X2X, LuGrid2X2Plus, LuCode } from "react-icons/lu";
 
 import EditableEdge from "./EditableEdge";
 import PropertiesPanel from "./PropertiesPanel";
@@ -347,6 +361,68 @@ const ZoomControls = () => {
 ========================================================= */
 
 const CircuitEditor = () => {
+
+  // ! SIMULATION ENGINE
+  const simulationEngine =
+  useRef<SimulationEngine | null>(null);
+
+
+  useEffect(() => {
+  const engine =
+    new SimulationEngine({
+      onStateChange: (state) => {
+        console.log(
+          "[Simulation State]",
+          state
+        );
+      },
+
+      onError: (error) => {
+        console.error(
+          "[Simulation Error]",
+          error
+        );
+      },
+    });
+
+  simulationEngine.current =
+    engine;
+
+  return () => {
+    engine.stop();
+
+    simulationEngine.current =
+      null;
+  };
+}, []);
+
+
+const handleRunSimulation = () => {
+  const engine =
+    simulationEngine.current;
+
+  if (!engine) {
+    console.error(
+      "Simulation engine is not initialized."
+    );
+
+    return;
+  }
+
+  console.log(
+    "[CircuitEditor] Run clicked"
+  );
+
+  engine.start();
+};
+
+const handleStopSimulation = () => {
+  simulationEngine.current?.stop();
+};
+
+const handlePauseSimulation = () => {
+  simulationEngine.current?.pause();
+};
   /* =======================================================
      REFS
   ======================================================= */
@@ -357,6 +433,7 @@ const CircuitEditor = () => {
   const nodesRef = useRef<any[]>([]);
   const edgesRef = useRef<CircuitEdge[]>([]);
 
+  const [showCode, setShowCode] = useState<boolean>(false);
   /* =======================================================
      REACT FLOW STATE
   ======================================================= */
@@ -379,8 +456,20 @@ const CircuitEditor = () => {
   const [grid, setGrid] =
     useState<boolean>(true);
 
-  const [play, setPlay] =
-    useState<boolean>(false);
+  const simulationStatus =
+  useSimulationStore(
+    (state) => state.status
+  );
+
+const compile =
+  useSimulationStore(
+    (state) => state.compile
+  );
+
+const stop =
+  useSimulationStore(
+    (state) => state.stop
+  );
 
   const [selectedNode, setSelectedNode] =
     useState<any>(null);
@@ -1383,9 +1472,51 @@ const CircuitEditor = () => {
      PLAY / STOP
   ======================================================= */
 
-  const togglePlay = useCallback(() => {
-    setPlay((prev) => !prev);
-  }, []);
+  const togglePlay = useCallback(
+  async () => {
+    if (
+      simulationStatus ===
+      "compiling"
+    ) {
+      handleStopSimulation();
+      // handlePauseSimulation();
+      return;
+    }
+
+    if (
+      simulationStatus ===
+      "running"
+    ) {
+      handleStopSimulation();
+      return;
+    }
+
+    const success =
+      await compile();
+
+    if (success) {
+      /*
+       * Step 3 မှာ ဒီနေရာကနေ
+       * avr8js simulation engine
+       * စတင်မယ်။
+       */
+
+      handleRunSimulation();
+      console.log(
+        "HEX compiled successfully."
+      );
+    }
+  },
+  [
+    simulationStatus,
+    compile,
+    stop,
+  ]
+);
+
+const toggleCode = useCallback(() => {
+  setShowCode(!showCode);
+}, [showCode]);
 
   /* =======================================================
      RENDER
@@ -1507,6 +1638,16 @@ const CircuitEditor = () => {
 
           <div className="mx-1 h-6 w-px bg-slate-200" />
 
+          <button
+            type="button"
+            onClick={toggleCode}
+            className={`flex h-9 items-center gap-2 rounded-lg px-3 text-sm font-medium transition bg-blue-500 text-white hover:bg-blue-600`}
+            title="Code"
+          >
+            <LuCode />Code
+          </button>
+
+        <div className="mx-1 h-6 w-px bg-slate-200" />
           {/* Save */}
 
           <button
@@ -1523,17 +1664,20 @@ const CircuitEditor = () => {
             type="button"
             onClick={togglePlay}
             className={`flex h-9 items-center gap-2 rounded-lg px-3 text-sm font-medium transition ${
-              play
-                ? "bg-red-50 text-red-600"
-                : "bg-slate-900 text-white hover:bg-slate-800"
-            }`}
+  simulationStatus === "running"
+    ? "bg-red-50 text-red-600"
+    : simulationStatus === "compiling"
+      ? "bg-yellow-100 text-yellow-700"
+      : "bg-slate-900 text-white hover:bg-slate-800"
+}`}
             title={
-              play
-                ? "Stop simulation"
-                : "Run simulation"
+              simulationStatus === "running"
+      ? "Stop simulation"
+      : "Run simulation"
             }
           >
-            {play ? (
+            {simulationStatus === "running"
+              ? (
               <>
                 <span className="text-xs">
                   Stop
@@ -1547,6 +1691,8 @@ const CircuitEditor = () => {
               </>
             )}
           </button>
+
+          
         </div>
 
         {/* =================================================
@@ -1783,7 +1929,16 @@ const CircuitEditor = () => {
         selectedNode={selectedNode}
         updateResistorValue={updateResistorValue}
       />
+
+      {/* ===================================================
+          CODE SECTION
+      =================================================== */}
+
+      <CodeSection show={showCode} setShow={setShowCode} />
+
     </div>
+
+    
   );
 };
 
