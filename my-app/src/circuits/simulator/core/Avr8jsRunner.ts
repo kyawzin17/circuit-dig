@@ -1,7 +1,6 @@
 import { CPU } from "avr8js";
 import type { ArduinoUnoRuntime } from "../boards/ArduinoUnoRuntime";
 
-// ATmega328P I/O addresses used by avr8js CPU.data.
 const DDRB = 0x24;
 const PORTB = 0x25;
 const DDRC = 0x27;
@@ -26,10 +25,8 @@ export class Avr8jsRunner {
   runCycles(cycles: number): void {
     if (!this.cpu) throw new Error("AVR program has not been loaded.");
     const count = Math.max(0, Math.floor(cycles));
-    for (let i = 0; i < count; i += 1) {
-      this.cpu.tick();
-      this.syncGpioToRuntime();
-    }
+    for (let i = 0; i < count; i += 1) this.cpu.tick();
+    this.syncGpioToRuntime();
   }
 
   private syncGpioToRuntime(): void {
