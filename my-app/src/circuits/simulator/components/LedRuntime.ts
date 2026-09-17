@@ -1,72 +1,80 @@
-import { RuntimeComponent } from "./RuntimeComponent";
+import type {
+  PinLevel,
+} from "../types/simulator.types";
 
-export interface LedRuntimeOptions {
-  pin: number;
+export interface LedRuntimeConfig {
+  id: string;
 
-  color?: string;
+  anodePinId: string;
+
+  cathodePinId: string;
 }
 
-// =====================================================
-// LED RUNTIME
-// =====================================================
+export interface LedRuntimeInput {
+  anodeLevel: PinLevel;
 
-export class LedRuntime
-  extends RuntimeComponent {
+  cathodeLevel: PinLevel;
+}
 
-  public readonly pin: number;
+export interface LedRuntimeState {
+  id: string;
 
-  public readonly color: string;
+  isOn: boolean;
 
-  private on: boolean = false;
+  brightness: number;
+}
+
+export class LedRuntime {
+  private readonly config:
+    LedRuntimeConfig;
+
+  private state:
+    LedRuntimeState;
 
   constructor(
-    id: string,
-    options: LedRuntimeOptions
+    config: LedRuntimeConfig,
   ) {
-    super(
-      id,
-      "led"
-    );
+    this.config = config;
 
-    this.pin =
-      options.pin;
+    this.state = {
+      id: config.id,
 
-    this.color =
-      options.color ?? "#ff0000";
+      isOn: false,
+
+      brightness: 0,
+    };
   }
 
-  // ---------------------------------------------------
-  // SET STATE
-  // ---------------------------------------------------
-
-  setState(
-    value: boolean
+  update(
+    input: LedRuntimeInput,
   ): void {
-    this.on = value;
+    const forwardBiased =
+      input.anodeLevel === 1 &&
+      input.cathodeLevel === 0;
+
+    this.state.isOn =
+      forwardBiased;
+
+    this.state.brightness =
+      forwardBiased
+        ? 1
+        : 0;
   }
 
-  // ---------------------------------------------------
-  // GET STATE
-  // ---------------------------------------------------
-
-  isOn(): boolean {
-    return this.on;
+  getState():
+    LedRuntimeState {
+    return {
+      ...this.state,
+    };
   }
-
-  // ---------------------------------------------------
-  // UPDATE
-  // ---------------------------------------------------
-
-  update(): void {
-    // LED state will be
-    // synchronized with Arduino pin.
-  }
-
-  // ---------------------------------------------------
-  // RESET
-  // ---------------------------------------------------
 
   reset(): void {
-    this.on = false;
+    this.state = {
+      id: this.config.id,
+
+      isOn: false,
+
+      brightness: 0,
+    };
   }
 }

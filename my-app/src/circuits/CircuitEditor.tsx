@@ -402,20 +402,16 @@ const handleRunSimulation = () => {
     simulationEngine.current;
 
   if (!engine) {
-    console.error(
-      "Simulation engine is not initialized."
-    );
-
     return;
   }
 
-  console.log(
-    "[CircuitEditor] Run clicked"
+  engine.setCircuit(
+    nodes,
+    edges as CircuitEdge[],
   );
 
   engine.start();
 };
-
 const handleStopSimulation = () => {
   simulationEngine.current?.stop();
 };

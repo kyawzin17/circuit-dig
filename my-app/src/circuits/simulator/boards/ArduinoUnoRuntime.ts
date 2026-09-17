@@ -1,18 +1,27 @@
 import type {
   ArduinoUnoRuntimeState,
   RuntimePin,
+  PinLevel,
+  PinMode,
 } from "../types/simulator.types";
 
 import {
   ARDUINO_UNO_PIN_MAP,
 } from "../mapping/ArduinoUnoPinMap";
 
-// =====================================================
-// ARDUINO UNO RUNTIME
-// =====================================================
+import type {
+  CircuitPinRef,
+} from "../circuit/CircuitGraph";
+
+import type {
+  DigitalDriver,
+} from "../electrical/DigitalNetSolver";
+
+/* =========================================================
+   ARDUINO UNO RUNTIME
+========================================================= */
 
 export class ArduinoUnoRuntime {
-
   private state: ArduinoUnoRuntimeState;
 
   constructor() {
@@ -20,19 +29,14 @@ export class ArduinoUnoRuntime {
       this.createInitialState();
   }
 
-  // ===================================================
-  // INITIAL STATE
-  // ===================================================
+  /* =======================================================
+     INITIAL STATE
+  ======================================================= */
 
   private createInitialState():
     ArduinoUnoRuntimeState {
-
     const digitalPins:
       Record<number, RuntimePin> = {};
-
-    // -------------------------------------------------
-    // DIGITAL PINS
-    // -------------------------------------------------
 
     for (
       let pin = 0;
@@ -41,9 +45,7 @@ export class ArduinoUnoRuntime {
     ) {
       digitalPins[pin] = {
         pin,
-
         mode: "input",
-
         level: 0,
       };
     }
@@ -57,28 +59,23 @@ export class ArduinoUnoRuntime {
     };
   }
 
-  // ===================================================
-  // GET STATE
-  // ===================================================
+  /* =======================================================
+     STATE
+  ======================================================= */
 
   getState():
     ArduinoUnoRuntimeState {
-
     return this.state;
   }
 
-  // ===================================================
-  // SET PIN MODE
-  // ===================================================
+  /* =======================================================
+     PIN MODE
+  ======================================================= */
 
   setPinMode(
     pin: number,
-    mode:
-      | "input"
-      | "output"
-      | "input_pullup"
+    mode: PinMode,
   ): void {
-
     const runtimePin =
       this.state.digitalPins[pin];
 
@@ -86,22 +83,36 @@ export class ArduinoUnoRuntime {
       return;
     }
 
-    runtimePin.mode = mode;
+    runtimePin.mode =
+      mode;
   }
 
-  // ===================================================
-  // WRITE DIGITAL PIN
-  // ===================================================
+  /* =======================================================
+     DIGITAL WRITE
+  ======================================================= */
 
   digitalWrite(
     pin: number,
-    level: 0 | 1
+    level: PinLevel,
   ): void {
-
     const runtimePin =
       this.state.digitalPins[pin];
 
     if (!runtimePin) {
+      return;
+    }
+
+    /*
+     * Writing to an INPUT pin does not
+     * change the actual driven electrical
+     * state in our model.
+     *
+     * Arduino INPUT_PULLUP is handled
+     * separately later.
+     */
+    if (
+      runtimePin.mode !== "output"
+    ) {
       return;
     }
 
@@ -109,14 +120,13 @@ export class ArduinoUnoRuntime {
       level;
   }
 
-  // ===================================================
-  // READ DIGITAL PIN
-  // ===================================================
+  /* =======================================================
+     DIGITAL READ
+  ======================================================= */
 
   digitalRead(
-    pin: number
-  ): 0 | 1 {
-
+    pin: number,
+  ): PinLevel {
     const runtimePin =
       this.state.digitalPins[pin];
 
@@ -127,12 +137,104 @@ export class ArduinoUnoRuntime {
     return runtimePin.level;
   }
 
-  // ===================================================
-  // RESET
-  // ===================================================
+  /* =======================================================
+     GET DRIVER
+  ======================================================= */
+
+  getDigitalDrivers(
+    nodeId: string,
+  ): DigitalDriver[] {
+    const drivers:
+      DigitalDriver[] = [];
+
+    for (
+      let pin = 0;
+      pin <= 13;
+      pin++
+    ) {
+      const runtimePin =
+        this.state.digitalPins[pin];
+
+      if (!runtimePin) {
+        continue;
+      }
+
+      if (
+        runtimePin.mode !== "output"
+      ) {
+        continue;
+      }
+
+      const pinMap =
+        ARDUINO_UNO_PIN_MAP[
+          pin
+        ];
+
+      if (!pinMap) {
+        continue;
+      }
+
+      drivers.push({
+        pin: {
+          nodeId,
+
+          /*
+           * Important:
+           *
+           * This MUST match the
+           * handle/pin id used by
+           * arduinoUnoPins.ts
+           */
+          pinId:
+            this.resolveCircuitPinId(
+              pin,
+            ),
+        },
+
+        mode:
+          runtimePin.mode,
+
+        level:
+          runtimePin.level,
+      });
+    }
+
+    return drivers;
+  }
+
+  /* =======================================================
+     CIRCUIT PIN ID
+  ======================================================= */
+
+  private resolveCircuitPinId(
+    pin: number,
+  ): string {
+    return `D${pin}`;
+  }
+
+  /* =======================================================
+     LED STATE
+  ======================================================= */
+
+  setLedState(
+    id: string,
+    isOn: boolean,
+    brightness = 1,
+  ): void {
+    this.state.ledStates[id] = {
+      id,
+
+      isOn,
+
+      brightness,
+    };
+  }
+
+  /* =======================================================
+     RESET
+  ======================================================= */
 
   reset(): void {
-
     this.state =
       this.createInitialState();
   }
