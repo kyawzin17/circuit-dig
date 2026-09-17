@@ -88,7 +88,6 @@ const CodeSection = ({
   const handleRun = async () => {
     if (isCompiling) return;
 
-    // If a previous simulation is running, stop it before compiling again.
     simulationEngine.current?.stop();
 
     const compiled = await compile();
@@ -119,13 +118,8 @@ const CodeSection = ({
       const nodes = getNodes();
       const edges = getEdges();
 
-      // Build the electrical topology from the actual React Flow circuit.
-      engine.setCircuit(nodes, edges as never);
-
-      // Load the real Arduino compiler output into ATmega328P/AVR8JS.
+      engine.setCircuit(nodes, edges);
       engine.loadHex(hex);
-
-      // Start executing the compiled Arduino machine code.
       engine.start();
       setRunning();
     } catch (simulationError) {
@@ -158,9 +152,6 @@ const CodeSection = ({
         show ? "bottom-0" : "-bottom-full"
       }`}
     >
-      {/* ============================================
-          HEADER
-      ============================================ */}
       <div className="flex items-center justify-between border-b border-slate-700 bg-gray-800 px-4 py-2">
         <span className="text-sm font-semibold text-white">
           ကုဒ်ရေးရန်နေရာ (Sketch.ino)
@@ -214,9 +205,6 @@ const CodeSection = ({
         </div>
       </div>
 
-      {/* ============================================
-          EDITOR
-      ============================================ */}
       <div className="min-h-0 flex-1">
         <Editor
           height="100%"
@@ -237,9 +225,6 @@ const CodeSection = ({
         />
       </div>
 
-      {/* ============================================
-          STATUS
-      ============================================ */}
       <div className="border-t border-slate-700 bg-slate-950 px-4 py-2">
         <div className="flex items-center gap-2 text-xs">
           <span className="text-slate-400">
