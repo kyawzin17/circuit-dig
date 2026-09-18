@@ -1,8 +1,7 @@
 import type { Node, Edge } from "reactflow";
 import { ArduinoUnoRuntime } from "../boards/ArduinoUnoRuntime";
 import { Avr8jsRunner } from "./Avr8jsRunner";
-import { SimulationClock } from "./SimulationClock";
-import type {
+import { SimulationClock } from "./SimulationClock";import type {
   SimulationEngineOptions,
   SimulationStatus,
   ArduinoUnoRuntimeState,
@@ -61,7 +60,6 @@ export class SimulationEngine {
 
   constructor(options: SimulationEngineOptions = {}) {
     this.options = options;
-
     const frequency =
       options.config?.frequency ?? 16_000_000;
 
@@ -135,7 +133,6 @@ export class SimulationEngine {
     this.firmwareLoaded = true;
     this.setStatus("idle");
   }
-
   start(): void {
     if (
       this.clock.isRunning()
@@ -248,7 +245,6 @@ export class SimulationEngine {
     this.clock.stop();
     this.setStatus("paused");
   }
-
   stop(): void {
     this.clock.stop();
     this.arduino.reset();
@@ -258,7 +254,6 @@ export class SimulationEngine {
     };
     this.setStatus("stopped");
   }
-
   reset(): void {
     this.clock.stop();
     this.arduino.reset();

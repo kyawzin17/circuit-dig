@@ -1,6 +1,5 @@
 import type { ArduinoUnoRuntimeState, PinLevel, PinMode, RuntimePin } from "../types/simulator.types";
 import { ARDUINO_UNO_PIN_MAP } from "../mapping/ArduinoUnoPinMap";
-
 export type ArduinoPort = "B" | "C" | "D";
 
 export type ArduinoDigitalDriver = {
@@ -15,8 +14,7 @@ export class ArduinoUnoRuntime {
   private createInitialState(): ArduinoUnoRuntimeState {
     const digitalPins: Record<number, RuntimePin> = {};
     for (let pin = 0; pin <= 13; pin += 1) {
-      digitalPins[pin] = { pin, mode: "input", level: 0 };
-    }
+      digitalPins[pin] = { pin, mode: "input", level: 0 };    }
     return { digitalPins, ledStates: {}, resistorStates: {} };
   }
 

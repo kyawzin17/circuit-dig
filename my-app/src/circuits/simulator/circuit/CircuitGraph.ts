@@ -52,7 +52,6 @@ export function createCircuitGraph(
         : undefined,
     data: (node.data ?? {}) as Record<string, unknown>,
   }));
-
   const wires: CircuitWire[] = [];
 
   for (const edge of edges) {
@@ -61,8 +60,7 @@ export function createCircuitGraph(
     const sourcePinId = edge.data?.sourcePinId ?? edge.sourceHandle;
     const targetPinId = edge.data?.targetPinId ?? edge.targetHandle;
 
-    if (!sourceNodeId || !targetNodeId || !sourcePinId || !targetPinId) {
-      continue;
+    if (!sourceNodeId || !targetNodeId || !sourcePinId || !targetPinId) {      continue;
     }
 
     wires.push({
