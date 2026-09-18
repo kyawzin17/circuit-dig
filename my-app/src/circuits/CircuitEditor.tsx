@@ -420,7 +420,7 @@ const CircuitEditor = () => {
 
 const handleRunSimulation = () => {
   const engine = simulationEngine.current;
-
+  console.log("This is the engine:", engine);
   if (!engine) {
     return;
   }
@@ -1218,6 +1218,7 @@ const stop =
         newNode,
       ];
 
+      console.log("This is NextNodes:", nextNodes);
       setNodes(nextNodes);
 
       pushToHistory(
