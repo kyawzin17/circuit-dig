@@ -284,7 +284,7 @@ function createBreadboardPins(): BreadboardPin[] {
         y,
 
         handleId:
-          `${power.type}_${power.id}_${row}`,
+          `bf-${pinId}`,
       });
     });
   }

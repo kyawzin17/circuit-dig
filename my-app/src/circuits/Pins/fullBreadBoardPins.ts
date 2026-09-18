@@ -38,7 +38,7 @@ const generateFullBreadboardPins = (): CircuitPin[] => {
   for (let row = 1; row <= 63; row++) {
     for (const rail of powerRails) {
       // Handle ID Structure: `${power.type}_${power.id}_${row}`
-      const pinId = `${rail.type}_${rail.id}_${row}`;
+      const pinId = `bf-${rail.id}_${row}`;
 
       pins.push({
         id: pinId,

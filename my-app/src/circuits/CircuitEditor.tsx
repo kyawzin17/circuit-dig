@@ -63,6 +63,7 @@ import { ldrModulePins } from "./pins/ldrSensorPins.ts";
 import { pirPins } from "./pins/pirMotionSensorPins.ts";
 import { ds1307Pins } from "./pins/ds1307Pins.ts";
 import { oledSsd1306SpiPins } from "./pins/ssd1306Pins.ts";
+import { batteryPins } from "./pins/battery9VPins.ts";
 
 import {
   ChevronDown,
@@ -85,6 +86,8 @@ import PropertiesPanel from "./PropertiesPanel";
 import BreadboardMiniNode from "./nodes/BreadboardMiniNode";
 import BreadboardHalfNode from "./nodes/BreadboardHalfNode.tsx";
 import BreadboardFullNode from "./nodes/BreadboardFullNode.tsx";
+import Battery9VNode from "./nodes/Battery9VNode.tsx";
+
 import PicoNode from "./nodes/Respberrypipico.tsx";
 
 /* =========================================================
@@ -136,6 +139,7 @@ const nodeTypes = {
   breadboardMiniNode: BreadboardMiniNode,
   breadboardHalfNode: BreadboardHalfNode,
   breadboardFullNode: BreadboardFullNode,
+  battery9VNode: Battery9VNode,
   picoNode: PicoNode,
 };
 
@@ -1031,6 +1035,12 @@ const stop =
           tag: "wokwi-pico",
           props: {},
         },
+        "battery-9v": {
+          label: "9V Battery",
+          tag: "wokwi-battery-9v",
+          props: {},
+          pins: batteryPins,
+        },
       };
 
       const config =
@@ -1086,7 +1096,8 @@ const stop =
       const isBreadboard =
         type === "mini-board" ||
         type === "half-board" ||
-        type === "full-board";
+        type === "full-board" ||
+        type === "battery-9v";
 
       if (
         type === "mini-board"
@@ -1107,6 +1118,12 @@ const stop =
       ) {
         customNodeType =
           "breadboardFullNode";
+      }
+
+      if (
+        type === "battery-9v"
+      ) {
+        customNodeType = "battery9VNode";
       }
 
       if (

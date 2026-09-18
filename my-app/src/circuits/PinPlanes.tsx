@@ -1,16 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import type { Edge, Node } from "reactflow";
 
-import { getPinIdFromHandle } from "./utils/pin.utils";
 
-import {
-  Search,
-  Plug,
-  Cable,
-  Cpu,
-  CircleDot,
-  Zap,
-} from "lucide-react";
+import { Search, Plug, Cable, Cpu, CircleDot, Zap,} from "lucide-react";
 
 import type {
   CircuitPin,
@@ -290,10 +282,13 @@ export default function PinPlanes({
   edges,
 }: Props) {
 
+  console.log("PIN PLANE DEBUG", {
+    nodes,
+    edges,
+  });
   // =====================================================
   // STATE
   // =====================================================
-
   const [search, setSearch] =
     useState("");
 
@@ -730,7 +725,7 @@ export default function PinPlanes({
 
 
   // =====================================================
-  // EMPTY STATE
+  // !EMPTY STATE (လောလောဆယ် အပို တစ်ခု အနေနဲ့ ထည့်ထားတာ)
   // =====================================================
 
   if (!selectedNode) {
@@ -738,57 +733,30 @@ export default function PinPlanes({
     return (
 
       <div
-        className="
-          h-full
-          flex
-          flex-col
-          items-center
-          justify-center
-          text-center
-          py-16
-        "
-      >
+        className="h-full flex flex-col items-center justify-center text-center py-16" >
 
         <div
-          className="
-            w-12
-            h-12
-            rounded-xl
-            bg-slate-800
-            flex
-            items-center
-            justify-center
-            mb-4
+          className="w-12 h-12 rounded-xl bg-slate-800 flex items-center justify-center mb-4
           "
         >
 
           <Plug
             size={22}
-            className="
-              text-slate-500
-            "
+            className="text-slate-500"
           />
 
         </div>
 
 
         <p
-          className="
-            text-sm
-            font-medium
-            text-slate-400
-          "
+          className="text-sm font-medium text-slate-40 "
         >
           No Component Selected
         </p>
 
 
         <p
-          className="
-            text-xs
-            text-slate-600
-            mt-1
-          "
+          className="text-xs text-slate-600mt-1"
         >
           Select a component to view its pins.
         </p>

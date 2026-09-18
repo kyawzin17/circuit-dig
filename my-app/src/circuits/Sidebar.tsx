@@ -14,6 +14,7 @@ import "./circuit.css";
 import miniBoard from "../assets/gemini-svg (1).svg";
 import halfBoard from "../assets/gemini-svg (2).svg";
 import fullBoard from "../assets/gemini-svg (3).svg";
+import battery9V from "../assets/gemini-svg (4).svg";
 
 
 type CategoryButtonProps = {
@@ -336,7 +337,14 @@ const Sidebar = () => {
       category: "basic",
       image: fullBoard,
     },
-
+    {
+      type: "battery-9v",
+      name: "9V Battery",
+      scale: 0.8,
+      yOffset: "0px",
+      category: "basic",
+      image: battery9V,
+    },
     {
       type: "led-red",
       name: "Red LED",
