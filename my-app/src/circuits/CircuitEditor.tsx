@@ -371,9 +371,26 @@ const CircuitEditor = () => {
   const engine =
     new SimulationEngine({
       onStateChange: (state) => {
-        console.log(
-          "[Simulation State]",
-          state
+        setNodes((currentNodes) =>
+          currentNodes.map((node) => {
+            const ledState = state.ledStates[node.id];
+
+            if (!ledState) {
+              return node;
+            }
+
+            return {
+              ...node,
+              data: {
+                ...node.data,
+                simulation: {
+                  ...(node.data?.simulation ?? {}),
+                  isOn: ledState.isOn,
+                  brightness: ledState.brightness,
+                },
+              },
+            };
+          })
         );
       },
 
@@ -398,22 +415,51 @@ const CircuitEditor = () => {
 
 
 const handleRunSimulation = () => {
-  const engine =
-    simulationEngine.current;
+  const engine = simulationEngine.current;
 
   if (!engine) {
     return;
   }
 
-  engine.setCircuit(
-    nodes,
-    edges as CircuitEdge[],
-  );
+  const hex = useSimulationStore.getState().hex;
 
-  engine.start();
+  if (!hex) {
+    useSimulationStore.setState({
+      status: "error",
+      error: "No compiled Arduino HEX is available.",
+    });
+    return;
+  }
+
+  try {
+    engine.stop();
+
+    engine.setCircuit(
+      nodes,
+      edges as CircuitEdge[],
+    );
+
+    // Load the real Arduino firmware before starting AVR execution.
+    engine.loadHex(hex);
+    engine.start();
+
+    useSimulationStore.getState().setRunning();
+  } catch (error) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : String(error);
+
+    useSimulationStore.setState({
+      status: "error",
+      error: message,
+    });
+  }
 };
+
 const handleStopSimulation = () => {
   simulationEngine.current?.stop();
+  stop();
 };
 
 const handlePauseSimulation = () => {
