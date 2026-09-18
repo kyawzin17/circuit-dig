@@ -1,8 +1,7 @@
 import { create } from "zustand";
-
-/* =========================================================
-   TYPES
-========================================================= */
+import {
+  compileArduinoSketch,
+} from "../circuits/simulator/compiler/ArduinoCompiler";
 
 export type SimulationStatus =
   | "idle"
@@ -12,55 +11,21 @@ export type SimulationStatus =
   | "stopped"
   | "error";
 
-type CompileResult = {
-  success: boolean;
-  hex?: string;
-  fqbn?: string;
-  logs?: string;
-  error?: string;
-};
-
 type SimulationStore = {
-  /* ---------------------------------------------
-     Code
-  --------------------------------------------- */
-
   code: string;
-
-  setCode: (
-    code: string
-  ) => void;
-
-  /* ---------------------------------------------
-     Simulation
-  --------------------------------------------- */
+  setCode: (code: string) => void;
 
   status: SimulationStatus;
-
   hex: string | null;
-
   fqbn: string;
-
   logs: string;
-
   error: string | null;
 
-  /* ---------------------------------------------
-     Actions
-  --------------------------------------------- */
-
   compile: () => Promise<boolean>;
-
   setRunning: () => void;
-
   stop: () => void;
-
   reset: () => void;
 };
-
-/* =========================================================
-   DEFAULT ARDUINO CODE
-========================================================= */
 
 const DEFAULT_CODE = `void setup() {
   pinMode(13, OUTPUT);
@@ -75,170 +40,98 @@ void loop() {
 }
 `;
 
-/* =========================================================
-   STORE
-========================================================= */
-
 export const useSimulationStore =
-  create<SimulationStore>(
-    (set, get) => ({
-      /* ===============================================
-         CODE
-      =============================================== */
+  create<SimulationStore>((set, get) => ({
+    code: DEFAULT_CODE,
 
-      code: DEFAULT_CODE,
+    setCode: (code) => {
+      set({
+        code,
+        error: null,
+      });
+    },
 
-      setCode: (code) => {
-        set({
-          code,
-          error: null,
-        });
-      },
+    status: "idle",
+    hex: null,
+    fqbn: "arduino:avr:uno",
+    logs: "",
+    error: null,
 
-      /* ===============================================
-         SIMULATION STATE
-      =============================================== */
+    compile: async () => {
+      const {
+        code,
+        fqbn,
+      } = get();
 
-      status: "idle",
+      set({
+        status: "compiling",
+        error: null,
+        logs: "",
+      });
 
-      hex: null,
-
-      fqbn:
-        "arduino:avr:uno",
-
-      logs: "",
-
-      error: null,
-
-      /* ===============================================
-         COMPILE
-      =============================================== */
-
-      compile: async () => {
-        const {
-          code,
-          fqbn,
-        } = get();
-
-        set({
-          status: "compiling",
-          error: null,
-          logs: "",
-        });
-
-        try {
-          const response =
-            await fetch(
-              "http://localhost:7000/api/arduino/compile",
-              {
-                method: "POST",
-
-                headers: {
-                  "Content-Type":
-                    "application/json",
-                },
-
-                body: JSON.stringify({
-                  code,
-                  fqbn,
-                }),
-              }
-            );
-
-          const result =
-            (await response.json()) as CompileResult;
-
-          /* ---------------------------------------
-             Compile failed
-          --------------------------------------- */
-
-          if (
-            !response.ok ||
-            !result.success ||
-            !result.hex
-          ) {
-            set({
-              status: "error",
-
-              error:
-                result.error ||
-                "Compilation failed.",
-
-              logs:
-                result.logs || "",
-
-              hex: null,
-            });
-
-            return false;
-          }
-
-          /* ---------------------------------------
-             Compile success
-          --------------------------------------- */
-
-          set({
-            status: "compiled",
-
-            hex: result.hex,
-
-            logs:
-              result.logs || "",
-
-            error: null,
+      try {
+        const result =
+          await compileArduinoSketch({
+            code,
+            fqbn,
           });
 
-          return true;
-        } catch (error) {
-          const message =
-            error instanceof Error
-              ? error.message
-              : "Unable to connect to compiler server.";
-
+        if (!result.success || !result.hex) {
           set({
             status: "error",
-
-            error: message,
-
+            error:
+              result.error ??
+              "Compilation failed.",
+            logs: result.logs ?? "",
             hex: null,
           });
 
           return false;
         }
-      },
 
-      /* ===============================================
-         RUNNING
-      =============================================== */
-
-      setRunning: () => {
         set({
-          status: "running",
+          status: "compiled",
+          hex: result.hex,
+          logs: result.logs ?? "",
           error: null,
         });
-      },
 
-      /* ===============================================
-         STOP
-      =============================================== */
+        return true;
+      } catch (error) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : "Unable to connect to compiler server.";
 
-      stop: () => {
         set({
-          status: "stopped",
-        });
-      },
-
-      /* ===============================================
-         RESET
-      =============================================== */
-
-      reset: () => {
-        set({
-          status: "idle",
+          status: "error",
+          error: message,
           hex: null,
-          logs: "",
-          error: null,
         });
-      },
-    })
-  );
+
+        return false;
+      }
+    },
+
+    setRunning: () => {
+      set({
+        status: "running",
+        error: null,
+      });
+    },
+
+    stop: () => {
+      set({
+        status: "stopped",
+      });
+    },
+
+    reset: () => {
+      set({
+        status: "idle",
+        hex: null,
+        logs: "",
+        error: null,
+      });
+    },
+  }));
