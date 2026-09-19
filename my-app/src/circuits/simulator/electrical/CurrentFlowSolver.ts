@@ -411,6 +411,8 @@ export class CurrentFlowSolver {
        *
        *   I = (Vs - Vf) / R
        */
+      let pathCurrentMa: number | undefined;
+
       if (totalResistance > 0) {
         const currentA = Math.max(
           0,
@@ -419,14 +421,14 @@ export class CurrentFlowSolver {
             totalResistance,
         );
 
-        const currentMa =
+        pathCurrentMa =
           currentA * 1000;
 
         if (
           firstCurrentMa === undefined ||
-          currentMa > firstCurrentMa
+          pathCurrentMa > firstCurrentMa
         ) {
-          firstCurrentMa = currentMa;
+          firstCurrentMa = pathCurrentMa;
           firstVoltageDrop =
             totalVoltageDrop;
         }
@@ -447,7 +449,7 @@ export class CurrentFlowSolver {
 
         wireStates[wireId] = {
           isActive: true,
-          currentMa: firstCurrentMa,
+          currentMa: pathCurrentMa,
           netId,
         };
       }
