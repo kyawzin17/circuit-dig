@@ -319,23 +319,6 @@ export class SimulationEngine {
             : undefined,
       };
 
-      if (
-        flowCurrent !== undefined &&
-        isOn
-      ) {
-        /*
-         * Keep the current value available in
-         * the runtime debugger without changing
-         * the existing LED state contract.
-         */
-        console.debug(
-          "[CURRENT FLOW]",
-          {
-            ledId: node.id,
-            currentMa: flowCurrent,
-          },
-        );
-      }
     }
   }
 
