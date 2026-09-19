@@ -114,7 +114,7 @@ const CodeSection = ({
       engine.stop();
       simulationEngine.current = null;
     };
-  }, [setNodes]);
+  }, [setNodes, setEdges]);
 
   const handleRun = async () => {
     if (isCompiling) return;
