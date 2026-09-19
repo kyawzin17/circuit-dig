@@ -33,6 +33,7 @@ const CodeSection = ({
     getNodes,
     getEdges,
     setNodes,
+    setEdges,
   } = useReactFlow();
 
   const isCompiling = status === "compiling";
@@ -44,8 +45,13 @@ const CodeSection = ({
         setNodes((currentNodes) =>
           currentNodes.map((node) => {
             const ledState = state.ledStates[node.id];
+            const componentType = String(
+              node.data?.componentType ??
+                node.type ??
+                "",
+            ).toLowerCase();
 
-            if (!ledState) {
+            if (!componentType.includes("led")) {
               return node;
             }
 
@@ -55,12 +61,37 @@ const CodeSection = ({
                 ...node.data,
                 simulation: {
                   ...(node.data?.simulation ?? {}),
-                  isOn: ledState.isOn,
-                  brightness: ledState.brightness,
+                  isOn: ledState?.isOn === true,
+                  brightness:
+                    typeof ledState?.brightness === "number"
+                      ? ledState.brightness
+                      : 0,
                 },
               },
             };
-          })
+          }),
+        );
+
+        setEdges((currentEdges) =>
+          currentEdges.map((edge) => {
+            const wireState =
+              state.wireStates?.[edge.id];
+
+            return {
+              ...edge,
+              data: {
+                ...(edge.data ?? {}),
+                simulation: {
+                  isActive:
+                    wireState?.isActive === true,
+                  currentMa:
+                    wireState?.currentMa,
+                  netId:
+                    wireState?.netId,
+                },
+              },
+            };
+          }),
         );
       },
 
@@ -83,7 +114,7 @@ const CodeSection = ({
       engine.stop();
       simulationEngine.current = null;
     };
-  }, [setNodes]);
+  }, [setNodes, setEdges]);
 
   const handleRun = async () => {
     if (isCompiling) return;
