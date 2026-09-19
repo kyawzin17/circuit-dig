@@ -304,71 +304,42 @@ const ElectronicNode = ({
       return;
     }
 
-    console.log(
-      "[ElectronicNode] LED simulation update",
-      {
-        id,
-        isOn: isLedOn,
-        brightness,
-        element,
-      }
-    );
-
     /*
-     * IMPORTANT
-     *
      * Wokwi Elements is the visual layer.
-     * Our simulator owns the simulation state.
+     * The simulator owns the electrical state.
      *
-     * For now we expose the state on the
-     * actual Wokwi LED DOM element.
+     * wokwi-led exposes:
+     *   value      -> boolean
+     *   brightness -> 0..1
      *
-     * This gives us a clean bridge:
+     * So the bridge stays explicit:
      *
-     * SimulationEngine
-     *      ↓
-     * simulation.isOn
-     *      ↓
-     * ElectronicNode
-     *      ↓
-     * <wokwi-led>
+     * AVR -> circuit solver -> LED runtime
+     *     -> React node state -> wokwi-led
      */
-
-    (
+    const ledElement =
       element as HTMLElement & {
-        value?: number;
+        value?: boolean;
         brightness?: number;
-      }
-    ).value = isLedOn ? 1 : 0;
+      };
 
-    (
-      element as HTMLElement & {
-        simulationOn?: boolean;
-        simulationBrightness?: number;
-      }
-    ).simulationOn = isLedOn;
-
-    (
-      element as HTMLElement & {
-        simulationOn?: boolean;
-        simulationBrightness?: number;
-      }
-    ).simulationBrightness = brightness;
-
-    /*
-     * Also expose them as DOM attributes.
-     * This is useful for debugging and for
-     * custom Wokwi-element integration later.
-     */
+    ledElement.value = isLedOn;
+    ledElement.brightness = isLedOn
+      ? brightness
+      : 0;
 
     element.setAttribute(
-      "data-value",
-      String(isLedOn)
+      "data-simulation-on",
+      String(isLedOn),
     );
 
     element.setAttribute(
-      "data-brightness",
-      String(brightness)
+      "data-simulation-brightness",
+      String(
+        isLedOn
+          ? brightness
+          : 0,
+      ),
     );
 
   }, [
