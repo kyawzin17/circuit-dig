@@ -301,9 +301,6 @@ export class SimulationEngine {
         anode === 1 &&
         cathode === 0;
 
-      const flowCurrent =
-        this.currentFlowState.currentMa;
-
       this.arduino.getState().ledStates[
         node.id
       ] = {
