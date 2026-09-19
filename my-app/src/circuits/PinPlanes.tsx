@@ -161,13 +161,13 @@ const isHandleMatchingPin = (
   const pinIdentifiers =
     getPinIdentifiers(pin);
 
-    console.log("PIN MATCH DEBUG", {
-    handleId,
-    normalizedHandle,
-    pinId: pin.id,
-    pinLabel: pin.label,
-    pinIdentifiers,
-  });
+  // *   console.log("PIN MATCH DEBUG", {
+  //   handleId,
+  //   normalizedHandle,
+  //   pinId: pin.id,
+  //   pinLabel: pin.label,
+  //   pinIdentifiers,
+  // });
 
 
   return pinIdentifiers.includes(

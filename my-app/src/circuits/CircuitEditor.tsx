@@ -864,7 +864,8 @@ const stop =
         event.dataTransfer.getData(
           "application/reactflow"
         );
-        console.log(type);
+
+        // * console.log(type);
 
       if (!type) {
         return;
@@ -1218,7 +1219,7 @@ const stop =
         newNode,
       ];
 
-      console.log("This is NextNodes:", nextNodes);
+      // * console.log("This is NextNodes:", nextNodes);
       setNodes(nextNodes);
 
       pushToHistory(

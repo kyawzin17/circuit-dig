@@ -226,15 +226,15 @@ export class SimulationEngine {
       const isOn =
         anode === 1 && cathode === 0;
 
-        console.log(
-      "[LED DEBUG]",
-      {
-        nodeId: node.id,
-        anode,
-        cathode,
-        isOn,
-      }
-    );
+    //  *   console.log(
+    //   "[LED DEBUG]",
+    //   {
+    //     nodeId: node.id,
+    //     anode,
+    //     cathode,
+    //     isOn,
+    //   }
+    // );
 
       this.arduino.getState().ledStates[
         node.id

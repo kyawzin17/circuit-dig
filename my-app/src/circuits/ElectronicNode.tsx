@@ -304,15 +304,15 @@ const ElectronicNode = ({
       return;
     }
 
-    console.log(
-      "[ElectronicNode] LED simulation update",
-      {
-        id,
-        isOn: isLedOn,
-        brightness,
-        element,
-      }
-    );
+    // * console.log(
+    //   "[ElectronicNode] LED simulation update",
+    //   {
+    //     id,
+    //     isOn: isLedOn,
+    //     brightness,
+    //     element,
+    //   }
+    // );
 
     /*
      * IMPORTANT

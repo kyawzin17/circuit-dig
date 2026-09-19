@@ -132,3 +132,14 @@ export interface SimulationEngineOptions {
     error: Error
   ) => void;
 }
+
+// =====================================================
+// ! SIMULATION ENGINE WIRE STATE (Wire Animation လုပ်ဖို့ data types)
+// =====================================================
+
+export type WireSimulationState = {
+  isFlowing: boolean;
+  level: "HIGH" | "LOW" | "Z";
+  direction?: "forward" | "reverse" | null;
+  currentMa?: number;
+};
