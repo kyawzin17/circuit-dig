@@ -367,6 +367,17 @@ export class CurrentFlowSolver {
     let firstVoltageDrop: number | undefined;
 
     for (const sourceNet of sourceNets) {
+      /*
+       * A source net that is already GND is a short
+       * circuit, not a normal current-flow path.
+       */
+      if (groundNets.has(sourceNet)) {
+        conflicts.push(
+          "SHORT_CIRCUIT:" + sourceNet,
+        );
+        continue;
+      }
+
       const path = findPathToGround(
         sourceNet,
         groundNets,
