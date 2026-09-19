@@ -193,7 +193,31 @@ export default function EditableEdge({
     setEdges((eds) => eds.map((edge) => edge.id === id ? { ...edge, data: { ...edge.data, points: newPts } } : edge));
   };
 
+  const simulation = data?.simulation as
+    | {
+        isActive?: boolean;
+        currentMa?: number;
+        netId?: string;
+      }
+    | undefined;
+
+  const isActive =
+    simulation?.isActive === true;
+
+  const currentMa =
+    typeof simulation?.currentMa === "number"
+      ? simulation.currentMa
+      : undefined;
+
+  const flowColor = "#22d3ee";
+
   const edgePath = createRoundedPath(points, CORNER_RADIUS);
+
+  const labelPoint =
+    points.length > 1
+      ? points[Math.floor(points.length / 2)]
+      : trueSource;
+
   const segments = points.slice(0, -1).map((p1, i) => {
     const p2 = points[i + 1];
     return { p1, p2, isVertical: Math.abs(p1.x - p2.x) < 0.1, isDraggable: true}; //i !== 0 && i !== points.length - 2
@@ -202,7 +226,36 @@ export default function EditableEdge({
 
   return (
     <>
-      <BaseEdge path={edgePath} markerEnd={markerEnd} markerStart={markerStart} style={{ stroke: style.stroke || '#0a1161', strokeWidth: 6, ...style }} />
+      <BaseEdge
+        path={edgePath}
+        markerEnd={markerEnd}
+        markerStart={markerStart}
+        style={{
+          stroke: style.stroke || '#0a1161',
+          strokeWidth: 6,
+          ...style,
+        }}
+      />
+
+      {isActive && (
+        <path
+          d={edgePath}
+          fill="none"
+          stroke={flowColor}
+          strokeWidth={3}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="circuit-wire-flow"
+          pointerEvents="none"
+        >
+          <title>
+            {currentMa !== undefined
+              ? "Current flow: " + currentMa.toFixed(2) + " mA"
+              : "Current flow detected"}
+          </title>
+        </path>
+      )}
+
       {segments.map((seg, index) => (
         <path
           key={index}
@@ -218,6 +271,27 @@ export default function EditableEdge({
         />
       ))}
      <EdgeLabelRenderer>
+        {isActive && (
+          <div
+            className="circuit-wire-current-badge"
+            style={{
+              left: 0,
+              top: 0,
+              transform:
+                "translate(" +
+                labelPoint.x +
+                "px, " +
+                labelPoint.y +
+                "px) translate(-50%, -50%)",
+            }}
+          >
+            <span className="circuit-wire-current-dot" />
+            {currentMa !== undefined
+              ? currentMa.toFixed(1) + " mA"
+              : "FLOW"}
+          </div>
+        )}
+
         {/* Source Dot (အစ) - True Center ကို အသုံးပြုထားသည် */}
          <div
           style={{
