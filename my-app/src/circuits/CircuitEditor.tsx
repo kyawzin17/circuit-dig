@@ -459,7 +459,7 @@ const CircuitEditor = () => {
     simulationEngine.current =
       null;
   };
-}, []);
+}, [setNodes, setEdges]);
 
 
 const handleRunSimulation = () => {
