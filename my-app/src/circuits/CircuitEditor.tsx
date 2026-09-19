@@ -102,6 +102,12 @@ type CircuitEdgeData = {
 
   targetNodeId: string;
   targetPinId: string | null;
+
+  simulation?: {
+    isActive: boolean;
+    currentMa?: number;
+    netId?: string;
+  };
 };
 
 type CircuitEdge = Edge<CircuitEdgeData>;
@@ -375,11 +381,20 @@ const CircuitEditor = () => {
   const engine =
     new SimulationEngine({
       onStateChange: (state) => {
+        /*
+         * Component visualization:
+         * AVR -> GPIO -> digital solver -> LED state
+         */
         setNodes((currentNodes) =>
           currentNodes.map((node) => {
             const ledState = state.ledStates[node.id];
+            const componentType = String(
+              node.data?.componentType ??
+                node.type ??
+                "",
+            ).toLowerCase();
 
-            if (!ledState) {
+            if (!componentType.includes("led")) {
               return node;
             }
 
@@ -389,12 +404,41 @@ const CircuitEditor = () => {
                 ...node.data,
                 simulation: {
                   ...(node.data?.simulation ?? {}),
-                  isOn: ledState.isOn,
-                  brightness: ledState.brightness,
+                  isOn: ledState?.isOn === true,
+                  brightness:
+                    typeof ledState?.brightness === "number"
+                      ? ledState.brightness
+                      : 0,
                 },
               },
             };
-          })
+          }),
+        );
+
+        /*
+         * Electrical visualization:
+         * current-flow solver -> physical wire state
+         */
+        setEdges((currentEdges) =>
+          currentEdges.map((edge) => {
+            const wireState =
+              state.wireStates?.[edge.id];
+
+            return {
+              ...edge,
+              data: {
+                ...(edge.data ?? {}),
+                simulation: {
+                  isActive:
+                    wireState?.isActive === true,
+                  currentMa:
+                    wireState?.currentMa,
+                  netId:
+                    wireState?.netId,
+                },
+              },
+            };
+          }),
         );
       },
 
