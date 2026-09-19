@@ -31,11 +31,8 @@ export type PinMode =
 
 export interface RuntimePin {
   pin: number;
-
   mode: PinMode;
-
   level: PinLevel;
-
   analogValue?: number;
 }
 
@@ -45,11 +42,8 @@ export interface RuntimePin {
 
 export interface RuntimeComponent {
   id: string;
-
   type: string;
-
   update(): void;
-
   reset(): void;
 }
 
@@ -59,11 +53,8 @@ export interface RuntimeComponent {
 
 export interface LedRuntimeState {
   id: string;
-
   isOn: boolean;
-
   brightness?: number;
-
   color?: string;
 }
 
@@ -73,10 +64,27 @@ export interface LedRuntimeState {
 
 export interface ResistorRuntimeState {
   id: string;
-
   resistance: number;
-
   unit?: "Ω" | "kΩ" | "MΩ";
+}
+
+// =====================================================
+// WIRE RUNTIME STATE
+// =====================================================
+
+/**
+ * Visual/electrical state for a physical wire.
+ *
+ * isActive means the current-flow solver found this
+ * wire on a valid source -> component -> GND path.
+ *
+ * It is deliberately separate from a voltage level:
+ * a HIGH net can exist without current flowing.
+ */
+export interface WireRuntimeState {
+  isActive: boolean;
+  currentMa?: number;
+  netId?: string;
 }
 
 // =====================================================
@@ -89,6 +97,8 @@ export interface ArduinoUnoRuntimeState {
   ledStates: Record<string, LedRuntimeState>;
 
   resistorStates: Record<string, ResistorRuntimeState>;
+
+  wireStates: Record<string, WireRuntimeState>;
 }
 
 // =====================================================
@@ -103,6 +113,8 @@ export interface SimulationResult {
   message?: string;
 
   ledStates?: Record<string, LedRuntimeState>;
+
+  wireStates?: Record<string, WireRuntimeState>;
 }
 
 // =====================================================
