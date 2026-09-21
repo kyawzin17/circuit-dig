@@ -179,6 +179,17 @@ export class SimulationEngine {
   }
 
   /**
+   * Update live component state without rebuilding topology.
+   *
+   * This is used for interactive controls such as a pushbutton:
+   * the wire graph stays the same, while the component's pressed
+   * state changes while the simulation is already running.
+   */
+  updateNodes(nodes: Node[]): void {
+    this.circuitNodes = nodes;
+  }
+
+  /**
    * Load the real HEX output produced by
    * Arduino CLI.
    */
