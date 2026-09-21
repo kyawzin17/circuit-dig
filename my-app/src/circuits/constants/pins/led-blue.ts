@@ -1,4 +1,4 @@
 export const LED_BLUE_PIN = [
-    { name: 'anode', x: 16, y: 42 , dir: "bottom", signals: [] }, // အဖိုတိုင်
-    { name: 'cathode', x: 26, y: 42 , dir: "bottom", signals: [] }, // အမတိုင်
+    { id: "anode", name: 'anode', pinType: "ANODE", expectedSignal: "POWER", x: 26, y: 42 , dir: "bottom", signals: [] }, // အဖိုတိုင်
+    { id: "cathode", name: 'cathode', pinType: "CATHODE", expectedSignal: "GND", x: 16, y: 42 , dir: "bottom", signals: [] }, // အမတိုင်
   ]

@@ -1,9 +1,4 @@
-import React, {
-  useState,
-  useCallback,
-  useRef,
-  useEffect,
-} from "react";
+import React, { useState, useCallback, useRef, useEffect } from "react";
 
 import ReactFlow, {
   addEdge,
@@ -22,23 +17,7 @@ import ReactFlow, {
 
 import "reactflow/dist/style.css";
 
-import Sidebar from "./Sidebar.tsx";
-import ElectronicNode from "./ElectronicNode.tsx";
-
-import CodeSection from "./CodeSection.tsx";
-
-import {
-  useSimulationStore,
-} from "../stores/simulationStore";
-
-import {
-  SimulationEngine
-} from "./simulator/core/SimulationEngine.ts";
-
-import type {
-  SimulationStatus,
-} from "./simulator/types/simulator.types";
-
+// * ----------> Components Circuit Pins For Right Sidebar Pin Panel <----------
 import { arduinoUnoPins } from "./pins/arduinoUnoPins.ts";
 import { resistorPins } from "./pins/resistorPins.ts";
 import { ledPins } from "./pins/ledPins.ts";
@@ -65,35 +44,33 @@ import { ds1307Pins } from "./pins/ds1307Pins.ts";
 import { oledSsd1306SpiPins } from "./pins/ssd1306Pins.ts";
 import { batteryPins } from "./pins/battery9VPins.ts";
 
-import {
-  ChevronDown,
-  ZoomIn,
-  ZoomOut,
-  Maximize,
-  Check,
-  Undo,
-  Redo,
-} from "lucide-react";
-
+// * ----------> Icons <----------
+import { ChevronDown, ZoomIn, ZoomOut, Maximize, Check, Undo, Redo } from "lucide-react";
 import { MdDeleteForever } from "react-icons/md";
 import { FaRegSave } from "react-icons/fa";
 import { FaArrowsRotate } from "react-icons/fa6";
 import { LuGrid2X2X, LuGrid2X2Plus, LuCode } from "react-icons/lu";
 
-import EditableEdge from "./EditableEdge";
-import PropertiesPanel from "./PropertiesPanel";
+// * ----------> Components <----------
+import EditableEdge from "./EditableEdge"; // Editable Edge Component (Custom Edge Component)
+import Sidebar from "./Sidebar.tsx";  // Left Sidebar Component (For drag and drop nodes)
+import PropertiesPanel from "./PropertiesPanel"; // Properties Panel Component (Right Sidebar)
+import ElectronicNode from "./ElectronicNode.tsx"; // Electronic Custom Node Component (For Pin Handling)
+import CodeSection from "./CodeSection.tsx"; // Code Section Component (For Code Editing & C++)
 
+// * ----------> Components Custom Nodes (For Component Handling & Design) <----------
 import BreadboardMiniNode from "./nodes/BreadboardMiniNode";
 import BreadboardHalfNode from "./nodes/BreadboardHalfNode.tsx";
 import BreadboardFullNode from "./nodes/BreadboardFullNode.tsx";
 import Battery9VNode from "./nodes/Battery9VNode.tsx";
-
 import PicoNode from "./nodes/Respberrypipico.tsx";
 
-/* =========================================================
-   TYPES
-========================================================= */
+// * ----------> Simulation Engine <----------
+import { useSimulationStore } from "../stores/simulationStore"; // Simulation Store for Simulation Engine ()
+import { SimulationEngine } from "./simulator/core/SimulationEngine.ts"; // Simulation Engine Component
 
+// * ----------> Types <----------
+// Circuit Edge Data Type (For Simulation Engine)
 type CircuitEdgeData = {
   points: unknown;
 
@@ -109,37 +86,14 @@ type CircuitEdgeData = {
     netId?: string;
   };
 };
-
 type CircuitEdge = Edge<CircuitEdgeData>;
 
-/* =========================================================
-   CONSTANTS
-========================================================= */
-
-const zoomLevels = [
-  0.25,
-  0.5,
-  0.75,
-  1,
-  1.25,
-  1.5,
-  2,
-];
-
-const GRID_SIZE = 10;
-
-/* =========================================================
-   EDGE TYPES
-========================================================= */
-
+// Edge Types
 const edgeTypes: EdgeTypes = {
   editable: EditableEdge,
 };
 
-/* =========================================================
-   NODE TYPES
-========================================================= */
-
+// Node Types
 const nodeTypes = {
   electronicNode: ElectronicNode,
   breadboardMiniNode: BreadboardMiniNode,
@@ -149,33 +103,30 @@ const nodeTypes = {
   picoNode: PicoNode,
 };
 
-/* =========================================================
-   EDGE COLOR
-========================================================= */
+// * ----------> Constants <----------
+const zoomLevels = [ 0.25, 0.5, 0.75, 1, 1.25, 1.5, 2 ]; // Zoom Levels for Canvas (For Zooming In/Out)
+const GRID_SIZE = 10;
 
-const getEdgeColor = (handleId: string | null) => {
-  if (!handleId) {
-    return "#2ecc71";
-  }
 
-  if (handleId.startsWith("digital")) {
-    return "#2563eb";
-  }
+// * ----------> Edge Color <----------
+// Edge Color Function (For Edge Color Handling)
+function getEdgeAutoColor(types: string): string {
+  const checkPin = (pin: string) => {
+    const name = pin.toUpperCase();
+    
+    if (name.includes("GND") || types.includes("GND")) return "#000000"; // Black
+    if (name.includes("5V") || name.includes("VCC") || types.includes("POWER")) return "#EF4444"; // Red
+    if (name.includes("3.3V") || types.includes("3V3")) return "#F97316"; // Orange
+    if (types.includes("ANALOG") || name.startsWith("A")) return "#3B82F6"; // Blue
+    if (types.includes("DIGITAL") || name.startsWith("D")) return "#22C55E"; // Green
+    
+    return null;
+  };
 
-  if (handleId.startsWith("analog")) {
-    return "#eab308";
-  }
-
-  if (handleId === "power_5v") {
-    return "#ef4444";
-  }
-
-  if (handleId === "power_gnd") {
-    return "#000000";
-  }
-
-  return "#2ecc71";
-};
+  checkPin(types);
+  // 3. ရိုးရိုး Signal ကြိုးများအတွက် Default Color
+  return "#10B981"; // Default Green
+}
 
 /* =========================================================
    HELPER
@@ -216,9 +167,7 @@ const createConnectionData = (
   };
 };
 
-/* =========================================================
-   ZOOM CONTROLS
-========================================================= */
+// ? =========> ZOOM CONTROLS <========= 
 
 const ZoomControls = () => {
   const {
@@ -366,9 +315,7 @@ const ZoomControls = () => {
   );
 };
 
-/* =========================================================
-   MAIN COMPONENT
-========================================================= */
+// ? ==========> MAIN COMPONENT <==========
 
 const CircuitEditor = () => {
 
@@ -724,24 +671,19 @@ const stop =
 
   const onConnect = useCallback(
     (params: Connection) => {
-      /**
-       * React Flow guarantees source and target
-       * for a valid connection.
+      /** 
+       * React Flow guarantees (အာမခံ) source and target for a valid connection (မှန်ကန်တဲ့ ချိပ်ဆက်မှု).
        *
-       * Still guard here because our domain layer
-       * requires both.
+       * Still guard (စောင့်ကြည့်တာ) here because our domain layer requires both.
        */
-
       if (
         !params.source ||
         !params.target
       ) {
         return;
       }
-
-      const strokeColor = getEdgeColor(
-        params.sourceHandle ?? null
-      );
+      console.log(params);
+      const strokeColor = getEdgeAutoColor(params.targetHandle ?? "");
 
       const connectionData =
         createConnectionData(params);
@@ -861,8 +803,8 @@ const stop =
             style: {
               ...edge.style,
 
-              stroke: getEdgeColor(
-                sourcePinId
+              stroke: getEdgeAutoColor(
+                targetPinId ?? ""
               ),
             },
           };
