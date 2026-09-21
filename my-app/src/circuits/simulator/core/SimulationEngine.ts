@@ -30,6 +30,11 @@ import {
   type CurrentFlowState,
 } from "../electrical/CurrentFlowSolver";
 
+import {
+  PowerRailSolver,
+  type PowerRailState,
+} from "../electrical/PowerRailSolver";
+
 import { intelHexToProgram } from "./IntelHex";
 
 /* =========================================================
@@ -68,6 +73,9 @@ export class SimulationEngine {
   private readonly currentFlowSolver =
     new CurrentFlowSolver();
 
+  private readonly powerRailSolver =
+    new PowerRailSolver();
+
   private readonly options: SimulationEngineOptions;
 
   private netlist: Netlist | null = null;
@@ -86,6 +94,14 @@ export class SimulationEngine {
     wireStates: {},
     activeNets: new Set(),
     activeComponents: new Set(),
+    conflicts: [],
+  };
+
+  private powerState: PowerRailState = {
+    netVoltages: {},
+    pinVoltages: {},
+    sourceNets: new Map(),
+    groundNets: new Set(),
     conflicts: [],
   };
 
@@ -180,6 +196,14 @@ export class SimulationEngine {
       conflicts: [],
     };
 
+    this.powerState = {
+      netVoltages: {},
+      pinVoltages: {},
+      sourceNets: new Map(),
+      groundNets: new Set(),
+      conflicts: [],
+    };
+
     this.firmwareLoaded = true;
     this.setStatus("idle");
   }
@@ -195,12 +219,13 @@ export class SimulationEngine {
       );
     }
 
-    if (!this.firmwareLoaded) {
-      throw new Error(
-        "Compile the Arduino sketch before starting simulation.",
-      );
-    }
-
+    /*
+     * Firmware is optional for power-only simulation.
+     *
+     * With an empty sketch the Uno power rails still exist:
+     * 5V, 3.3V, IOREF and GND are available as soon as Run
+     * starts. If firmware was loaded, AVR8JS is also executed.
+     */
     this.setStatus("running");
     this.clock.start(() => this.tick());
   }
@@ -209,11 +234,18 @@ export class SimulationEngine {
     try {
       /*
        * 1. Execute the actual compiled Arduino
-       *    machine code inside AVR8JS.
+       *    machine code inside AVR8JS when firmware exists.
+       *
+       *    Power-only runs intentionally skip AVR execution.
        */
-      this.avr.runCycles(
-        this.cyclesPerFrame,
-      );
+      if (this.firmwareLoaded) {
+        this.avr.runCycles(
+          this.cyclesPerFrame,
+        );
+      }
+
+      const digitalDrivers =
+        this.arduino.getDigitalDrivers();
 
       /*
        * 2. Resolve digital pin levels from the
@@ -223,22 +255,54 @@ export class SimulationEngine {
         this.digitalSolver.solve(
           this.circuitNodes,
           this.circuitEdges,
-          this.arduino.getDigitalDrivers(),
+          digitalDrivers,
         );
 
       /*
-       * 3. Resolve a source -> component -> GND
-       *    path for current-flow visualization.
-       *
-       *    This is deliberately separate from the
-       *    digital HIGH/LOW solver.
+       * 3. Resolve fixed Arduino power rails first.
        */
       if (this.netlist) {
+        this.powerState =
+          this.powerRailSolver.solve(
+            this.netlist,
+            this.arduino.getPowerDrivers(),
+            digitalDrivers,
+            this.circuitNodes,
+          );
+
+        /*
+         * Keep the public runtime state synchronized with
+         * the resolved board power pins.
+         */
+        for (const driver of this.arduino.getPowerDrivers()) {
+          const voltage =
+            this.powerState.pinVoltages[
+              driver.pin
+            ];
+
+          if (typeof voltage === "number") {
+            this.arduino.getState().pinVoltages[
+              driver.pin
+            ] = {
+              pin: driver.pin,
+              voltage,
+              rail: driver.rail,
+            };
+          }
+        }
+
+        /*
+         * 4. Resolve source -> component -> GND paths.
+         *
+         * The current solver now accepts both Arduino
+         * digital HIGH sources and fixed power rails.
+         */
         this.currentFlowState =
           this.currentFlowSolver.solve(
             this.circuitNodes,
             this.netlist,
-            this.arduino.getDigitalDrivers(),
+            digitalDrivers,
+            this.powerState,
           );
 
         this.arduino.getState().wireStates =
@@ -246,7 +310,7 @@ export class SimulationEngine {
       }
 
       /*
-       * 4. Translate solved electrical state into
+       * 5. Translate solved electrical state into
        *    component runtime state.
        */
       this.applyLedStates();
@@ -297,9 +361,18 @@ export class SimulationEngine {
           ),
         );
 
-      const isOn =
+      const firmwareDrivenOn =
         anode === 1 &&
         cathode === 0;
+
+      const electricallyPoweredOn =
+        this.currentFlowState.activeComponents.has(
+          node.id,
+        );
+
+      const isOn =
+        firmwareDrivenOn ||
+        electricallyPoweredOn;
 
       this.arduino.getState().ledStates[
         node.id
@@ -340,6 +413,14 @@ export class SimulationEngine {
       conflicts: [],
     };
 
+    this.powerState = {
+      netVoltages: {},
+      pinVoltages: {},
+      sourceNets: new Map(),
+      groundNets: new Set(),
+      conflicts: [],
+    };
+
     this.setStatus("stopped");
   }
 
@@ -357,6 +438,14 @@ export class SimulationEngine {
       wireStates: {},
       activeNets: new Set(),
       activeComponents: new Set(),
+      conflicts: [],
+    };
+
+    this.powerState = {
+      netVoltages: {},
+      pinVoltages: {},
+      sourceNets: new Map(),
+      groundNets: new Set(),
       conflicts: [],
     };
 
@@ -384,6 +473,10 @@ export class SimulationEngine {
 
   getCurrentFlowState(): CurrentFlowState {
     return this.currentFlowState;
+  }
+
+  getPowerState(): PowerRailState {
+    return this.powerState;
   }
 
   getState(): ArduinoUnoRuntimeState {

@@ -3,6 +3,9 @@ import type {
   PinLevel,
   PinMode,
   RuntimePin,
+  ArduinoPowerRailName,
+  ArduinoPowerRailState,
+  ArduinoPowerPinVoltage,
 } from "../types/simulator.types";
 import { ARDUINO_UNO_PIN_MAP } from "../mapping/ArduinoUnoPinMap";
 
@@ -12,6 +15,13 @@ export type ArduinoDigitalDriver = {
   pin: string;
   level: PinLevel;
   mode: PinMode;
+};
+
+export type ArduinoPowerDriver = {
+  pin: string;
+  voltage: number;
+  rail: ArduinoPowerRailName;
+  kind: "source" | "ground";
 };
 
 export class ArduinoUnoRuntime {
@@ -29,8 +39,88 @@ export class ArduinoUnoRuntime {
       };
     }
 
+    const powerRails: Record<
+      ArduinoPowerRailName,
+      ArduinoPowerRailState
+    > = {
+      "5V": {
+        name: "5V",
+        voltage: 5,
+        enabled: true,
+        direction: "source",
+      },
+      "3.3V": {
+        name: "3.3V",
+        voltage: 3.3,
+        enabled: true,
+        direction: "source",
+        maxCurrentMa: 50,
+      },
+      IOREF: {
+        name: "IOREF",
+        voltage: 5,
+        enabled: true,
+        direction: "reference",
+      },
+      GND: {
+        name: "GND",
+        voltage: 0,
+        enabled: true,
+        direction: "ground",
+      },
+      VIN: {
+        name: "VIN",
+        voltage: 0,
+        enabled: false,
+        direction: "input",
+      },
+    };
+
+    const pinVoltages: Record<
+      string,
+      ArduinoPowerPinVoltage
+    > = {
+      "5V": {
+        pin: "5V",
+        voltage: 5,
+        rail: "5V",
+      },
+      "3.3V": {
+        pin: "3.3V",
+        voltage: 3.3,
+        rail: "3.3V",
+      },
+      IOREF: {
+        pin: "IOREF",
+        voltage: 5,
+        rail: "IOREF",
+      },
+      GND1: {
+        pin: "GND1",
+        voltage: 0,
+        rail: "GND",
+      },
+      GND2: {
+        pin: "GND2",
+        voltage: 0,
+        rail: "GND",
+      },
+      GND3: {
+        pin: "GND3",
+        voltage: 0,
+        rail: "GND",
+      },
+      AREF: {
+        pin: "AREF",
+        voltage: 5,
+        rail: "IOREF",
+      },
+    };
+
     return {
       digitalPins,
+      powerRails,
+      pinVoltages,
       ledStates: {},
       resistorStates: {},
       wireStates: {},
@@ -59,6 +149,70 @@ export class ArduinoUnoRuntime {
 
   digitalRead(pin: number): PinLevel {
     return this.state.digitalPins[pin]?.level ?? 0;
+  }
+
+  getPowerDrivers(): ArduinoPowerDriver[] {
+    const drivers: ArduinoPowerDriver[] = [];
+
+    const sourceRails: Array<{
+      pin: string;
+      rail: ArduinoPowerRailName;
+      kind: "source" | "ground";
+    }> = [
+      {
+        pin: "5V",
+        rail: "5V",
+        kind: "source",
+      },
+      {
+        pin: "3.3V",
+        rail: "3.3V",
+        kind: "source",
+      },
+      {
+        pin: "IOREF",
+        rail: "IOREF",
+        kind: "source",
+      },
+      {
+        pin: "GND1",
+        rail: "GND",
+        kind: "ground",
+      },
+      {
+        pin: "GND2",
+        rail: "GND",
+        kind: "ground",
+      },
+      {
+        pin: "GND3",
+        rail: "GND",
+        kind: "ground",
+      },
+    ];
+
+    for (const item of sourceRails) {
+      const rail = this.state.powerRails[item.rail];
+
+      if (!rail?.enabled) {
+        continue;
+      }
+
+      drivers.push({
+        pin: item.pin,
+        voltage: rail.voltage,
+        rail: item.rail,
+        kind: item.kind,
+      });
+    }
+
+    return drivers;
+  }
+
+  getPowerPinVoltage(
+    pin: string,
+  ): number | undefined {
+    return this.state.pinVoltages[pin]?.voltage;
   }
 
   getDigitalDrivers(): ArduinoDigitalDriver[] {

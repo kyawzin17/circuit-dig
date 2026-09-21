@@ -1,6 +1,7 @@
 import type { Node } from "reactflow";
 import type { ArduinoDigitalDriver } from "../boards/ArduinoUnoRuntime";
 import type { Netlist } from "../circuit/NetlistBuilder";
+import type { PowerRailState } from "./PowerRailSolver";
 
 export interface WireFlowState {
   isActive: boolean;
@@ -27,7 +28,6 @@ type ComponentEdge = {
   voltageDrop: number;
 };
 
-const DEFAULT_SOURCE_VOLTAGE = 5;
 const DEFAULT_LED_FORWARD_VOLTAGE = 2;
 
 function normalizeType(node: Node): string {
@@ -96,7 +96,14 @@ function isGroundPin(pinId: string): boolean {
   return /^GND(?:\d+)?$/i.test(pinId.trim());
 }
 
-function findGroundNets(netlist: Netlist): Set<string> {
+function findGroundNets(
+  netlist: Netlist,
+  powerState?: PowerRailState,
+): Set<string> {
+  if (powerState) {
+    return new Set(powerState.groundNets);
+  }
+
   const groundNets = new Set<string>();
 
   for (const [netId, pins] of netlist.netToPins) {
@@ -112,11 +119,24 @@ function findGroundNets(netlist: Netlist): Set<string> {
   return groundNets;
 }
 
-function findHighSourceNets(
+function findSourceNets(
   netlist: Netlist,
   drivers: ArduinoDigitalDriver[],
-): Set<string> {
-  const sourceNets = new Set<string>();
+  powerState?: PowerRailState,
+): Map<string, number> {
+  const sourceNets = new Map<string, number>();
+
+  if (powerState) {
+    for (const [
+      netId,
+      voltage,
+    ] of powerState.sourceNets) {
+      sourceNets.set(
+        netId,
+        voltage,
+      );
+    }
+  }
 
   for (const driver of drivers) {
     if (driver.level !== 1) {
@@ -131,7 +151,7 @@ function findHighSourceNets(
             driver.pin.toUpperCase(),
         )
       ) {
-        sourceNets.add(netId);
+        sourceNets.set(netId, 5);
       }
     }
   }
@@ -334,17 +354,31 @@ export class CurrentFlowSolver {
     nodes: Node[],
     netlist: Netlist,
     drivers: ArduinoDigitalDriver[],
+    powerState?: PowerRailState,
   ): CurrentFlowState {
     const wireStates: Record<string, WireFlowState> = {};
     const activeNets = new Set<string>();
     const activeComponents = new Set<string>();
     const conflicts: string[] = [];
 
-    const groundNets = findGroundNets(netlist);
-    const sourceNets = findHighSourceNets(
-      netlist,
-      drivers,
-    );
+    const groundNets =
+      findGroundNets(
+        netlist,
+        powerState,
+      );
+
+    const sourceNets =
+      findSourceNets(
+        netlist,
+        drivers,
+        powerState,
+      );
+
+    if (powerState) {
+      conflicts.push(
+        ...powerState.conflicts,
+      );
+    }
 
     const componentEdges =
       buildComponentEdges(
@@ -365,8 +399,12 @@ export class CurrentFlowSolver {
 
     let firstCurrentMa: number | undefined;
     let firstVoltageDrop: number | undefined;
+    let firstSourceVoltage: number | undefined;
 
-    for (const sourceNet of sourceNets) {
+    for (const [
+      sourceNet,
+      sourceVoltage,
+    ] of sourceNets) {
       /*
        * A source net that is already GND is a short
        * circuit, not a normal current-flow path.
@@ -427,7 +465,7 @@ export class CurrentFlowSolver {
       if (totalResistance > 0) {
         const currentA = Math.max(
           0,
-          (DEFAULT_SOURCE_VOLTAGE -
+          (sourceVoltage -
             totalVoltageDrop) /
             totalResistance,
         );
@@ -442,6 +480,8 @@ export class CurrentFlowSolver {
           firstCurrentMa = pathCurrentMa;
           firstVoltageDrop =
             totalVoltageDrop;
+          firstSourceVoltage =
+            sourceVoltage;
         }
       }
 
@@ -493,7 +533,7 @@ export class CurrentFlowSolver {
       sourceVoltage:
         firstCurrentMa === undefined
           ? undefined
-          : DEFAULT_SOURCE_VOLTAGE,
+          : firstSourceVoltage,
       voltageDrop: firstVoltageDrop,
       conflicts,
     };
