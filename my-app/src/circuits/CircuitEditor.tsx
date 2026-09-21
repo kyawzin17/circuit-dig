@@ -503,6 +503,17 @@ const handlePauseSimulation = () => {
   const [edges, setEdges, onEdgesChange] =
     useEdgesState([]);
 
+  /*
+   * Keep live component state (for example a pressed pushbutton)
+   * synchronized with the running simulator without rebuilding
+   * the electrical topology.
+   */
+  useEffect(() => {
+    simulationEngine.current?.updateNodes(
+      nodes,
+    );
+  }, [nodes]);
+
   const [
     reactFlowInstance,
     setReactFlowInstance,
