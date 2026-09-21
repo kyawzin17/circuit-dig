@@ -465,7 +465,7 @@ export class CurrentFlowSolver {
       if (totalResistance > 0) {
         const currentA = Math.max(
           0,
-          (DEFAULT_SOURCE_VOLTAGE -
+          (sourceVoltage -
             totalVoltageDrop) /
             totalResistance,
         );
