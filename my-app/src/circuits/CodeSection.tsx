@@ -2,7 +2,10 @@ import Editor from "@monaco-editor/react";
 import { Maximize } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { ArrowDown } from "lucide-react";
-import { useReactFlow } from "reactflow";
+import {
+  useNodes,
+  useReactFlow,
+} from "reactflow";
 
 import {
   useSimulationStore,
@@ -35,6 +38,8 @@ const CodeSection = ({
     setNodes,
     setEdges,
   } = useReactFlow();
+
+  const liveNodes = useNodes();
 
   const isCompiling = status === "compiling";
   const isRunning = status === "running";
@@ -115,6 +120,12 @@ const CodeSection = ({
       simulationEngine.current = null;
     };
   }, [setNodes, setEdges]);
+
+  useEffect(() => {
+    simulationEngine.current?.updateNodes(
+      liveNodes,
+    );
+  }, [liveNodes]);
 
   const handleRun = async () => {
     if (isCompiling) return;
