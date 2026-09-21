@@ -310,7 +310,7 @@ export class SimulationEngine {
           const pinId =
             pinKey.slice(separator + 1);
 
-          if (!/^D\\d+$/i.test(pinId)) {
+          if (!/^D\d+$/i.test(pinId)) {
             continue;
           }
 
@@ -559,7 +559,14 @@ export class SimulationEngine {
       wireStates: {},
       activeNets: new Set(),
       activeComponents: new Set(),
+      componentBrightness: {},
       conflicts: [],
+    };
+
+    this.digitalInputState = {
+      pinLevels: new Map(),
+      conflicts: [],
+      floatingPins: [],
     };
 
     this.powerState = {
