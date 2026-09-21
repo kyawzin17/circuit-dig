@@ -13,6 +13,7 @@ export interface CurrentFlowState {
   wireStates: Record<string, WireFlowState>;
   activeNets: Set<string>;
   activeComponents: Set<string>;
+  componentBrightness: Record<string, number>;
   currentMa?: number;
   sourceVoltage?: number;
   voltageDrop?: number;
@@ -359,6 +360,7 @@ export class CurrentFlowSolver {
     const wireStates: Record<string, WireFlowState> = {};
     const activeNets = new Set<string>();
     const activeComponents = new Set<string>();
+    const componentBrightness: Record<string, number> = {};
     const conflicts: string[] = [];
 
     const groundNets =
@@ -473,6 +475,31 @@ export class CurrentFlowSolver {
         pathCurrentMa =
           currentA * 1000;
 
+        /*
+         * Visual LED brightness is intentionally a simple
+         * current-based model. 20 mA is treated as the
+         * reference "full brightness" point.
+         *
+         * This is not a photometric LED model; it gives
+         * resistor-value changes a visible effect while
+         * keeping the electrical solver first-order.
+         */
+        if (pathCurrentMa !== undefined) {
+          for (const edge of path) {
+            if (edge.componentType === "led") {
+              componentBrightness[
+                edge.componentId
+              ] = Math.max(
+                0,
+                Math.min(
+                  1,
+                  pathCurrentMa / 20,
+                ),
+              );
+            }
+          }
+        }
+
         if (
           firstCurrentMa === undefined ||
           pathCurrentMa > firstCurrentMa
@@ -529,6 +556,7 @@ export class CurrentFlowSolver {
       wireStates,
       activeNets,
       activeComponents,
+      componentBrightness,
       currentMa: firstCurrentMa,
       sourceVoltage:
         firstCurrentMa === undefined
