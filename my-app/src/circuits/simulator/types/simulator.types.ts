@@ -26,6 +26,31 @@ export type PinMode =
   | "input_pullup";
 
 // =====================================================
+// POWER SYSTEM
+// =====================================================
+
+export type ArduinoPowerRailName =
+  | "5V"
+  | "3.3V"
+  | "IOREF"
+  | "GND"
+  | "VIN";
+
+export interface ArduinoPowerRailState {
+  name: ArduinoPowerRailName;
+  voltage: number;
+  enabled: boolean;
+  direction: "source" | "reference" | "ground" | "input";
+  maxCurrentMa?: number;
+}
+
+export interface ArduinoPowerPinVoltage {
+  pin: string;
+  voltage: number;
+  rail: ArduinoPowerRailName;
+}
+
+// =====================================================
 // RUNTIME PIN
 // =====================================================
 
@@ -93,6 +118,13 @@ export interface WireRuntimeState {
 
 export interface ArduinoUnoRuntimeState {
   digitalPins: Record<number, RuntimePin>;
+
+  powerRails: Record<
+    ArduinoPowerRailName,
+    ArduinoPowerRailState
+  >;
+
+  pinVoltages: Record<string, ArduinoPowerPinVoltage>;
 
   ledStates: Record<string, LedRuntimeState>;
 

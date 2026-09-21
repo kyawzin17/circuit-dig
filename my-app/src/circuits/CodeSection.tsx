@@ -121,20 +121,15 @@ const CodeSection = ({
 
     simulationEngine.current?.stop();
 
-    const compiled = await compile();
+    const hasFirmware =
+      code.trim().length > 0;
 
-    if (!compiled) {
-      return;
-    }
+    if (hasFirmware) {
+      const compiled = await compile();
 
-    const { hex } = useSimulationStore.getState();
-
-    if (!hex) {
-      useSimulationStore.setState({
-        status: "error",
-        error: "Compilation completed without firmware HEX.",
-      });
-      return;
+      if (!compiled) {
+        return;
+      }
     }
 
     try {
@@ -150,7 +145,25 @@ const CodeSection = ({
       const edges = getEdges();
 
       engine.setCircuit(nodes, edges);
-      engine.loadHex(hex);
+
+      if (hasFirmware) {
+        const { hex } =
+          useSimulationStore.getState();
+
+        if (!hex) {
+          throw new Error(
+            "Compilation completed without firmware HEX."
+          );
+        }
+
+        engine.loadHex(hex);
+      }
+
+      /*
+       * Empty code intentionally starts a power-only
+       * Arduino simulation. The board's fixed rails
+       * remain available without AVR firmware.
+       */
       engine.start();
       setRunning();
     } catch (simulationError) {
