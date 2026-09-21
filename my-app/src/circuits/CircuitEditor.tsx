@@ -469,15 +469,8 @@ const handleRunSimulation = () => {
     return;
   }
 
-  const hex = useSimulationStore.getState().hex;
-
-  if (!hex) {
-    useSimulationStore.setState({
-      status: "error",
-      error: "No compiled Arduino HEX is available.",
-    });
-    return;
-  }
+  const currentCode =
+    useSimulationStore.getState().code;
 
   try {
     engine.stop();
@@ -487,8 +480,37 @@ const handleRunSimulation = () => {
       edges as CircuitEdge[],
     );
 
-    // Load the real Arduino firmware before starting AVR execution.
-    engine.loadHex(hex);
+    if (currentCode.trim()) {
+      const hex =
+        useSimulationStore.getState().hex;
+
+      if (!hex) {
+        useSimulationStore.setState({
+          status: "error",
+          error:
+            "No compiled Arduino HEX is available.",
+        });
+        return;
+      }
+
+      /*
+       * Firmware exists: load the real Arduino HEX
+       * and let AVR8JS drive the GPIO pins.
+       */
+      engine.loadHex(hex);
+    } else {
+      /*
+       * Empty sketch: start power-only simulation.
+       *
+       * The Uno's 5V/3.3V/IOREF/GND rails are still
+       * active even when no firmware is loaded.
+       */
+      useSimulationStore.setState({
+        status: "idle",
+        error: null,
+      });
+    }
+
     engine.start();
 
     useSimulationStore.getState().setRunning();
@@ -549,6 +571,11 @@ const handlePauseSimulation = () => {
   const simulationStatus =
   useSimulationStore(
     (state) => state.status
+  );
+
+const simulationCode =
+  useSimulationStore(
+    (state) => state.code
   );
 
 const compile =
@@ -1596,24 +1623,25 @@ const stop =
       return;
     }
 
+    const hasFirmware =
+      simulationCode.trim().length > 0;
+
     const success =
-      await compile();
+      hasFirmware
+        ? await compile()
+        : true;
 
     if (success) {
       /*
-       * Step 3 မှာ ဒီနေရာကနေ
-       * avr8js simulation engine
-       * စတင်မယ်။
+       * With code: compile -> HEX -> AVR8JS.
+       * Without code: start the board power system only.
        */
-
       handleRunSimulation();
-      console.log(
-        "HEX compiled successfully."
-      );
     }
   },
   [
     simulationStatus,
+    simulationCode,
     compile,
     stop,
   ]
