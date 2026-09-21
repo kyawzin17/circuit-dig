@@ -2,10 +2,7 @@ import Editor from "@monaco-editor/react";
 import { Maximize } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { ArrowDown } from "lucide-react";
-import {
-  useNodes,
-  useReactFlow,
-} from "reactflow";
+import { useReactFlow } from "reactflow";
 
 import {
   useSimulationStore,
@@ -39,7 +36,6 @@ const CodeSection = ({
     setEdges,
   } = useReactFlow();
 
-  const liveNodes = useNodes();
 
   const isCompiling = status === "compiling";
   const isRunning = status === "running";
@@ -121,11 +117,17 @@ const CodeSection = ({
     };
   }, [setNodes, setEdges]);
 
+  /*
+   * CodeSection and the canvas share the same React Flow store.
+   * Updating every render keeps interactive component state
+   * (especially the pushbutton) visible to this engine without
+   * relying on a React Flow version-specific useNodes hook.
+   */
   useEffect(() => {
     simulationEngine.current?.updateNodes(
-      liveNodes,
+      getNodes(),
     );
-  }, [liveNodes]);
+  });
 
   const handleRun = async () => {
     if (isCompiling) return;
