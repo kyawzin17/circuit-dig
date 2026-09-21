@@ -31,6 +31,11 @@ import {
 } from "../electrical/CurrentFlowSolver";
 
 import {
+  DigitalInputSolver,
+  type DigitalInputState,
+} from "../electrical/DigitalInputSolver";
+
+import {
   PowerRailSolver,
   type PowerRailState,
 } from "../electrical/PowerRailSolver";
@@ -70,6 +75,9 @@ export class SimulationEngine {
   private readonly digitalSolver =
     new DigitalCircuitSolver();
 
+  private readonly digitalInputSolver =
+    new DigitalInputSolver();
+
   private readonly currentFlowSolver =
     new CurrentFlowSolver();
 
@@ -90,10 +98,17 @@ export class SimulationEngine {
     conflicts: [],
   };
 
+  private digitalInputState: DigitalInputState = {
+    pinLevels: new Map(),
+    conflicts: [],
+    floatingPins: [],
+  };
+
   private currentFlowState: CurrentFlowState = {
     wireStates: {},
     activeNets: new Set(),
     activeComponents: new Set(),
+    componentBrightness: {},
     conflicts: [],
   };
 
@@ -164,6 +179,17 @@ export class SimulationEngine {
   }
 
   /**
+   * Update live component state without rebuilding topology.
+   *
+   * This is used for interactive controls such as a pushbutton:
+   * the wire graph stays the same, while the component's pressed
+   * state changes while the simulation is already running.
+   */
+  updateNodes(nodes: Node[]): void {
+    this.circuitNodes = nodes;
+  }
+
+  /**
    * Load the real HEX output produced by
    * Arduino CLI.
    */
@@ -193,7 +219,14 @@ export class SimulationEngine {
       wireStates: {},
       activeNets: new Set(),
       activeComponents: new Set(),
+      componentBrightness: {},
       conflicts: [],
+    };
+
+    this.digitalInputState = {
+      pinLevels: new Map(),
+      conflicts: [],
+      floatingPins: [],
     };
 
     this.powerState = {
@@ -233,24 +266,121 @@ export class SimulationEngine {
   private tick(): void {
     try {
       /*
-       * 1. Execute the actual compiled Arduino
-       *    machine code inside AVR8JS when firmware exists.
+       * The circuit is resolved twice around AVR execution:
        *
-       *    Power-only runs intentionally skip AVR execution.
+       *   circuit -> power -> input -> PINx
+       *                         |
+       *                         v
+       *                      AVR8JS
+       *                         |
+       *                         v
+       *                  GPIO outputs/PWM
+       *                         |
+       *                         v
+       *                final circuit solve
+       *
+       * This is what makes digitalRead() a real firmware read of
+       * the simulated electrical circuit rather than a JavaScript
+       * shortcut.
        */
-      if (this.firmwareLoaded) {
-        this.avr.runCycles(
-          this.cyclesPerFrame,
-        );
+      if (this.netlist) {
+        const preRunDrivers =
+          this.arduino.getDigitalDrivers();
+
+        this.powerState =
+          this.powerRailSolver.solve(
+            this.netlist,
+            this.arduino.getPowerDrivers(),
+            preRunDrivers,
+            this.circuitNodes,
+          );
+
+        this.digitalInputState =
+          this.digitalInputSolver.solve(
+            this.circuitNodes,
+            this.netlist,
+            preRunDrivers,
+            this.powerState,
+            this.arduino.getDigitalInputModes(),
+          );
+
+        for (const [
+          pinKey,
+          level,
+        ] of this.digitalInputState.pinLevels) {
+          const separator =
+            pinKey.lastIndexOf(":");
+
+          if (separator < 0) {
+            continue;
+          }
+
+          const nodeId =
+            pinKey.slice(0, separator);
+
+          const pinId =
+            pinKey.slice(separator + 1);
+
+          if (!/^D\d+$/i.test(pinId)) {
+            continue;
+          }
+
+          const pinNumber =
+            Number(pinId.slice(1));
+
+          const node =
+            this.circuitNodes.find(
+              (candidate) =>
+                candidate.id === nodeId,
+            );
+
+          if (!node) {
+            continue;
+          }
+
+          this.arduino.setInputLevel(
+            pinNumber,
+            level,
+          );
+        }
+
+        if (this.firmwareLoaded) {
+          const externalLevels: Record<
+            string,
+            0 | 1
+          > = {};
+
+          for (const [
+            pinKey,
+            level,
+          ] of this.digitalInputState.pinLevels) {
+            const separator =
+              pinKey.lastIndexOf(":");
+
+            if (separator < 0) {
+              continue;
+            }
+
+            externalLevels[
+              pinKey.slice(
+                separator + 1,
+              )
+            ] = level;
+          }
+
+          this.avr.setExternalDigitalInputs(
+            externalLevels,
+          );
+
+          this.avr.runCycles(
+            this.cyclesPerFrame,
+          );
+        }
       }
 
       const digitalDrivers =
         this.arduino.getDigitalDrivers();
 
-      /*
-       * 2. Resolve digital pin levels from the
-       *    actual AVR GPIO driver states.
-       */
       this.digitalState =
         this.digitalSolver.solve(
           this.circuitNodes,
@@ -258,9 +388,6 @@ export class SimulationEngine {
           digitalDrivers,
         );
 
-      /*
-       * 3. Resolve fixed Arduino power rails first.
-       */
       if (this.netlist) {
         this.powerState =
           this.powerRailSolver.solve(
@@ -270,10 +397,6 @@ export class SimulationEngine {
             this.circuitNodes,
           );
 
-        /*
-         * Keep the public runtime state synchronized with
-         * the resolved board power pins.
-         */
         for (const driver of this.arduino.getPowerDrivers()) {
           const voltage =
             this.powerState.pinVoltages[
@@ -291,12 +414,6 @@ export class SimulationEngine {
           }
         }
 
-        /*
-         * 4. Resolve source -> component -> GND paths.
-         *
-         * The current solver now accepts both Arduino
-         * digital HIGH sources and fixed power rails.
-         */
         this.currentFlowState =
           this.currentFlowSolver.solve(
             this.circuitNodes,
@@ -309,10 +426,6 @@ export class SimulationEngine {
           this.currentFlowState.wireStates;
       }
 
-      /*
-       * 5. Translate solved electrical state into
-       *    component runtime state.
-       */
       this.applyLedStates();
 
       this.emit();
@@ -374,14 +487,26 @@ export class SimulationEngine {
         firmwareDrivenOn ||
         electricallyPoweredOn;
 
+      const solvedBrightness =
+        this.currentFlowState.componentBrightness[
+          node.id
+        ];
+
+      const brightness =
+        isOn
+          ? (
+              typeof solvedBrightness === "number"
+                ? solvedBrightness
+                : 1
+            )
+          : 0;
+
       this.arduino.getState().ledStates[
         node.id
       ] = {
         id: node.id,
         isOn,
-        brightness: isOn
-          ? 1
-          : 0,
+        brightness,
         color:
           typeof node.data?.color ===
           "string"
@@ -410,7 +535,14 @@ export class SimulationEngine {
       wireStates: {},
       activeNets: new Set(),
       activeComponents: new Set(),
+      componentBrightness: {},
       conflicts: [],
+    };
+
+    this.digitalInputState = {
+      pinLevels: new Map(),
+      conflicts: [],
+      floatingPins: [],
     };
 
     this.powerState = {
@@ -438,7 +570,14 @@ export class SimulationEngine {
       wireStates: {},
       activeNets: new Set(),
       activeComponents: new Set(),
+      componentBrightness: {},
       conflicts: [],
+    };
+
+    this.digitalInputState = {
+      pinLevels: new Map(),
+      conflicts: [],
+      floatingPins: [],
     };
 
     this.powerState = {
@@ -469,6 +608,10 @@ export class SimulationEngine {
 
   getDigitalState(): DigitalCircuitState {
     return this.digitalState;
+  }
+
+  getDigitalInputState(): DigitalInputState {
+    return this.digitalInputState;
   }
 
   getCurrentFlowState(): CurrentFlowState {

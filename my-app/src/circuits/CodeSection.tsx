@@ -36,6 +36,7 @@ const CodeSection = ({
     setEdges,
   } = useReactFlow();
 
+
   const isCompiling = status === "compiling";
   const isRunning = status === "running";
 
@@ -115,6 +116,18 @@ const CodeSection = ({
       simulationEngine.current = null;
     };
   }, [setNodes, setEdges]);
+
+  /*
+   * CodeSection and the canvas share the same React Flow store.
+   * Updating every render keeps interactive component state
+   * (especially the pushbutton) visible to this engine without
+   * relying on a React Flow version-specific useNodes hook.
+   */
+  useEffect(() => {
+    simulationEngine.current?.updateNodes(
+      getNodes(),
+    );
+  });
 
   const handleRun = async () => {
     if (isCompiling) return;

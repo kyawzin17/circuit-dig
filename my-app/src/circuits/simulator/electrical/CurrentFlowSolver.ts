@@ -13,6 +13,7 @@ export interface CurrentFlowState {
   wireStates: Record<string, WireFlowState>;
   activeNets: Set<string>;
   activeComponents: Set<string>;
+  componentBrightness: Record<string, number>;
   currentMa?: number;
   sourceVoltage?: number;
   voltageDrop?: number;
@@ -359,6 +360,7 @@ export class CurrentFlowSolver {
     const wireStates: Record<string, WireFlowState> = {};
     const activeNets = new Set<string>();
     const activeComponents = new Set<string>();
+    const componentBrightness: Record<string, number> = {};
     const conflicts: string[] = [];
 
     const groundNets =
@@ -373,6 +375,40 @@ export class CurrentFlowSolver {
         drivers,
         powerState,
       );
+
+    /*
+     * PWM is still a real electrical source, but its average
+     * current is scaled by the hardware duty cycle. We keep
+     * the source voltage at 5V and scale the resulting current
+     * rather than pretending PWM is a lower DC supply voltage.
+     */
+    const sourceDuties = new Map<string, number>();
+
+    for (const driver of drivers) {
+      if (
+        driver.level !== 1 ||
+        driver.pwmDuty === undefined
+      ) {
+        continue;
+      }
+
+      const duty = Math.max(
+        0,
+        Math.min(1, driver.pwmDuty),
+      );
+
+      for (const [netId, pins] of netlist.netToPins) {
+        if (
+          pins.some(
+            (pin) =>
+              pin.pinId.toUpperCase() ===
+              driver.pin.toUpperCase(),
+          )
+        ) {
+          sourceDuties.set(netId, duty);
+        }
+      }
+    }
 
     if (powerState) {
       conflicts.push(
@@ -470,8 +506,36 @@ export class CurrentFlowSolver {
             totalResistance,
         );
 
+        const duty =
+          sourceDuties.get(sourceNet) ?? 1;
+
         pathCurrentMa =
-          currentA * 1000;
+          currentA * 1000 * duty;
+
+        /*
+         * Visual LED brightness is intentionally a simple
+         * current-based model. 20 mA is treated as the
+         * reference "full brightness" point.
+         *
+         * This is not a photometric LED model; it gives
+         * resistor-value changes a visible effect while
+         * keeping the electrical solver first-order.
+         */
+        if (pathCurrentMa !== undefined) {
+          for (const edge of path) {
+            if (edge.componentType === "led") {
+              componentBrightness[
+                edge.componentId
+              ] = Math.max(
+                0,
+                Math.min(
+                  1,
+                  pathCurrentMa / 20,
+                ),
+              );
+            }
+          }
+        }
 
         if (
           firstCurrentMa === undefined ||
@@ -529,6 +593,7 @@ export class CurrentFlowSolver {
       wireStates,
       activeNets,
       activeComponents,
+      componentBrightness,
       currentMa: firstCurrentMa,
       sourceVoltage:
         firstCurrentMa === undefined

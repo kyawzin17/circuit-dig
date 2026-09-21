@@ -8,6 +8,7 @@ import {
   Handle,
   Position,
   type NodeProps,
+  useReactFlow,
   useUpdateNodeInternals,
 } from "reactflow";
 
@@ -65,6 +66,8 @@ const ElectronicNode = ({
 
   const componentRef =
     useRef<HTMLElement | null>(null);
+
+  const { setNodes } = useReactFlow();
 
   // =========================================================
   // UPDATE REACT FLOW HANDLES
@@ -134,6 +137,14 @@ const ElectronicNode = ({
   const isLed =
     componentType.includes("led");
 
+  const isPushButton =
+    componentType === "pushbutton" ||
+    componentType === "button";
+
+  const isPressed =
+    data.pressed === true ||
+    data.isPressed === true;
+
   const isLedOn =
     isLed &&
     simulation?.isOn === true;
@@ -148,6 +159,87 @@ const ElectronicNode = ({
           )
         )
       : 1;
+
+  // =========================================================
+  // PUSHBUTTON -> CIRCUIT STATE
+  // =========================================================
+
+  useEffect(() => {
+    if (!isPushButton) {
+      return;
+    }
+
+    const element =
+      componentRef.current;
+
+    if (!element) {
+      return;
+    }
+
+    const buttonElement =
+      element as HTMLElement & {
+        pressed?: boolean;
+      };
+
+    const setPressed = (pressed: boolean) => {
+      setNodes((currentNodes) =>
+        currentNodes.map((node) => {
+          if (node.id !== id) {
+            return node;
+          }
+
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              pressed,
+              isPressed: pressed,
+            },
+          };
+        }),
+      );
+    };
+
+    const handlePress = () => {
+      setPressed(true);
+    };
+
+    const handleRelease = () => {
+      setPressed(false);
+    };
+
+    element.addEventListener(
+      "button-press",
+      handlePress,
+    );
+
+    element.addEventListener(
+      "button-release",
+      handleRelease,
+    );
+
+    // Keep the visual web component synchronized with
+    // the simulator's source of truth.
+    buttonElement.pressed =
+      isPressed;
+
+    return () => {
+      element.removeEventListener(
+        "button-press",
+        handlePress,
+      );
+
+      element.removeEventListener(
+        "button-release",
+        handleRelease,
+      );
+    };
+  }, [
+    id,
+    isPushButton,
+    isPressed,
+    setNodes,
+  ]);
 
   // =========================================================
   // APPLY SIMULATION STATE TO WOKWI ELEMENT
@@ -268,9 +360,10 @@ const ElectronicNode = ({
                * simulation effect above can access it.
                */
 
-              ref: isLed
-                ? componentRef
-                : undefined,
+              ref:
+                isLed || isPushButton
+                  ? componentRef
+                  : undefined,
             }
           )}
 
