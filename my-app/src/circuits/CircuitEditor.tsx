@@ -233,7 +233,7 @@ function getPinAutoWireKind(
     signals.some(
       (signal) => signal?.type === "analog",
     ) ||
-    /^A\\d+$/.test(name)
+    /^A\d+$/.test(name)
   ) {
     return "analog";
   }
@@ -251,7 +251,7 @@ function getPinAutoWireKind(
     signals.some(
       (signal) => signal?.type === "digital",
     ) ||
-    /^D\\d+$/.test(name)
+    /^D\d+$/.test(name)
   ) {
     return "digital";
   }
