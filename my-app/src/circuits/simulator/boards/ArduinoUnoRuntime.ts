@@ -15,6 +15,11 @@ export type ArduinoDigitalDriver = {
   pin: string;
   level: PinLevel;
   mode: PinMode;
+  /**
+   * 0..1 duty cycle when this GPIO is being driven by
+   * the AVR hardware PWM peripheral.
+   */
+  pwmDuty?: number;
 };
 
 export type ArduinoPowerDriver = {
@@ -144,7 +149,38 @@ export class ArduinoUnoRuntime {
 
     if (runtimePin) {
       runtimePin.level = level;
+      runtimePin.pwmDuty = undefined;
     }
+  }
+
+  setPwmDuty(
+    pin: number,
+    duty: number,
+  ): void {
+    const runtimePin = this.state.digitalPins[pin];
+
+    if (!runtimePin) {
+      return;
+    }
+
+    runtimePin.pwmDuty = Math.max(
+      0,
+      Math.min(1, duty),
+    );
+
+    runtimePin.mode = "output";
+
+    if (runtimePin.pwmDuty <= 0) {
+      runtimePin.level = 0;
+    } else if (runtimePin.pwmDuty >= 1) {
+      runtimePin.level = 1;
+    }
+  }
+
+  getPwmDuty(
+    pin: number,
+  ): number | undefined {
+    return this.state.digitalPins[pin]?.pwmDuty;
   }
 
   digitalRead(pin: number): PinLevel {
@@ -235,6 +271,7 @@ export class ArduinoUnoRuntime {
         pin: pinName,
         level: runtimePin.level,
         mode: runtimePin.mode,
+        pwmDuty: runtimePin.pwmDuty,
       });
     }
 
@@ -264,6 +301,13 @@ export class ArduinoUnoRuntime {
           : "input";
 
       this.setPinMode(pin, mode);
+
+      if (mode === "input") {
+        const runtimePin = this.state.digitalPins[pin];
+        if (runtimePin) {
+          runtimePin.pwmDuty = undefined;
+        }
+      }
 
       if (mode === "output") {
         this.digitalWrite(
