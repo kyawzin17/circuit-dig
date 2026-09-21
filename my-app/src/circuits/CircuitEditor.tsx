@@ -136,27 +136,22 @@ const AUTO_WIRE_COLORS: Record<AutoWireKind, string> = {
   signal: "#10b981",
 };
 
-function getPinSignals(
+function getPinDefinition(
   node: any,
   pinId: string,
-): any[] {
-  const componentType = String(
-    node?.data?.componentType ?? node?.type ?? "",
-  );
-
-  const pins =
-    PIN_CONFIGS[componentType] ?? [];
-
-  const pin = pins.find(
-    (candidate: any) =>
-      String(candidate?.name ?? "")
-        .toUpperCase() ===
-      String(pinId).toUpperCase(),
-  );
-
-  return Array.isArray(pin?.signals)
-    ? pin.signals
+): any | undefined {
+  const pins = Array.isArray(
+    node?.data?.pins,
+  )
+    ? node.data.pins
     : [];
+
+  return pins.find(
+    (pin: any) =>
+      String(pin?.id ?? pin?.name ?? "")
+        .toUpperCase() ===
+      String(pinId ?? "").toUpperCase(),
+  );
 }
 
 function getPinAutoWireKind(
@@ -166,91 +161,94 @@ function getPinAutoWireKind(
   const name =
     String(pinId ?? "").toUpperCase();
 
-  const signals =
-    getPinSignals(node, pinId);
+  const pin =
+    getPinDefinition(node, pinId);
 
-  const powerSignal =
-    signals.find(
-      (signal) =>
-        signal?.type === "power",
-    );
+  const type =
+    String(pin?.type ?? "").toLowerCase();
+
+  const protocols =
+    Array.isArray(pin?.protocols)
+      ? pin.protocols.map(
+          (value: unknown) =>
+            String(value).toLowerCase(),
+        )
+      : [];
+
+  const features =
+    Array.isArray(pin?.features)
+      ? pin.features.map(
+          (value: unknown) =>
+            String(value).toLowerCase(),
+        )
+      : [];
 
   if (
-    name.includes("GND") ||
-    powerSignal?.signal === "GND"
+    type === "ground" ||
+    name.includes("GND")
   ) {
     return "ground";
   }
 
+  const nominalVoltage =
+    Number(pin?.voltage?.nominal);
+
   if (
-    name.includes("5V") ||
-    name.includes("VCC") ||
+    type === "power" &&
     (
-      powerSignal?.signal === "VCC" &&
-      Number(powerSignal?.voltage ?? 5) >= 4.5
+      name.includes("5V") ||
+      name.includes("VCC") ||
+      nominalVoltage >= 4.5 ||
+      pin?.voltage?.max >= 4.5
     )
   ) {
     return "power5";
   }
 
   if (
-    name.includes("3.3") ||
-    name.includes("3V3") ||
+    type === "power" &&
     (
-      powerSignal?.signal === "VCC" &&
-      Number(powerSignal?.voltage) > 3 &&
-      Number(powerSignal?.voltage) < 4.5
+      name.includes("3V3") ||
+      name.includes("3.3") ||
+      (
+        Number.isFinite(nominalVoltage) &&
+        nominalVoltage > 3 &&
+        nominalVoltage < 4.5
+      )
     )
   ) {
     return "power33";
   }
 
-  if (
-    signals.some(
-      (signal) => signal?.type === "i2c",
-    )
-  ) {
+  if (protocols.includes("i2c")) {
     return "i2c";
   }
 
-  if (
-    signals.some(
-      (signal) => signal?.type === "spi",
-    )
-  ) {
+  if (protocols.includes("spi")) {
     return "spi";
   }
 
-  if (
-    signals.some(
-      (signal) => signal?.type === "usart",
-    )
-  ) {
+  if (protocols.includes("uart")) {
     return "usart";
   }
 
   if (
-    signals.some(
-      (signal) => signal?.type === "analog",
-    ) ||
-    /^A\d+$/.test(name)
+    type === "analog" ||
+    /^A\d+$/.test(name) ||
+    features.includes("adc")
   ) {
     return "analog";
   }
 
   if (
-    signals.some(
-      (signal) => signal?.type === "pwm",
-    ) ||
+    features.includes("pwm") ||
     /^D(?:3|5|6|9|10|11)$/.test(name)
   ) {
     return "pwm";
   }
 
   if (
-    signals.some(
-      (signal) => signal?.type === "digital",
-    ) ||
+    type === "digital" ||
     /^D\d+$/.test(name)
   ) {
     return "digital";
