@@ -187,6 +187,35 @@ export class ArduinoUnoRuntime {
     return this.state.digitalPins[pin]?.level ?? 0;
   }
 
+  setInputLevel(
+    pin: number,
+    level: PinLevel,
+  ): void {
+    const runtimePin =
+      this.state.digitalPins[pin];
+
+    if (
+      runtimePin &&
+      runtimePin.mode !== "output"
+    ) {
+      runtimePin.level = level;
+    }
+  }
+
+  getDigitalInputModes(): Map<string, PinMode> {
+    const modes = new Map<string, PinMode>();
+
+    for (let pin = 0; pin <= 13; pin += 1) {
+      modes.set(
+        "D" + pin,
+        this.state.digitalPins[pin]?.mode ??
+          "input",
+      );
+    }
+
+    return modes;
+  }
+
   getPowerDrivers(): ArduinoPowerDriver[] {
     const drivers: ArduinoPowerDriver[] = [];
 
