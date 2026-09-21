@@ -376,6 +376,40 @@ export class CurrentFlowSolver {
         powerState,
       );
 
+    /*
+     * PWM is still a real electrical source, but its average
+     * current is scaled by the hardware duty cycle. We keep
+     * the source voltage at 5V and scale the resulting current
+     * rather than pretending PWM is a lower DC supply voltage.
+     */
+    const sourceDuties = new Map<string, number>();
+
+    for (const driver of drivers) {
+      if (
+        driver.level !== 1 ||
+        driver.pwmDuty === undefined
+      ) {
+        continue;
+      }
+
+      const duty = Math.max(
+        0,
+        Math.min(1, driver.pwmDuty),
+      );
+
+      for (const [netId, pins] of netlist.netToPins) {
+        if (
+          pins.some(
+            (pin) =>
+              pin.pinId.toUpperCase() ===
+              driver.pin.toUpperCase(),
+          )
+        ) {
+          sourceDuties.set(netId, duty);
+        }
+      }
+    }
+
     if (powerState) {
       conflicts.push(
         ...powerState.conflicts,
@@ -472,8 +506,11 @@ export class CurrentFlowSolver {
             totalResistance,
         );
 
+        const duty =
+          sourceDuties.get(sourceNet) ?? 1;
+
         pathCurrentMa =
-          currentA * 1000;
+          currentA * 1000 * duty;
 
         /*
          * Visual LED brightness is intentionally a simple
