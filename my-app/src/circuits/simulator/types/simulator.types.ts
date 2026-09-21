@@ -58,6 +58,7 @@ export interface RuntimePin {
   pin: number;
   mode: PinMode;
   level: PinLevel;
+  pwmDuty?: number;
   analogValue?: number;
 }
 
