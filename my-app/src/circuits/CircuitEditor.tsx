@@ -109,23 +109,202 @@ const GRID_SIZE = 10;
 
 
 // * ----------> Edge Color <----------
-// Edge Color Function (For Edge Color Handling)
-function getEdgeAutoColor(types: string): string {
-  const checkPin = (pin: string) => {
-    const name = pin.toUpperCase();
-    
-    if (name.includes("GND") || types.includes("GND")) return "#000000"; // Black
-    if (name.includes("5V") || name.includes("VCC") || types.includes("POWER")) return "#EF4444"; // Red
-    if (name.includes("3.3V") || types.includes("3V3")) return "#F97316"; // Orange
-    if (types.includes("ANALOG") || name.startsWith("A")) return "#3B82F6"; // Blue
-    if (types.includes("DIGITAL") || name.startsWith("D")) return "#22C55E"; // Green
-    
-    return null;
-  };
+// Wires are colored from the semantic type of the two connected pins.
+// Power/ground take priority, then communication/analog/PWM/digital.
+type AutoWireKind =
+  | "ground"
+  | "power5"
+  | "power33"
+  | "analog"
+  | "pwm"
+  | "digital"
+  | "i2c"
+  | "spi"
+  | "usart"
+  | "signal";
 
-  checkPin(types);
-  // 3. ရိုးရိုး Signal ကြိုးများအတွက် Default Color
-  return "#10B981"; // Default Green
+const AUTO_WIRE_COLORS: Record<AutoWireKind, string> = {
+  ground: "#111827",
+  power5: "#ef4444",
+  power33: "#f97316",
+  analog: "#3b82f6",
+  pwm: "#8b5cf6",
+  digital: "#22c55e",
+  i2c: "#06b6d4",
+  spi: "#0ea5e9",
+  usart: "#a855f7",
+  signal: "#10b981",
+};
+
+function getPinSignals(
+  node: any,
+  pinId: string,
+): any[] {
+  const componentType = String(
+    node?.data?.componentType ?? node?.type ?? "",
+  );
+
+  const pins =
+    PIN_CONFIGS[componentType] ?? [];
+
+  const pin = pins.find(
+    (candidate: any) =>
+      String(candidate?.name ?? "")
+        .toUpperCase() ===
+      String(pinId).toUpperCase(),
+  );
+
+  return Array.isArray(pin?.signals)
+    ? pin.signals
+    : [];
+}
+
+function getPinAutoWireKind(
+  node: any,
+  pinId: string,
+): AutoWireKind {
+  const name =
+    String(pinId ?? "").toUpperCase();
+
+  const signals =
+    getPinSignals(node, pinId);
+
+  const powerSignal =
+    signals.find(
+      (signal) =>
+        signal?.type === "power",
+    );
+
+  if (
+    name.includes("GND") ||
+    powerSignal?.signal === "GND"
+  ) {
+    return "ground";
+  }
+
+  if (
+    name.includes("5V") ||
+    name.includes("VCC") ||
+    (
+      powerSignal?.signal === "VCC" &&
+      Number(powerSignal?.voltage ?? 5) >= 4.5
+    )
+  ) {
+    return "power5";
+  }
+
+  if (
+    name.includes("3.3") ||
+    name.includes("3V3") ||
+    (
+      powerSignal?.signal === "VCC" &&
+      Number(powerSignal?.voltage) > 3 &&
+      Number(powerSignal?.voltage) < 4.5
+    )
+  ) {
+    return "power33";
+  }
+
+  if (
+    signals.some(
+      (signal) => signal?.type === "i2c",
+    )
+  ) {
+    return "i2c";
+  }
+
+  if (
+    signals.some(
+      (signal) => signal?.type === "spi",
+    )
+  ) {
+    return "spi";
+  }
+
+  if (
+    signals.some(
+      (signal) => signal?.type === "usart",
+    )
+  ) {
+    return "usart";
+  }
+
+  if (
+    signals.some(
+      (signal) => signal?.type === "analog",
+    ) ||
+    /^A\\d+$/.test(name)
+  ) {
+    return "analog";
+  }
+
+  if (
+    signals.some(
+      (signal) => signal?.type === "pwm",
+    ) ||
+    /^D(?:3|5|6|9|10|11)$/.test(name)
+  ) {
+    return "pwm";
+  }
+
+  if (
+    signals.some(
+      (signal) => signal?.type === "digital",
+    ) ||
+    /^D\\d+$/.test(name)
+  ) {
+    return "digital";
+  }
+
+  return "signal";
+}
+
+function getEdgeAutoColor(
+  sourceNode: any,
+  sourcePinId: string,
+  targetNode: any,
+  targetPinId: string,
+): string {
+  const kinds = [
+    getPinAutoWireKind(
+      sourceNode,
+      sourcePinId,
+    ),
+    getPinAutoWireKind(
+      targetNode,
+      targetPinId,
+    ),
+  ];
+
+  if (kinds.includes("ground")) {
+    return AUTO_WIRE_COLORS.ground;
+  }
+
+  if (kinds.includes("power5")) {
+    return AUTO_WIRE_COLORS.power5;
+  }
+
+  if (kinds.includes("power33")) {
+    return AUTO_WIRE_COLORS.power33;
+  }
+
+  const priority: AutoWireKind[] = [
+    "i2c",
+    "spi",
+    "usart",
+    "pwm",
+    "analog",
+    "digital",
+    "signal",
+  ];
+
+  for (const kind of priority) {
+    if (kinds.includes(kind)) {
+      return AUTO_WIRE_COLORS[kind];
+    }
+  }
+
+  return AUTO_WIRE_COLORS.signal;
 }
 
 /* =========================================================
@@ -720,8 +899,29 @@ const stop =
       ) {
         return;
       }
-      console.log(params);
-      const strokeColor = getEdgeAutoColor(params.targetHandle ?? "");
+      const sourceNode =
+        nodesRef.current.find(
+          (node) => node.id === params.source,
+        );
+
+      const targetNode =
+        nodesRef.current.find(
+          (node) => node.id === params.target,
+        );
+
+      const sourcePinId =
+        params.sourceHandle ?? "";
+
+      const targetPinId =
+        params.targetHandle ?? "";
+
+      const strokeColor =
+        getEdgeAutoColor(
+          sourceNode,
+          sourcePinId,
+          targetNode,
+          targetPinId,
+        );
 
       const connectionData =
         createConnectionData(params);
@@ -842,7 +1042,18 @@ const stop =
               ...edge.style,
 
               stroke: getEdgeAutoColor(
-                targetPinId ?? ""
+                nodesRef.current.find(
+                  (node) =>
+                    node.id ===
+                    newConnection.source,
+                ),
+                sourcePinId,
+                nodesRef.current.find(
+                  (node) =>
+                    node.id ===
+                    newConnection.target,
+                ),
+                targetPinId,
               ),
             },
           };
