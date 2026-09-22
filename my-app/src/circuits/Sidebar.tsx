@@ -290,7 +290,7 @@ const Sidebar = () => {
     event: React.DragEvent<HTMLDivElement>,
     nodeType: string
   ) => {
-
+    
     event.dataTransfer.setData(
       "application/reactflow",
       nodeType

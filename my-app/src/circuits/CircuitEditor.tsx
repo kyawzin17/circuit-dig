@@ -48,7 +48,7 @@ import { batteryPins } from "./pins/battery9VPins.ts";
 import { ChevronDown, ZoomIn, ZoomOut, Maximize, Check, Undo, Redo } from "lucide-react";
 import { MdDeleteForever } from "react-icons/md";
 import { FaRegSave } from "react-icons/fa";
-import { FaArrowsRotate } from "react-icons/fa6";
+import { FaArrowsRotate, FaBoltLightning } from "react-icons/fa6";
 import { LuGrid2X2X, LuGrid2X2Plus, LuCode } from "react-icons/lu";
 
 // * ----------> Components <----------
@@ -1045,13 +1045,13 @@ const stop =
                     node.id ===
                     newConnection.source,
                 ),
-                sourcePinId,
+                sourcePinId ?? "",
                 nodesRef.current.find(
                   (node) =>
                     node.id ===
                     newConnection.target,
                 ),
-                targetPinId,
+                targetPinId ?? "",
               ),
             },
           };
@@ -1213,7 +1213,9 @@ const stop =
         pushbutton: {
           label: "Push Button",
           tag: "wokwi-pushbutton",
-          props: {},
+          props: {
+          
+          },
           pins: pushbuttonPins,
         },
 
@@ -1813,36 +1815,32 @@ const toggleCode = useCallback(() => {
   setShowCode(!showCode);
 }, [showCode]);
 
+const saveCircuit = useCallback(() => {
+  alert("Save circuit");
+  // Save the circuit to local storage
+  // localStorage.setItem("circuit", JSON.stringify({
+  //   nodes: nodesRef.current,
+  //   edges: edgesRef.current,
+  // }));
+}, []);
+
   /* =======================================================
      RENDER
   ======================================================= */
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-slate-100">
-
-      {/* ===================================================
-          LEFT SIDEBAR
-      =================================================== */}
-
       <Sidebar />
-
-      {/* ===================================================
-          MAIN CANVAS
-      =================================================== */}
-
+      {/* Main Canvas */}
       <div
         ref={reactFlowWrapper}
         className="relative h-full flex-1"
       >
 
-        {/* =================================================
-            TOP TOOLBAR
-        ================================================= */}
-
+        {/* TOP TOOLBAR */}
         <div className="absolute left-1/2 top-4 z-50 flex -translate-x-1/2 items-center gap-1 rounded-xl border border-slate-300 bg-white/95 p-1.5 shadow-lg backdrop-blur">
 
           {/* Undo */}
-
           <button
             type="button"
             onClick={undo}
@@ -1854,7 +1852,6 @@ const toggleCode = useCallback(() => {
           </button>
 
           {/* Redo */}
-
           <button
             type="button"
             onClick={redo}
@@ -1871,7 +1868,6 @@ const toggleCode = useCallback(() => {
           <div className="mx-1 h-6 w-px bg-slate-200" />
 
           {/* Grid */}
-
           <button
             type="button"
             onClick={() =>
@@ -1892,7 +1888,6 @@ const toggleCode = useCallback(() => {
           </button>
 
           {/* Rotate */}
-
           <button
             type="button"
             disabled={!selectedNode}
@@ -1912,7 +1907,6 @@ const toggleCode = useCallback(() => {
           </button>
 
           {/* Delete */}
-
           <button
             type="button"
             disabled={!selectedNode}
@@ -1933,6 +1927,7 @@ const toggleCode = useCallback(() => {
 
           <div className="mx-1 h-6 w-px bg-slate-200" />
 
+          {/* Code */}
           <button
             type="button"
             onClick={toggleCode}
@@ -1943,10 +1938,11 @@ const toggleCode = useCallback(() => {
           </button>
 
         <div className="mx-1 h-6 w-px bg-slate-200" />
-          {/* Save */}
 
+          {/* Save */}
           <button
             type="button"
+            onClick={saveCircuit}
             className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-600 transition hover:bg-slate-100"
             title="Save circuit"
           >
@@ -1954,22 +1950,21 @@ const toggleCode = useCallback(() => {
           </button>
 
           {/* Play */}
-
           <button
             type="button"
             onClick={togglePlay}
             className={`flex h-9 items-center gap-2 rounded-lg px-3 text-sm font-medium transition ${
-  simulationStatus === "running"
-    ? "bg-red-50 text-red-600"
-    : simulationStatus === "compiling"
-      ? "bg-yellow-100 text-yellow-700"
-      : "bg-slate-900 text-white hover:bg-slate-800"
-}`}
-            title={
               simulationStatus === "running"
-      ? "Stop simulation"
-      : "Run simulation"
-            }
+                ? "bg-red-50 text-red-600"
+                : simulationStatus === "compiling"
+                  ? "bg-yellow-100 text-yellow-700"
+                  : "bg-slate-900 text-white hover:bg-slate-800"
+            }`}
+                        title={
+                          simulationStatus === "running"
+                  ? "Stop simulation"
+                  : "Run simulation"
+                        }
           >
             {simulationStatus === "running"
               ? (
@@ -2089,15 +2084,20 @@ const toggleCode = useCallback(() => {
             />
           )}
 
-          {/* ===============================================
-              DEFAULT CONTROLS
-          =============================================== */}
+          {/* ================= DEFAULT CONTROLS ================= Custorm control ရှိနေလို့ သူ့ကို ဖျောက်ထားတာ ချင် ဖျောက်ထားလို့ရ */}
 
-          <Controls />
+          <Controls 
+                  showZoom={false}
+                  showFitView={false}
+                  className="hover:-translate-y-1 duration-200 transition-all ease-in-out"
+                  style={{
+                      borderRadius: '8px',
+                      overflow: 'hidden',
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+                    }}
+                  />
 
-          {/* ===============================================
-              CUSTOM ZOOM
-          =============================================== */}
+          {/* =============== CUSTOM ZOOM =============== */} 
 
           <ZoomControls />
 

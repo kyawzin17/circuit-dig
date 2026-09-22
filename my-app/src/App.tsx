@@ -4,7 +4,7 @@ import Circuit from './circuits/Circuit'
 function App() {
 
   return (
-    <div className='w-screen h-auto overflow-x-hidden'>
+    <div className='w-screen h-auto overflow-hidden'>
       <Circuit />
     </div>
   )
