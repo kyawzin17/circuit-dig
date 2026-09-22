@@ -257,18 +257,6 @@ export class SimulationEngine {
       conflicts: [],
     };
 
-    this.analogState = {
-      pinVoltages: new Map(),
-      pinValues: new Map(),
-      conflicts: [],
-    };
-
-    this.analogState = {
-      pinVoltages: new Map(),
-      pinValues: new Map(),
-      conflicts: [],
-    };
-
     this.firmwareLoaded = true;
     this.setStatus("idle");
   }
