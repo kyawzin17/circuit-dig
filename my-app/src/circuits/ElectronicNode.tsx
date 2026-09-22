@@ -572,7 +572,9 @@ const ElectronicNode = ({
                */
 
               ref:
-                isLed || isPushButton
+                isLed ||
+                isPushButton ||
+                isPotentiometer
                   ? componentRef
                   : undefined,
             }
