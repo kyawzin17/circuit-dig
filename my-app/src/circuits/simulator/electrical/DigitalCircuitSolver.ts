@@ -63,11 +63,68 @@ export class DigitalCircuitSolver {
     }
 
     for (const node of nodes) {
-      if (!isConductiveComponent(node) || !componentClosed(node)) continue;
+      if (!isConductiveComponent(node)) {
+        continue;
+      }
+
       const type = componentType(node);
-      const a = type === "resistor" ? "pin1" : "pin1";
-      const b = type === "resistor" ? "pin2" : "pin2";
-      connect(createPinKey(ref(node.id, a)), createPinKey(ref(node.id, b)));
+
+      if (type === "resistor") {
+        connect(
+          createPinKey(ref(node.id, "pin1")),
+          createPinKey(ref(node.id, "pin2")),
+        );
+        continue;
+      }
+
+      if (type === "pushbutton" || type === "button") {
+        /*
+         * Wokwi's 4-pin tactile button has two permanent
+         * electrical sides:
+         *
+         *   1.l <-> 1.r
+         *   2.l <-> 2.r
+         *
+         * Pressing the button additionally connects the two
+         * sides:
+         *
+         *   1.r <-> 2.r
+         *
+         * The previous implementation looked for nonexistent
+         * "pin1"/"pin2" handles, so the button never became
+         * conductive in the digital graph.
+         */
+        connect(
+          createPinKey(ref(node.id, "1.l")),
+          createPinKey(ref(node.id, "1.r")),
+        );
+
+        connect(
+          createPinKey(ref(node.id, "2.l")),
+          createPinKey(ref(node.id, "2.r")),
+        );
+
+        if (componentClosed(node)) {
+          connect(
+            createPinKey(ref(node.id, "1.r")),
+            createPinKey(ref(node.id, "2.r")),
+          );
+        }
+
+        continue;
+      }
+
+      if (
+        type === "slide-switch" ||
+        type === "switch"
+      ) {
+        if (componentClosed(node)) {
+          connect(
+            createPinKey(ref(node.id, "pin1")),
+            createPinKey(ref(node.id, "pin2")),
+          );
+        }
+      }
     }
 
     const pinLevels = new Map<string, 0 | 1>();
