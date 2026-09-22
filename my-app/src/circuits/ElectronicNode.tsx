@@ -141,6 +141,21 @@ const ElectronicNode = ({
     componentType === "pushbutton" ||
     componentType === "button";
 
+  const isPotentiometer =
+    componentType === "potentiometer" ||
+    componentType === "pot";
+
+  const potentiometerPosition =
+    typeof data.potentiometerPosition === "number"
+      ? Math.max(
+          0,
+          Math.min(
+            1,
+            data.potentiometerPosition,
+          ),
+        )
+      : 0.5;
+
   const isPressed =
     data.pressed === true ||
     data.isPressed === true;
@@ -159,6 +174,92 @@ const ElectronicNode = ({
           )
         )
       : 1;
+
+  // =========================================================
+  // POTENTIOMETER -> CIRCUIT STATE
+  // =========================================================
+  useEffect(() => {
+    if (!isPotentiometer) {
+      return;
+    }
+
+    const element =
+      componentRef.current as
+        | (HTMLElement & {
+            value?: number | string;
+          })
+        | null;
+
+    if (!element) {
+      return;
+    }
+
+    /*
+     * Wokwi exposes the potentiometer value as 0..1023.
+     * Our circuit model stores a normalized 0..1 wiper position.
+     */
+    element.value = Math.round(
+      potentiometerPosition * 1023,
+    );
+
+    const handleInput = () => {
+      const rawValue =
+        Number(element.value);
+
+      if (!Number.isFinite(rawValue)) {
+        return;
+      }
+
+      const position =
+        Math.max(
+          0,
+          Math.min(
+            1,
+            rawValue / 1023,
+          ),
+        );
+
+      setNodes((currentNodes) =>
+        currentNodes.map((node) =>
+          node.id === id
+            ? {
+                ...node,
+                data: {
+                  ...node.data,
+                  potentiometerPosition:
+                    position,
+                },
+              }
+            : node,
+        ),
+      );
+    };
+
+    element.addEventListener(
+      "input",
+      handleInput,
+    );
+    element.addEventListener(
+      "change",
+      handleInput,
+    );
+
+    return () => {
+      element.removeEventListener(
+        "input",
+        handleInput,
+      );
+      element.removeEventListener(
+        "change",
+        handleInput,
+      );
+    };
+  }, [
+    id,
+    isPotentiometer,
+    potentiometerPosition,
+    setNodes,
+  ]);
 
   // =========================================================
   // PUSHBUTTON -> CIRCUIT STATE
@@ -471,17 +572,65 @@ const ElectronicNode = ({
                */
 
               ref:
-                isLed || isPushButton
+                isLed ||
+                isPushButton ||
+                isPotentiometer
                   ? componentRef
                   : undefined,
             }
           )}
 
+        {isPotentiometer && (
+          <div
+            className="absolute left-1/2 top-full z-40 mt-2 w-24 -translate-x-1/2 rounded-lg border border-slate-300 bg-white/95 px-2 py-1.5 shadow-lg backdrop-blur"
+            onPointerDown={(event) => event.stopPropagation()}
+            onPointerMove={(event) => event.stopPropagation()}
+            onPointerUp={(event) => event.stopPropagation()}
+          >
+            <div className="mb-1 flex items-center justify-between text-[8px] font-medium text-slate-500">
+              <span>0V</span>
+              <span>
+                {(potentiometerPosition * 5).toFixed(2)}V
+              </span>
+              <span>5V</span>
+            </div>
+
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={potentiometerPosition}
+              onChange={(event) => {
+                const position =
+                  Number(event.target.value);
+
+                setNodes((currentNodes) =>
+                  currentNodes.map((node) =>
+                    node.id === id
+                      ? {
+                          ...node,
+                          data: {
+                            ...node.data,
+                            potentiometerPosition:
+                              position,
+                          },
+                        }
+                      : node,
+                  ),
+                );
+              }}
+              className="h-1.5 w-full cursor-pointer accent-cyan-500"
+              aria-label="Potentiometer position"
+            />
+          </div>
+        )}
+
         {/* =====================================================
             REACT FLOW PINS
         ===================================================== */}
 
-        {pins.map((pin) => {
+        {pins.map((pin : any) => {
 
           const handleId =
             pin.name;

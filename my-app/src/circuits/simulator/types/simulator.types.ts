@@ -127,6 +127,14 @@ export interface ArduinoUnoRuntimeState {
 
   pinVoltages: Record<string, ArduinoPowerPinVoltage>;
 
+  /**
+   * Resolved analog input state in volts and 10-bit ADC units.
+   * Values are produced by the electrical solver, not by
+   * calling analogRead() from JavaScript.
+   */
+  analogPinVoltages: Record<string, number>;
+  analogPinValues: Record<string, number>;
+
   ledStates: Record<string, LedRuntimeState>;
 
   resistorStates: Record<string, ResistorRuntimeState>;

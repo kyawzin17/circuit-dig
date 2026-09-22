@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 
 import ReactFlow, {
   addEdge,
@@ -48,7 +49,8 @@ import { batteryPins } from "./pins/battery9VPins.ts";
 import { ChevronDown, ZoomIn, ZoomOut, Maximize, Check, Undo, Redo } from "lucide-react";
 import { MdDeleteForever } from "react-icons/md";
 import { FaRegSave } from "react-icons/fa";
-import { FaArrowsRotate, FaBoltLightning } from "react-icons/fa6";
+import { FolderOpen } from "lucide-react";
+import { FaArrowsRotate } from "react-icons/fa6";
 import { LuGrid2X2X, LuGrid2X2Plus, LuCode } from "react-icons/lu";
 
 // * ----------> Components <----------
@@ -68,6 +70,10 @@ import PicoNode from "./nodes/Respberrypipico.tsx";
 // * ----------> Simulation Engine <----------
 import { useSimulationStore } from "../stores/simulationStore"; // Simulation Store for Simulation Engine ()
 import { SimulationEngine } from "./simulator/core/SimulationEngine.ts"; // Simulation Engine Component
+import {
+  getSavedProject,
+  saveCircuitProject,
+} from "./projectStorage";
 
 // * ----------> Types <----------
 // Circuit Edge Data Type (For Simulation Engine)
@@ -680,6 +686,13 @@ const handlePauseSimulation = () => {
   const [edges, setEdges, onEdgesChange] =
     useEdgesState([]);
 
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const projectIdFromUrl = searchParams.get("project");
+  const [currentProjectId, setCurrentProjectId] = useState<string | null>(null);
+  const [currentProjectName, setCurrentProjectName] = useState("Untitled Circuit");
+  const loadedProjectRef = useRef<string | null>(null);
+
   /*
    * Keep live component state (for example a pressed pushbutton)
    * synchronized with the running simulator without rebuilding
@@ -725,6 +738,65 @@ const stop =
 
   const [selectedNode, setSelectedNode] =
     useState<any>(null);
+
+  useEffect(() => {
+    if (!reactFlowInstance || !projectIdFromUrl) {
+      return;
+    }
+
+    if (loadedProjectRef.current === projectIdFromUrl) {
+      return;
+    }
+
+    const project = getSavedProject(projectIdFromUrl);
+
+    if (!project) {
+      loadedProjectRef.current = projectIdFromUrl;
+      navigate("/", { replace: true });
+      return;
+    }
+
+    simulationEngine.current?.stop();
+
+    setNodes(project.nodes);
+    setEdges(project.edges);
+
+    setHistory({
+      stack: [
+        {
+          nodes: project.nodes,
+          edges: project.edges as CircuitEdge[],
+        },
+      ],
+      index: 0,
+    });
+
+    useSimulationStore.getState().setCode(project.code);
+
+    setCurrentProjectId(project.id);
+    setCurrentProjectName(project.name);
+    setSelectedNode(null);
+    setEdgeMenu(null);
+
+    if (project.viewport) {
+      reactFlowInstance.setViewport(project.viewport);
+    } else {
+      requestAnimationFrame(() => {
+        reactFlowInstance.fitView({
+          padding: 0.2,
+          duration: 200,
+        });
+      });
+    }
+
+    loadedProjectRef.current = projectIdFromUrl;
+  }, [
+    reactFlowInstance,
+    projectIdFromUrl,
+    navigate,
+    setNodes,
+    setEdges,
+  ]);
 
   const [edgeMenu, setEdgeMenu] =
     useState<{
@@ -1442,6 +1514,16 @@ const stop =
             config.stubLength || 5,
 
           instanceNumber,
+
+          /*
+           * Potentiometer state belongs to the circuit data so it
+           * survives save/load and can be consumed by the analog
+           * solver while the simulation is running.
+           */
+          potentiometerPosition:
+            type === "potentiometer"
+              ? 0.5
+              : undefined,
         },
 
         zIndex: isBreadboard
@@ -1815,14 +1897,116 @@ const toggleCode = useCallback(() => {
   setShowCode(!showCode);
 }, [showCode]);
 
-const saveCircuit = useCallback(() => {
-  alert("Save circuit");
-  // Save the circuit to local storage
-  // localStorage.setItem("circuit", JSON.stringify({
-  //   nodes: nodesRef.current,
-  //   edges: edgesRef.current,
-  // }));
-}, []);
+  const handleSaveProject = useCallback(() => {
+    const defaultName =
+      currentProjectName ||
+      "Untitled Circuit";
+
+    const enteredName = currentProjectId
+      ? currentProjectName
+      : window.prompt(
+          "Project name",
+          defaultName,
+        );
+
+    if (enteredName === null) {
+      return;
+    }
+
+    const name =
+      enteredName.trim() ||
+      defaultName;
+
+    const viewport =
+      reactFlowInstance?.getViewport();
+
+    const project = saveCircuitProject({
+      id: currentProjectId,
+      name,
+      nodes: nodesRef.current,
+      edges: edgesRef.current,
+      code: useSimulationStore.getState().code,
+      viewport,
+    });
+
+    setCurrentProjectId(project.id);
+    setCurrentProjectName(project.name);
+    loadedProjectRef.current = project.id;
+
+    navigate(
+      "/?project=" +
+        encodeURIComponent(project.id),
+      { replace: true },
+    );
+  }, [
+    currentProjectId,
+    currentProjectName,
+    reactFlowInstance,
+    navigate,
+  ]);
+
+  useEffect(() => {
+    const handleShortcut = (event: KeyboardEvent) => {
+      if (
+        (event.ctrlKey || event.metaKey) &&
+        event.key.toLowerCase() === "s"
+      ) {
+        event.preventDefault();
+        handleSaveProject();
+      }
+    };
+
+    window.addEventListener(
+      "keydown",
+      handleShortcut,
+    );
+
+    return () => {
+      window.removeEventListener(
+        "keydown",
+        handleShortcut,
+      );
+    };
+  }, [handleSaveProject]);
+
+  const handleNewProject = useCallback(() => {
+    simulationEngine.current?.stop();
+
+    setNodes([]);
+    setEdges([]);
+
+    setHistory({
+      stack: [
+        {
+          nodes: [],
+          edges: [],
+        },
+      ],
+      index: 0,
+    });
+
+    setSelectedNode(null);
+    setCurrentProjectId(null);
+    setCurrentProjectName("Untitled Circuit");
+    loadedProjectRef.current = null;
+
+    useSimulationStore.getState().setCode("");
+
+    navigate("/", { replace: true });
+
+    requestAnimationFrame(() => {
+      reactFlowInstance?.setViewport({
+        x: 0,
+        y: 0,
+        zoom: 1,
+      });
+    });
+  }, [
+    navigate,
+    reactFlowInstance,
+    setNodes,
+    setEdges,
+  ]);
 
   /* =======================================================
      RENDER
@@ -1942,11 +2126,31 @@ const saveCircuit = useCallback(() => {
           {/* Save */}
           <button
             type="button"
-            onClick={saveCircuit}
-            className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-600 transition hover:bg-slate-100"
-            title="Save circuit"
+            onClick={handleSaveProject}
+            className="flex h-9 items-center gap-2 rounded-lg px-3 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
+            title="Save circuit project"
           >
             <FaRegSave size={16} />
+            <span>Save</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => navigate("/projects")}
+            className="flex h-9 items-center gap-2 rounded-lg px-3 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
+            title="Open saved projects"
+          >
+            <FolderOpen size={16} />
+            <span>Projects</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={handleNewProject}
+            className="flex h-9 items-center gap-2 rounded-lg px-3 text-sm font-medium text-slate-500 transition hover:bg-slate-100 hover:text-slate-800"
+            title="Create a new circuit"
+          >
+            New
           </button>
 
           {/* Play */}

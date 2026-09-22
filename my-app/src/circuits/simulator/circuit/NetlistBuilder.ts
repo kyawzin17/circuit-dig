@@ -92,6 +92,13 @@ function getTerminalIds(node: CircuitNode): string[] {
     return ["pin1", "pin2"];
   }
 
+  if (
+    type === "potentiometer" ||
+    type === "pot"
+  ) {
+    return ["VCC", "GND", "SIG"];
+  }
+
   if (type.includes("led")) {
     return ["anode", "cathode"];
   }

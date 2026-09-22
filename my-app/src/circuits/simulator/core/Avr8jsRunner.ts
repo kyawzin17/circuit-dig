@@ -21,6 +21,12 @@ const PIND = 0x29;
 const DDRD = 0x2a;
 const PORTD = 0x2b;
 
+// ATmega328P ADC registers.
+const ADCL = 0x78;
+const ADCH = 0x79;
+const ADCSRA = 0x7a;
+const ADMUX = 0x7c;
+
 // ATmega328P timer/PWM registers.
 const TCCR0A = 0x44;
 const OCR0A = 0x47;
@@ -51,6 +57,7 @@ export class Avr8jsRunner {
   private cpu: CPU | null = null;
   private program: Uint16Array | null = null;
   private arduino: ArduinoUnoRuntime | null = null;
+  private analogInputs: Record<string, number> = {};
 
   private timer0: AVRTimer | null = null;
   private timer1: AVRTimer | null = null;
@@ -127,6 +134,14 @@ export class Avr8jsRunner {
       );
   }
 
+  setExternalAnalogInputs(
+    voltages: Record<string, number>,
+  ): void {
+    this.analogInputs = {
+      ...voltages,
+    };
+  }
+
   runCycles(cycles: number): void {
     if (!this.cpu) {
       throw new Error("AVR program has not been loaded.");
@@ -138,9 +153,96 @@ export class Avr8jsRunner {
     while (this.cpu.cycles < targetCycles) {
       avrInstruction(this.cpu);
       this.cpu.tick();
+
+      /*
+       * Arduino's analogRead() starts a real AVR ADC conversion by
+       * setting ADCSRA.ADSC, then waits until the hardware clears
+       * ADSC before reading ADCL/ADCH.
+       *
+       * The simulator resolves the external voltage electrically,
+       * then completes that same register transaction here. This
+       * keeps analogRead() firmware-driven instead of replacing it
+       * with a JavaScript function call.
+       */
+      this.serviceAdc();
     }
 
     this.syncGpioToRuntime();
+  }
+
+  private serviceAdc(): void {
+    if (!this.cpu) {
+      return;
+    }
+
+    const data = this.cpu.data;
+    const adcsra = data[ADCSRA] ?? 0;
+
+    const adcEnabled =
+      (adcsra & (1 << 7)) !== 0;
+    const conversionStarted =
+      (adcsra & (1 << 6)) !== 0;
+
+    if (!adcEnabled || !conversionStarted) {
+      return;
+    }
+
+    const admux = data[ADMUX] ?? 0;
+    const channel = admux & 0x0f;
+
+    const pinName =
+      channel >= 0 && channel <= 5
+        ? "A" + channel
+        : null;
+
+    const inputVoltage =
+      pinName !== null
+        ? this.analogInputs[pinName] ?? 0
+        : 0;
+
+    const referenceSelect =
+      (admux >> 6) & 0b11;
+
+    const referenceVoltage =
+      referenceSelect === 0b11
+        ? 1.1
+        : 5.0;
+
+    const normalized =
+      Math.max(
+        0,
+        Math.min(
+          1,
+          inputVoltage / referenceVoltage,
+        ),
+      );
+
+    const adcValue =
+      Math.round(normalized * 1023);
+
+    const leftAdjust =
+      (admux & (1 << 5)) !== 0;
+
+    if (leftAdjust) {
+      data[ADCL] =
+        (adcValue & 0x03) << 6;
+      data[ADCH] =
+        (adcValue >> 2) & 0xff;
+    } else {
+      data[ADCL] =
+        adcValue & 0xff;
+      data[ADCH] =
+        (adcValue >> 8) & 0x03;
+    }
+
+    /*
+     * ADC conversion complete:
+     * - clear ADSC
+     * - set ADIF
+     */
+    data[ADCSRA] =
+      (adcsra & ~(1 << 6)) |
+      (1 << 4);
   }
 
   private composeInputRegister(
@@ -344,6 +446,7 @@ export class Avr8jsRunner {
   }
 
   reset(): void {
+    this.analogInputs = {};
     this.cpu = null;
     this.program = null;
     this.arduino = null;
