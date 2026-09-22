@@ -588,6 +588,14 @@ export class SimulationEngine {
     this.clock.stop();
     this.arduino.reset();
 
+    this.analogState = {
+      pinVoltages: new Map(),
+      pinValues: new Map(),
+      conflicts: [],
+    };
+
+
+
     this.digitalState = {
       pinLevels: new Map(),
       conflicts: [],
@@ -622,6 +630,14 @@ export class SimulationEngine {
     this.clock.stop();
     this.arduino.reset();
     this.avr.reset();
+
+    this.analogState = {
+      pinVoltages: new Map(),
+      pinValues: new Map(),
+      conflicts: [],
+    };
+
+
 
     this.digitalState = {
       pinLevels: new Map(),
