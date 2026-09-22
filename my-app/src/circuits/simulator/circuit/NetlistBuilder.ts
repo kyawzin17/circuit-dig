@@ -204,21 +204,71 @@ export class NetlistBuilder {
         continue;
       }
 
+      const componentType =
+        normalizeComponentType(node);
+
       const terminals: Record<string, string | null> = {};
 
-      for (const pinId of terminalIds) {
-        terminals[pinId] =
+      /*
+       * Wokwi pushbuttons are four-pin components, not two-pin
+       * components. Pins 1.l and 1.r are permanently connected,
+       * and pins 2.l and 2.r are permanently connected. The
+       * button press connects those two sides.
+       *
+       * Expose those two physical sides to the electrical solver
+       * as logical pin1/pin2 terminals.
+       */
+      if (
+        componentType === "pushbutton" ||
+        componentType === "button"
+      ) {
+        const leftNet =
           pinToNet.get(
             createPinKey({
               nodeId: node.id,
-              pinId,
+              pinId: "1.l",
             }),
-          ) ?? null;
+          ) ??
+          pinToNet.get(
+            createPinKey({
+              nodeId: node.id,
+              pinId: "1.r",
+            }),
+          ) ??
+          null;
+
+        const rightNet =
+          pinToNet.get(
+            createPinKey({
+              nodeId: node.id,
+              pinId: "2.l",
+            }),
+          ) ??
+          pinToNet.get(
+            createPinKey({
+              nodeId: node.id,
+              pinId: "2.r",
+            }),
+          ) ??
+          null;
+
+        terminals.pin1 = leftNet;
+        terminals.pin2 = rightNet;
+      } else {
+        for (const pinId of terminalIds) {
+          terminals[pinId] =
+            pinToNet.get(
+              createPinKey({
+                nodeId: node.id,
+                pinId,
+              }),
+            ) ?? null;
+        }
       }
 
       components.push({
         id: node.id,
-        type: normalizeComponentType(node),
+        type: componentType,
         terminals,
       });
     }
