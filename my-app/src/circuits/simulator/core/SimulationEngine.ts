@@ -40,6 +40,11 @@ import {
   type PowerRailState,
 } from "../electrical/PowerRailSolver";
 
+import {
+  AnalogCircuitSolver,
+  type AnalogInputState,
+} from "../electrical/AnalogCircuitSolver";
+
 import { intelHexToProgram } from "./IntelHex";
 
 /* =========================================================
@@ -84,6 +89,9 @@ export class SimulationEngine {
   private readonly powerRailSolver =
     new PowerRailSolver();
 
+  private readonly analogCircuitSolver =
+    new AnalogCircuitSolver();
+
   private readonly options: SimulationEngineOptions;
 
   private netlist: Netlist | null = null;
@@ -117,6 +125,12 @@ export class SimulationEngine {
     pinVoltages: {},
     sourceNets: new Map(),
     groundNets: new Set(),
+    conflicts: [],
+  };
+
+  private analogState: AnalogInputState = {
+    pinVoltages: new Map(),
+    pinValues: new Map(),
     conflicts: [],
   };
 
@@ -237,6 +251,24 @@ export class SimulationEngine {
       conflicts: [],
     };
 
+    this.analogState = {
+      pinVoltages: new Map(),
+      pinValues: new Map(),
+      conflicts: [],
+    };
+
+    this.analogState = {
+      pinVoltages: new Map(),
+      pinValues: new Map(),
+      conflicts: [],
+    };
+
+    this.analogState = {
+      pinVoltages: new Map(),
+      pinValues: new Map(),
+      conflicts: [],
+    };
+
     this.firmwareLoaded = true;
     this.setStatus("idle");
   }
@@ -294,6 +326,48 @@ export class SimulationEngine {
             preRunDrivers,
             this.circuitNodes,
           );
+
+        /*
+         * Resolve analog voltages before AVR execution.
+         *
+         * A potentiometer is an electrical component with VCC/GND
+         * and a wiper output. The solver determines the voltage at
+         * SIG; the AVR runner later converts that voltage through
+         * the ATmega328P ADC registers used by analogRead().
+         */
+        this.analogState =
+          this.analogCircuitSolver.solve(
+            this.circuitNodes,
+            this.netlist,
+            preRunDrivers,
+            this.powerState,
+          );
+
+        this.arduino.getState().analogPinVoltages = {};
+        this.arduino.getState().analogPinValues = {};
+
+        for (const [pin, voltage] of this.analogState.pinVoltages) {
+          const value =
+            this.analogState.pinValues.get(pin) ?? 0;
+
+          this.arduino.setAnalogInput(
+            pin,
+            voltage,
+            value,
+          );
+        }
+
+        if (this.firmwareLoaded) {
+          const externalAnalogInputs: Record<string, number> = {};
+
+          for (const [pin, voltage] of this.analogState.pinVoltages) {
+            externalAnalogInputs[pin] = voltage;
+          }
+
+          this.avr.setExternalAnalogInputs(
+            externalAnalogInputs,
+          );
+        }
 
         this.digitalInputState =
           this.digitalInputSolver.solve(
@@ -620,6 +694,10 @@ export class SimulationEngine {
 
   getPowerState(): PowerRailState {
     return this.powerState;
+  }
+
+  getAnalogState(): AnalogInputState {
+    return this.analogState;
   }
 
   getState(): ArduinoUnoRuntimeState {
