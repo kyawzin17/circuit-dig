@@ -1501,6 +1501,16 @@ const stop =
             config.stubLength || 5,
 
           instanceNumber,
+
+          /*
+           * Potentiometer state belongs to the circuit data so it
+           * survives save/load and can be consumed by the analog
+           * solver while the simulation is running.
+           */
+          potentiometerPosition:
+            type === "potentiometer"
+              ? 0.5
+              : undefined,
         },
 
         zIndex: isBreadboard
