@@ -324,15 +324,34 @@ export class ArduinoUnoRuntime {
 
       const pin = Number(pinName.slice(1));
 
+      const isOutput =
+        (ddr & (1 << mapping.bit)) !== 0;
+
+      /*
+       * ATmega328P GPIO mode is determined by both DDRx and PORTx:
+       *
+       * DDRx = 1                  -> OUTPUT
+       * DDRx = 0, PORTx = 1       -> INPUT_PULLUP
+       * DDRx = 0, PORTx = 0       -> INPUT
+       *
+       * The previous implementation only looked at DDRx, which
+       * meant Arduino's INPUT_PULLUP was silently downgraded to
+       * INPUT. That made an unpressed pushbutton read LOW and
+       * therefore made digitalRead() appear broken.
+       */
       const mode: PinMode =
-        (ddr & (1 << mapping.bit)) !== 0
+        isOutput
           ? "output"
-          : "input";
+          : (output & (1 << mapping.bit)) !== 0
+            ? "input_pullup"
+            : "input";
 
       this.setPinMode(pin, mode);
 
-      if (mode === "input") {
-        const runtimePin = this.state.digitalPins[pin];
+      if (!isOutput) {
+        const runtimePin =
+          this.state.digitalPins[pin];
+
         if (runtimePin) {
           runtimePin.pwmDuty = undefined;
         }
