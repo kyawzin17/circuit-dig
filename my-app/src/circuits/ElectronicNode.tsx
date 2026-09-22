@@ -242,6 +242,96 @@ const ElectronicNode = ({
   ]);
 
   // =========================================================
+  // PUSHBUTTON POINTER FALLBACK
+  // =========================================================
+  //
+  // Some versions of @wokwi/elements dispatch the button events
+  // from the internal SVG/shadow DOM. ReactFlow can also intercept
+  // pointer events around a custom node. Keep a DOM-level fallback
+  // so a real mouse/touch press always reaches the circuit state.
+  // This does not bypass the simulator: the resulting pressed state
+  // is consumed by DigitalInputSolver -> AVR PINx -> digitalRead().
+  // =========================================================
+  const handlePushButtonPointerDown = (
+    event: React.PointerEvent,
+  ) => {
+    if (!isPushButton) {
+      return;
+    }
+
+    event.stopPropagation();
+
+    setNodes((currentNodes) =>
+      currentNodes.map((node) =>
+        node.id === id
+          ? {
+              ...node,
+              data: {
+                ...node.data,
+                pressed: true,
+                isPressed: true,
+              },
+            }
+          : node,
+      ),
+    );
+  };
+
+  const handlePushButtonPointerUp = (
+    event: React.PointerEvent,
+  ) => {
+    if (!isPushButton) {
+      return;
+    }
+
+    event.stopPropagation();
+
+    setNodes((currentNodes) =>
+      currentNodes.map((node) =>
+        node.id === id
+          ? {
+              ...node,
+              data: {
+                ...node.data,
+                pressed: false,
+                isPressed: false,
+              },
+            }
+          : node,
+      ),
+    );
+  };
+
+  const handlePushButtonPointerLeave = (
+    event: React.PointerEvent,
+  ) => {
+    if (!isPushButton) {
+      return;
+    }
+
+    if (event.buttons === 0) {
+      return;
+    }
+
+    event.stopPropagation();
+
+    setNodes((currentNodes) =>
+      currentNodes.map((node) =>
+        node.id === id
+          ? {
+              ...node,
+              data: {
+                ...node.data,
+                pressed: false,
+                isPressed: false,
+              },
+            }
+          : node,
+      ),
+    );
+  };
+
+  // =========================================================
   // APPLY SIMULATION STATE TO WOKWI ELEMENT
   // =========================================================
 
@@ -309,6 +399,26 @@ const ElectronicNode = ({
 
   return (
     <div
+      onPointerDown={
+        isPushButton
+          ? handlePushButtonPointerDown
+          : undefined
+      }
+      onPointerUp={
+        isPushButton
+          ? handlePushButtonPointerUp
+          : undefined
+      }
+      onPointerCancel={
+        isPushButton
+          ? handlePushButtonPointerUp
+          : undefined
+      }
+      onPointerLeave={
+        isPushButton
+          ? handlePushButtonPointerLeave
+          : undefined
+      }
       style={{
         transform:
           `rotate(${rotation}deg)`,
