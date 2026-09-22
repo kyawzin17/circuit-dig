@@ -126,6 +126,8 @@ export class ArduinoUnoRuntime {
       digitalPins,
       powerRails,
       pinVoltages,
+      analogPinVoltages: {},
+      analogPinValues: {},
       ledStates: {},
       resistorStates: {},
       wireStates: {},
@@ -134,6 +136,15 @@ export class ArduinoUnoRuntime {
 
   getState(): ArduinoUnoRuntimeState {
     return this.state;
+  }
+
+  setAnalogInput(
+    pin: string,
+    voltage: number,
+    value: number,
+  ): void {
+    this.state.analogPinVoltages[pin] = voltage;
+    this.state.analogPinValues[pin] = value;
   }
 
   setPinMode(pin: number, mode: PinMode): void {
