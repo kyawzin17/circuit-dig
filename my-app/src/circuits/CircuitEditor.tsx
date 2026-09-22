@@ -1889,11 +1889,12 @@ const toggleCode = useCallback(() => {
       currentProjectName ||
       "Untitled Circuit";
 
-    const enteredName =
-      window.prompt(
-        "Project name",
-        defaultName,
-      );
+    const enteredName = currentProjectId
+      ? currentProjectName
+      : window.prompt(
+          "Project name",
+          defaultName,
+        );
 
     if (enteredName === null) {
       return;
@@ -1930,6 +1931,30 @@ const toggleCode = useCallback(() => {
     reactFlowInstance,
     navigate,
   ]);
+
+  useEffect(() => {
+    const handleShortcut = (event: KeyboardEvent) => {
+      if (
+        (event.ctrlKey || event.metaKey) &&
+        event.key.toLowerCase() === "s"
+      ) {
+        event.preventDefault();
+        handleSaveProject();
+      }
+    };
+
+    window.addEventListener(
+      "keydown",
+      handleShortcut,
+    );
+
+    return () => {
+      window.removeEventListener(
+        "keydown",
+        handleShortcut,
+      );
+    };
+  }, [handleSaveProject]);
 
   const handleNewProject = useCallback(() => {
     simulationEngine.current?.stop();
