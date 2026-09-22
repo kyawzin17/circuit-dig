@@ -176,6 +176,92 @@ const ElectronicNode = ({
       : 1;
 
   // =========================================================
+  // POTENTIOMETER -> CIRCUIT STATE
+  // =========================================================
+  useEffect(() => {
+    if (!isPotentiometer) {
+      return;
+    }
+
+    const element =
+      componentRef.current as
+        | (HTMLElement & {
+            value?: number | string;
+          })
+        | null;
+
+    if (!element) {
+      return;
+    }
+
+    /*
+     * Wokwi exposes the potentiometer value as 0..1023.
+     * Our circuit model stores a normalized 0..1 wiper position.
+     */
+    element.value = Math.round(
+      potentiometerPosition * 1023,
+    );
+
+    const handleInput = () => {
+      const rawValue =
+        Number(element.value);
+
+      if (!Number.isFinite(rawValue)) {
+        return;
+      }
+
+      const position =
+        Math.max(
+          0,
+          Math.min(
+            1,
+            rawValue / 1023,
+          ),
+        );
+
+      setNodes((currentNodes) =>
+        currentNodes.map((node) =>
+          node.id === id
+            ? {
+                ...node,
+                data: {
+                  ...node.data,
+                  potentiometerPosition:
+                    position,
+                },
+              }
+            : node,
+        ),
+      );
+    };
+
+    element.addEventListener(
+      "input",
+      handleInput,
+    );
+    element.addEventListener(
+      "change",
+      handleInput,
+    );
+
+    return () => {
+      element.removeEventListener(
+        "input",
+        handleInput,
+      );
+      element.removeEventListener(
+        "change",
+        handleInput,
+      );
+    };
+  }, [
+    id,
+    isPotentiometer,
+    potentiometerPosition,
+    setNodes,
+  ]);
+
+  // =========================================================
   // PUSHBUTTON -> CIRCUIT STATE
   // =========================================================
 
