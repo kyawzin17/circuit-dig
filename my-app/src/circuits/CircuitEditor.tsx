@@ -760,6 +760,17 @@ const stop =
 
     setNodes(project.nodes);
     setEdges(project.edges);
+
+    setHistory({
+      stack: [
+        {
+          nodes: project.nodes,
+          edges: project.edges as CircuitEdge[],
+        },
+      ],
+      index: 0,
+    });
+
     useSimulationStore.getState().setCode(project.code);
 
     setCurrentProjectId(project.id);
@@ -1961,6 +1972,17 @@ const toggleCode = useCallback(() => {
 
     setNodes([]);
     setEdges([]);
+
+    setHistory({
+      stack: [
+        {
+          nodes: [],
+          edges: [],
+        },
+      ],
+      index: 0,
+    });
+
     setSelectedNode(null);
     setCurrentProjectId(null);
     setCurrentProjectName("Untitled Circuit");
