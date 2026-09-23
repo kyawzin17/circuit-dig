@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect } from "react";
+import html2canvas from "@html2canvas/html2canvas";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
 import ReactFlow, {
@@ -158,6 +159,96 @@ function getPinDefinition(
         .toUpperCase() ===
       String(pinId ?? "").toUpperCase(),
   );
+}
+
+
+async function captureCircuitThumbnail(
+  wrapper: HTMLDivElement | null,
+): Promise<string | undefined> {
+  if (!wrapper) {
+    return undefined;
+  }
+
+  const renderer =
+    wrapper.querySelector<HTMLElement>(
+      ".react-flow__renderer",
+    );
+
+  if (!renderer) {
+    return undefined;
+  }
+
+  try {
+    /*
+     * Capture the actual React Flow renderer rather than the whole
+     * editor. This keeps the saved preview focused on the circuit
+     * canvas and avoids saving the toolbar/sidebar UI.
+     */
+    const canvas = await html2canvas(
+      renderer,
+      {
+        backgroundColor: "#f1f5f9",
+        scale: 1,
+        useCORS: true,
+        logging: false,
+        imageTimeout: 5000,
+      },
+    );
+
+    const maxWidth = 640;
+    const maxHeight = 360;
+
+    const scale = Math.min(
+      1,
+      maxWidth / canvas.width,
+      maxHeight / canvas.height,
+    );
+
+    const outputWidth = Math.max(
+      1,
+      Math.round(canvas.width * scale),
+    );
+    const outputHeight = Math.max(
+      1,
+      Math.round(canvas.height * scale),
+    );
+
+    const output =
+      document.createElement("canvas");
+
+    output.width = outputWidth;
+    output.height = outputHeight;
+
+    const context =
+      output.getContext("2d");
+
+    if (!context) {
+      return canvas.toDataURL(
+        "image/jpeg",
+        0.72,
+      );
+    }
+
+    context.drawImage(
+      canvas,
+      0,
+      0,
+      outputWidth,
+      outputHeight,
+    );
+
+    return output.toDataURL(
+      "image/jpeg",
+      0.72,
+    );
+  } catch (error) {
+    console.warn(
+      "[Project Thumbnail] capture failed:",
+      error,
+    );
+
+    return undefined;
+  }
 }
 
 function getPinAutoWireKind(
@@ -1895,7 +1986,7 @@ const toggleCode = useCallback(() => {
   setShowCode(!showCode);
 }, [showCode]);
 
-  const handleSaveProject = useCallback(() => {
+  const handleSaveProject = useCallback(async () => {
     const defaultName =
       currentProjectName ||
       "Untitled Circuit";
@@ -1918,6 +2009,17 @@ const toggleCode = useCallback(() => {
     const viewport =
       reactFlowInstance?.getViewport();
 
+    /*
+     * Save a visual preview of the current circuit at the same
+     * moment as the project JSON. The thumbnail is only metadata;
+     * loading the project still uses nodes/edges/code as the source
+     * of truth.
+     */
+    const thumbnail =
+      await captureCircuitThumbnail(
+        reactFlowWrapper.current,
+      );
+
     const project = saveCircuitProject({
       id: currentProjectId,
       name,
@@ -1925,6 +2027,7 @@ const toggleCode = useCallback(() => {
       edges: edgesRef.current,
       code: useSimulationStore.getState().code,
       viewport,
+      thumbnail,
     });
 
     setCurrentProjectId(project.id);
