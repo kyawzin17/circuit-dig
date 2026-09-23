@@ -149,6 +149,11 @@ const ElectronicNode = ({
     componentType === "slide-switch" ||
     componentType === "switch";
 
+  const isLdr =
+    componentType === "ldr" ||
+    componentType === "photoresistor" ||
+    componentType === "wokwi-photoresistor-sensor";
+
   const potentiometerPosition =
     typeof data.potentiometerPosition === "number"
       ? Math.max(
@@ -263,6 +268,90 @@ const ElectronicNode = ({
     isPotentiometer,
     potentiometerPosition,
     setNodes,
+  ]);
+
+  // =========================================================
+  // LDR / PHOTORESISTOR -> CIRCUIT STATE
+  // =========================================================
+  const ldrLux =
+    typeof data.ldrLux === "number"
+      ? Math.max(0.1, Math.min(100000, data.ldrLux))
+      : 500;
+
+  const ldrGamma =
+    typeof data.ldrGamma === "number"
+      ? Math.max(0.05, data.ldrGamma)
+      : 0.7;
+
+  const ldrRl10 =
+    typeof data.ldrRl10 === "number"
+      ? Math.max(0.1, data.ldrRl10)
+      : 50;
+
+  const ldrThreshold =
+    typeof data.ldrThreshold === "number"
+      ? Math.max(0, Math.min(5, data.ldrThreshold))
+      : 2.5;
+
+  const ldrSliderValue =
+    ((Math.log10(ldrLux) + 1) / 6) * 100;
+
+  const updateLdrLux = (slider: number) => {
+    const nextLux =
+      Math.pow(
+        10,
+        -1 + (Math.max(0, Math.min(100, slider)) / 100) * 6,
+      );
+
+    setNodes((currentNodes) =>
+      currentNodes.map((node) =>
+        node.id === id
+          ? {
+              ...node,
+              data: {
+                ...node.data,
+                ldrLux: nextLux,
+              },
+            }
+          : node,
+      ),
+    );
+  };
+
+  useEffect(() => {
+    if (!isLdr) {
+      return;
+    }
+
+    const element =
+      componentRef.current as
+        | (HTMLElement & {
+            lux?: number | string;
+            threshold?: number | string;
+            rl10?: number | string;
+            gamma?: number | string;
+          })
+        | null;
+
+    if (!element) {
+      return;
+    }
+
+    element.lux = ldrLux;
+    element.threshold = ldrThreshold;
+    element.rl10 = ldrRl10;
+    element.gamma = ldrGamma;
+
+    element.setAttribute("lux", String(ldrLux));
+    element.setAttribute("threshold", String(ldrThreshold));
+    element.setAttribute("rl10", String(ldrRl10));
+    element.setAttribute("gamma", String(ldrGamma));
+  }, [
+    isLdr,
+    ldrLux,
+    ldrThreshold,
+    ldrRl10,
+    ldrGamma,
   ]);
 
   // =========================================================
@@ -696,11 +785,54 @@ const ElectronicNode = ({
                 isLed ||
                 isPushButton ||
                 isPotentiometer ||
-                isSlideSwitch
+                isSlideSwitch ||
+                isLdr
                   ? componentRef
                   : undefined,
             }
           )}
+
+        {isLdr && (
+          <div
+            className="absolute left-1/2 top-full z-40 mt-2 w-36 -translate-x-1/2 rounded-lg border border-slate-300 bg-white/95 px-2 py-2 shadow-lg backdrop-blur"
+            onPointerDown={(event) => event.stopPropagation()}
+            onPointerMove={(event) => event.stopPropagation()}
+            onPointerUp={(event) => event.stopPropagation()}
+          >
+            <div className="mb-1 flex items-center justify-between text-[8px] font-medium text-slate-500">
+              <span>0.1 lux</span>
+              <span className="font-semibold text-slate-700">
+                {ldrLux >= 1000
+                  ? (ldrLux / 1000).toFixed(1) + "k"
+                  : ldrLux.toFixed(1)} lux
+              </span>
+              <span>100k</span>
+            </div>
+
+            <input
+              type="range"
+              min="0"
+              max="100"
+              step="0.1"
+              value={ldrSliderValue}
+              onChange={(event) =>
+                updateLdrLux(
+                  Number(event.target.value),
+                )
+              }
+              className="h-1.5 w-full cursor-pointer accent-cyan-500"
+              aria-label="LDR light intensity"
+            />
+
+            <div className="mt-1 flex items-center justify-between text-[8px] text-slate-400">
+              <span>Dark</span>
+              <span>
+                AO threshold {ldrThreshold.toFixed(2)}V
+              </span>
+              <span>Bright</span>
+            </div>
+          </div>
+        )}
 
         {isPotentiometer && (
           <div
