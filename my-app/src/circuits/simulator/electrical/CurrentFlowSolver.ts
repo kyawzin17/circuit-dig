@@ -140,7 +140,11 @@ function findSourceNets(
   }
 
   for (const driver of drivers) {
-    if (driver.level !== 1) {
+    const pwmActive =
+      driver.pwmDuty !== undefined &&
+      driver.pwmDuty > 0;
+
+    if (driver.level !== 1 && !pwmActive) {
       continue;
     }
 
@@ -422,8 +426,8 @@ export class CurrentFlowSolver {
 
     for (const driver of drivers) {
       if (
-        driver.level !== 1 ||
-        driver.pwmDuty === undefined
+        driver.pwmDuty === undefined ||
+        driver.pwmDuty <= 0
       ) {
         continue;
       }
