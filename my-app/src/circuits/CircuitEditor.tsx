@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect } from "react";
-import html2canvas from "html2canvas";
+import html2canvas from "@html2canvas/html2canvas";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
 import ReactFlow, {
