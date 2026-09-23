@@ -112,7 +112,11 @@ export function saveCircuitProject(input: {
     edges: clone(input.edges),
     code: input.code,
     viewport: input.viewport ? { ...input.viewport } : undefined,
-    thumbnail: input.thumbnail,
+    thumbnail:
+      input.thumbnail ??
+      (existingIndex >= 0
+        ? projects[existingIndex].thumbnail
+        : undefined),
   };
 
   if (existingIndex >= 0) {
