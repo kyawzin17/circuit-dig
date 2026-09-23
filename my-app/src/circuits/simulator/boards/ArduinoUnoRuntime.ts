@@ -36,7 +36,9 @@ export class ArduinoUnoRuntime {
   private createInitialState(): ArduinoUnoRuntimeState {
     const digitalPins: Record<number, RuntimePin> = {};
 
-    for (let pin = 0; pin <= 13; pin += 1) {
+    // D0..D13 = 0..13, A0..A5 = 14..19.
+    // The ATmega328P exposes A0..A5 as the PORTC GPIO pins too.
+    for (let pin = 0; pin <= 19; pin += 1) {
       digitalPins[pin] = {
         pin,
         mode: "input",
@@ -224,7 +226,113 @@ export class ArduinoUnoRuntime {
       );
     }
 
+    for (let channel = 0; channel <= 5; channel += 1) {
+      const runtimePin = 14 + channel;
+
+      modes.set(
+        "A" + channel,
+        this.state.digitalPins[runtimePin]?.mode ??
+          "input",
+      );
+    }
+
     return modes;
+  }
+
+  /**
+   * Arduino UNO R3 board constants.
+   *
+   * These are the ATmega328P/UNO values used by the real board
+   * configuration and are intentionally exposed to the electrical
+   * simulator instead of being hard-coded in UI code.
+   */
+  getClockFrequencyHz(): number {
+    return 16_000_000;
+  }
+
+  getLogicHighVoltage(): number {
+    return 5;
+  }
+
+  getPwmPins(): string[] {
+    return ["D3", "D5", "D6", "D9", "D10", "D11"];
+  }
+
+  getPwmFrequencyHz(pin: string): number | undefined {
+    if (pin === "D5" || pin === "D6") {
+      return 16_000_000 / 64 / 256;
+    }
+
+    if (
+      pin === "D3" ||
+      pin === "D11" ||
+      pin === "D9" ||
+      pin === "D10"
+    ) {
+      return 16_000_000 / 64 / 256;
+    }
+
+    return undefined;
+  }
+
+  getDigitalPinVoltage(pin: string): number | undefined {
+    const numericPin =
+      /^D\\d+$/.test(pin)
+        ? Number(pin.slice(1))
+        : /^A\\d+$/.test(pin)
+          ? 14 + Number(pin.slice(1))
+          : NaN;
+
+    if (!Number.isFinite(numericPin)) {
+      return undefined;
+    }
+
+    const runtimePin =
+      this.state.digitalPins[numericPin];
+
+    if (!runtimePin) {
+      return undefined;
+    }
+
+    if (runtimePin.mode === "output") {
+      if (runtimePin.pwmDuty !== undefined) {
+        return this.getLogicHighVoltage() *
+          runtimePin.pwmDuty;
+      }
+
+      return runtimePin.level === 1
+        ? this.getLogicHighVoltage()
+        : 0;
+    }
+
+    return runtimePin.level === 1
+      ? this.getLogicHighVoltage()
+      : 0;
+  }
+
+  getAnalogInput(
+    pin: string,
+  ): {
+    voltage: number;
+    value: number;
+  } | undefined {
+    const voltage =
+      this.state.analogPinVoltages[pin];
+
+    const value =
+      this.state.analogPinValues[pin];
+
+    if (
+      typeof voltage !== "number" ||
+      typeof value !== "number"
+    ) {
+      return undefined;
+    }
+
+    return {
+      voltage,
+      value,
+    };
   }
 
   getPowerDrivers(): ArduinoPowerDriver[] {
@@ -301,7 +409,11 @@ export class ArduinoUnoRuntime {
         continue;
       }
 
-      const pinName = "D" + Number(pinText);
+      const numericPin = Number(pinText);
+      const pinName =
+        numericPin <= 13
+          ? "D" + numericPin
+          : "A" + (numericPin - 14);
 
       if (!ARDUINO_UNO_PIN_MAP[pinName]) {
         continue;
@@ -326,14 +438,21 @@ export class ArduinoUnoRuntime {
     for (const [pinName, mapping] of Object.entries(
       ARDUINO_UNO_PIN_MAP,
     )) {
-      if (
-        mapping.port !== port ||
-        !pinName.startsWith("D")
-      ) {
+      if (mapping.port !== port) {
         continue;
       }
 
-      const pin = Number(pinName.slice(1));
+      /*
+       * Runtime numeric IDs:
+       *   D0..D13 -> 0..13
+       *   A0..A5  -> 14..19
+       *
+       * This mirrors the Arduino core's ability to use analog pins
+       * as ordinary GPIO pins (D14..D19).
+       */
+      const pin = pinName.startsWith("A")
+        ? 14 + Number(pinName.slice(1))
+        : Number(pinName.slice(1));
 
       const isOutput =
         (ddr & (1 << mapping.bit)) !== 0;
