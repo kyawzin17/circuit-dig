@@ -344,7 +344,7 @@ export class AnalogCircuitSolver {
      *
      * R_LDR = RL10 * 1000 * 10^gamma / lux^gamma
      *
-     * AO = GND + (VCC-GND) * 10K/(R_LDR+10K)
+     * AO = GND + (VCC-GND) * R_LDR/(R_LDR+10K)
      *
      * DO is HIGH in darkness and LOW in light:
      *
@@ -436,7 +436,7 @@ export class AnalogCircuitSolver {
         gnd +
         (vcc - gnd) *
           (
-            fixedResistorOhms /
+            resistanceOhms /
             (
               resistanceOhms +
               fixedResistorOhms
