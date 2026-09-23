@@ -233,8 +233,18 @@ export class DigitalInputSolver {
         continue;
       }
 
-      for (let pin = 0; pin <= 13; pin += 1) {
-        const pinName = "D" + pin;
+      const inputPinNames = [
+        ...Array.from(
+          { length: 14 },
+          (_, pin) => "D" + pin,
+        ),
+        ...Array.from(
+          { length: 6 },
+          (_, channel) => "A" + channel,
+        ),
+      ];
+
+      for (const pinName of inputPinNames) {
         const pinKey = createKey(node.id, pinName);
         const mode = inputModes.get(pinName) ?? "input";
 
