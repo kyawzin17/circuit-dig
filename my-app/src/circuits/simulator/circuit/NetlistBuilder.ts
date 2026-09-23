@@ -105,11 +105,18 @@ function getTerminalIds(node: CircuitNode): string[] {
 
   if (
     type === "pushbutton" ||
-    type === "button" ||
+    type === "button"
+  ) {
+    return ["pin1", "pin2"];
+  }
+
+  if (
     type === "slide-switch" ||
     type === "switch"
   ) {
-    return ["pin1", "pin2"];
+    // Wokwi slide switch is SPDT: 1 and 3 are the throws,
+    // while 2 is the common contact.
+    return ["1", "2", "3"];
   }
 
   return [];

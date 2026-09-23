@@ -145,6 +145,10 @@ const ElectronicNode = ({
     componentType === "potentiometer" ||
     componentType === "pot";
 
+  const isSlideSwitch =
+    componentType === "slide-switch" ||
+    componentType === "switch";
+
   const potentiometerPosition =
     typeof data.potentiometerPosition === "number"
       ? Math.max(
@@ -340,6 +344,123 @@ const ElectronicNode = ({
     isPushButton,
     isPressed,
     setNodes,
+  ]);
+
+  // =========================================================
+  // SLIDE SWITCH -> CIRCUIT STATE
+  // =========================================================
+  useEffect(() => {
+    if (!isSlideSwitch) {
+      return;
+    }
+
+    const element =
+      componentRef.current as
+        | (HTMLElement & {
+            value?: number | string;
+          })
+        | null;
+
+    if (!element) {
+      return;
+    }
+
+    const currentValue =
+      data.switchValue === 1 ||
+      data.on === true ||
+      data.isOn === true ||
+      data.closed === true
+        ? 1
+        : 0;
+
+    // Wokwi's slide switch exposes value 0/1.
+    element.value = currentValue;
+
+    const handleInput = (event: Event) => {
+      const target =
+        event.currentTarget as
+          | (HTMLElement & {
+              value?: number | string;
+            })
+          | null;
+
+      const value =
+        Number(target?.value ?? 0) === 1
+          ? 1
+          : 0;
+
+      setNodes((currentNodes) =>
+        currentNodes.map((node) =>
+          node.id === id
+            ? {
+                ...node,
+                data: {
+                  ...node.data,
+                  switchValue: value,
+                  on: value === 1,
+                  isOn: value === 1,
+                  closed: value === 1,
+                },
+              }
+            : node,
+        ),
+      );
+    };
+
+    element.addEventListener(
+      "input",
+      handleInput,
+    );
+
+    return () => {
+      element.removeEventListener(
+        "input",
+        handleInput,
+      );
+    };
+  }, [
+    data.closed,
+    data.isOn,
+    data.on,
+    data.switchValue,
+    id,
+    isSlideSwitch,
+    setNodes,
+  ]);
+
+  // Keep the simulator state as the single source of truth
+  // while allowing the Wokwi element to render the switch state.
+  useEffect(() => {
+    if (!isSlideSwitch) {
+      return;
+    }
+
+    const element =
+      componentRef.current as
+        | (HTMLElement & {
+            value?: number | string;
+          })
+        | null;
+
+    if (!element) {
+      return;
+    }
+
+    const value =
+      data.switchValue === 1 ||
+      data.on === true ||
+      data.isOn === true ||
+      data.closed === true
+        ? 1
+        : 0;
+
+    element.value = value;
+  }, [
+    data.closed,
+    data.isOn,
+    data.on,
+    data.switchValue,
+    isSlideSwitch,
   ]);
 
   // =========================================================
@@ -574,7 +695,8 @@ const ElectronicNode = ({
               ref:
                 isLed ||
                 isPushButton ||
-                isPotentiometer
+                isPotentiometer ||
+                isSlideSwitch
                   ? componentRef
                   : undefined,
             }

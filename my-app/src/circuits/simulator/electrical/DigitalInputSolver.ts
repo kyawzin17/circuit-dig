@@ -42,6 +42,7 @@ function isClosedSwitch(node: Node): boolean {
 
   if (type === "slide-switch" || type === "switch") {
     return (
+      node.data?.switchValue === 1 ||
       node.data?.on === true ||
       node.data?.isOn === true ||
       node.data?.closed === true
@@ -144,12 +145,25 @@ export class DigitalInputSolver {
         type === "slide-switch" ||
         type === "switch"
       ) {
-        if (isClosedSwitch(node)) {
-          connect(
-            createKey(node.id, "pin1"),
-            createKey(node.id, "pin2"),
-          );
-        }
+        const value =
+          node.data?.switchValue === 1 ||
+          node.data?.on === true ||
+          node.data?.isOn === true ||
+          node.data?.closed === true
+            ? 1
+            : 0;
+
+        // SPDT: common pin 2 connects to throw 1 or 3.
+        connect(
+          createKey(
+            node.id,
+            value === 1 ? "2" : "1",
+          ),
+          createKey(
+            node.id,
+            value === 1 ? "3" : "2",
+          ),
+        );
       }
     }
 

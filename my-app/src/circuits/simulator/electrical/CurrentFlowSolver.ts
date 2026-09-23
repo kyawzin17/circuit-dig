@@ -245,16 +245,11 @@ function buildComponentEdges(
 
     if (
       type === "pushbutton" ||
-      type === "button" ||
-      type === "slide-switch" ||
-      type === "switch"
+      type === "button"
     ) {
       const closed =
         node.data?.pressed === true ||
-        node.data?.isPressed === true ||
-        node.data?.on === true ||
-        node.data?.isOn === true ||
-        node.data?.closed === true;
+        node.data?.isPressed === true;
 
       if (!closed) {
         continue;
@@ -281,6 +276,47 @@ function buildComponentEdges(
         componentType: type,
         fromNet: pin2,
         toNet: pin1,
+        resistanceOhm: 0,
+        voltageDrop: 0,
+      });
+
+      continue;
+    }
+
+    if (
+      type === "slide-switch" ||
+      type === "switch"
+    ) {
+      const value =
+        node.data?.switchValue === 1 ||
+        node.data?.on === true ||
+        node.data?.isOn === true ||
+        node.data?.closed === true
+          ? 1
+          : 0;
+
+      const common = component.terminals["2"];
+      const throwNet =
+        component.terminals[value === 1 ? "3" : "1"];
+
+      if (!common || !throwNet) {
+        continue;
+      }
+
+      edges.push({
+        componentId: node.id,
+        componentType: type,
+        fromNet: common,
+        toNet: throwNet,
+        resistanceOhm: 0,
+        voltageDrop: 0,
+      });
+
+      edges.push({
+        componentId: node.id,
+        componentType: type,
+        fromNet: throwNet,
+        toNet: common,
         resistanceOhm: 0,
         voltageDrop: 0,
       });
