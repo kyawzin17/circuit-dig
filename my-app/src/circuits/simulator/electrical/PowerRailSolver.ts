@@ -113,8 +113,26 @@ export class PowerRailSolver {
         continue;
       }
 
+      /*
+       * PWM is still a 5V GPIO output electrically. Its duty cycle
+       * controls how long the pin is HIGH, not the DC rail voltage.
+       *
+       * Arduino's analogWrite() can leave the PORT bit LOW while
+       * the timer drives the pin through COMnx, so checking only
+       * driver.level would incorrectly turn a PWM output into 0V.
+       */
+      const isPwmActive =
+        driver.pwmDuty !== undefined &&
+        driver.pwmDuty > 0;
+
       const voltage =
-        driver.level === 1 ? 5 : 0;
+        driver.pwmDuty !== undefined
+          ? driver.pwmDuty >= 1
+            ? 5
+            : 5
+          : driver.level === 1
+            ? 5
+            : 0;
 
       addVoltage(
         netValues,
@@ -125,17 +143,17 @@ export class PowerRailSolver {
       pinVoltages[driver.pin] =
         voltage;
 
-      if (driver.level === 1) {
+      if (driver.level === 1 || isPwmActive) {
         const existing =
           sourceNets.get(netId);
 
         if (
           existing === undefined ||
-          Math.abs(existing - voltage) < 0.001
+          Math.abs(existing - 5) < 0.001
         ) {
           sourceNets.set(
             netId,
-            voltage,
+            5,
           );
         }
       }
