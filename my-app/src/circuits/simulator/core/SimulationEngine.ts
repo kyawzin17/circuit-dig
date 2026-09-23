@@ -641,6 +641,7 @@ export class SimulationEngine {
     this.analogState = {
       pinVoltages: new Map(),
       pinValues: new Map(),
+      digitalOutputs: new Map(),
       conflicts: [],
     };
 
