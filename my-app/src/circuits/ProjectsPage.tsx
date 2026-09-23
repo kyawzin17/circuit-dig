@@ -125,11 +125,23 @@ export default function ProjectsPage() {
                   onClick={() => openProject(project.id)}
                   className="block w-full text-left"
                 >
-                  <div className="flex h-32 items-center justify-center border-b border-slate-800 bg-[radial-gradient(circle_at_center,rgba(34,211,238,0.08),transparent_60%)]">
-                    <CircuitBoard
-                      size={48}
-                      className="text-cyan-400/70 transition group-hover:scale-105 group-hover:text-cyan-300"
-                    />
+                  <div className="relative h-40 overflow-hidden border-b border-slate-800 bg-slate-950">
+                    {project.thumbnail ? (
+                      <img
+                        src={project.thumbnail}
+                        alt={project.name + " circuit preview"}
+                        loading="lazy"
+                        className="h-full w-full object-cover object-center transition duration-300 group-hover:scale-[1.02]"
+                      />
+                    ) : (
+                      <div className="flex h-full items-center justify-center bg-[radial-gradient(circle_at_center,rgba(34,211,238,0.08),transparent_60%)]">
+                        <CircuitBoard
+                          size={48}
+                          className="text-cyan-400/70 transition group-hover:scale-105 group-hover:text-cyan-300"
+                        />
+                      </div>
+                    )}
+                    <div className="pointer-events-none absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-black/50 to-transparent" />
                   </div>
 
                   <div className="p-4">
