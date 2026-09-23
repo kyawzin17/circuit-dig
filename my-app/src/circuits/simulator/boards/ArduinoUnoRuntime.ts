@@ -277,9 +277,9 @@ export class ArduinoUnoRuntime {
 
   getDigitalPinVoltage(pin: string): number | undefined {
     const numericPin =
-      /^D\\d+$/.test(pin)
+      /^D\d+$/.test(pin)
         ? Number(pin.slice(1))
-        : /^A\\d+$/.test(pin)
+        : /^A\d+$/.test(pin)
           ? 14 + Number(pin.slice(1))
           : NaN;
 
