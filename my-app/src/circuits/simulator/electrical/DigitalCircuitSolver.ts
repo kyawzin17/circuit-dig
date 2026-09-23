@@ -33,7 +33,12 @@ function componentClosed(node: Node): boolean {
     return node.data?.pressed === true || node.data?.isPressed === true;
   }
   if (type === "slide-switch" || type === "switch") {
-    return node.data?.on === true || node.data?.isOn === true || node.data?.closed === true;
+    return (
+      node.data?.switchValue === 1 ||
+      node.data?.on === true ||
+      node.data?.isOn === true ||
+      node.data?.closed === true
+    );
   }
   return true;
 }
