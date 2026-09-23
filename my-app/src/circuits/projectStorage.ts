@@ -15,6 +15,11 @@ export type SavedCircuitProject = {
     y: number;
     zoom: number;
   };
+  /**
+   * JPEG/PNG data URL captured from the circuit canvas.
+   * Kept optional so older saved projects continue to load.
+   */
+  thumbnail?: string;
 };
 
 function clone<T>(value: T): T {
@@ -81,6 +86,7 @@ export function saveCircuitProject(input: {
   edges: Edge[];
   code: string;
   viewport?: SavedCircuitProject["viewport"];
+  thumbnail?: string;
 }): SavedCircuitProject {
   const now = Date.now();
   const projects = readProjects();
@@ -106,6 +112,7 @@ export function saveCircuitProject(input: {
     edges: clone(input.edges),
     code: input.code,
     viewport: input.viewport ? { ...input.viewport } : undefined,
+    thumbnail: input.thumbnail,
   };
 
   if (existingIndex >= 0) {
