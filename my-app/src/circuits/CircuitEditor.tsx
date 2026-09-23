@@ -1613,6 +1613,15 @@ const stop =
             type === "potentiometer"
               ? 0.5
               : undefined,
+
+          /*
+           * Slide switch starts on throw 1.
+           * Wokwi's SPDT switch uses value 0/1.
+           */
+          switchValue:
+            type === "slide-switch"
+              ? 0
+              : undefined,
         },
 
         zIndex: isBreadboard
