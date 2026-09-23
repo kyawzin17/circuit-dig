@@ -1624,6 +1624,31 @@ const stop =
             type === "slide-switch"
               ? 0
               : undefined,
+
+          /*
+           * LDR / photoresistor state.
+           *
+           * Wokwi's default photoresistor model uses:
+           * lux=500, rl10=50kΩ, gamma=0.7, threshold=2.5V.
+           * Keep these values in circuit data so Save/Load preserves
+           * the sensor environment.
+           */
+          ldrLux:
+            type === "ldr"
+              ? 500
+              : undefined,
+          ldrRl10:
+            type === "ldr"
+              ? 50
+              : undefined,
+          ldrGamma:
+            type === "ldr"
+              ? 0.7
+              : undefined,
+          ldrThreshold:
+            type === "ldr"
+              ? 2.5
+              : undefined,
         },
 
         zIndex: isBreadboard
