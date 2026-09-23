@@ -2082,14 +2082,110 @@ const toggleCode = useCallback(() => {
     navigate,
   ]);
 
+  /*
+   * =========================================================
+   * EDITOR KEYBOARD SHORTCUTS
+   * =========================================================
+   *
+   * Ctrl/Cmd + S              -> Save project
+   * Ctrl/Cmd + Z              -> Undo
+   * Ctrl/Cmd + Shift + Z      -> Redo
+   * Ctrl + Y                  -> Redo (Windows/Linux)
+   * Ctrl/Cmd + Enter          -> Run / Stop simulation
+   * Delete / Backspace        -> Delete selected component
+   * Escape                    -> Close menus / stop simulation
+   *
+   * Text inputs and Monaco keep their normal editing shortcuts.
+   * We only intercept Save and Run there.
+   */ 
   useEffect(() => {
-    const handleShortcut = (event: KeyboardEvent) => {
+    const handleShortcut = (
+      event: KeyboardEvent,
+    ) => {
+      const target =
+        event.target as HTMLElement | null;
+
+      const isTextEditing =
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        target instanceof HTMLSelectElement ||
+        target?.isContentEditable === true ||
+        Boolean(
+          target?.closest(
+            ".monaco-editor",
+          ),
+        );
+
+      const key =
+        event.key.toLowerCase();
+
+      const modifier =
+        event.ctrlKey ||
+        event.metaKey;
+
+      // Save must work even while the code editor is focused.
+      if (modifier && key === "s") {
+        event.preventDefault();
+        void handleSaveProject();
+        return;
+      }
+
+      // Run/Stop must also work from Monaco.
       if (
-        (event.ctrlKey || event.metaKey) &&
-        event.key.toLowerCase() === "s"
+        modifier &&
+        event.key === "Enter"
       ) {
         event.preventDefault();
-        handleSaveProject();
+        void togglePlay();
+        return;
+      }
+
+      // Never steal normal text-editor editing shortcuts.
+      if (isTextEditing) {
+        return;
+      }
+
+      if (
+        modifier &&
+        key === "z"
+      ) {
+        event.preventDefault();
+
+        if (event.shiftKey) {
+          redo();
+        } else {
+          undo();
+        }
+
+        return;
+      }
+
+      if (
+        event.ctrlKey &&
+        key === "y"
+      ) {
+        event.preventDefault();
+        redo();
+        return;
+      }
+
+      if (event.key === "Delete" || event.key === "Backspace") {
+        if (selectedNode) {
+          event.preventDefault();
+          deleteNode(selectedNode.id);
+        }
+
+        return;
+      }
+
+      if (event.key === "Escape") {
+        setEdgeMenu(null);
+
+        if (simulationStatus === "running") {
+          handleStopSimulation();
+        }
+
+        return;
       }
     };
 
@@ -2104,7 +2200,16 @@ const toggleCode = useCallback(() => {
         handleShortcut,
       );
     };
-  }, [handleSaveProject]);
+  }, [
+    handleSaveProject,
+    togglePlay,
+    undo,
+    redo,
+    selectedNode,
+    deleteNode,
+    simulationStatus,
+    setEdgeMenu,
+  ]);
 
   const handleNewProject = useCallback(() => {
     simulationEngine.current?.stop();
