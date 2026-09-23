@@ -42,6 +42,7 @@ function isClosedSwitch(node: Node): boolean {
 
   if (type === "slide-switch" || type === "switch") {
     return (
+      node.data?.switchValue === 1 ||
       node.data?.on === true ||
       node.data?.isOn === true ||
       node.data?.closed === true
