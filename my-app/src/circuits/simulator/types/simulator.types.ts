@@ -135,6 +135,10 @@ export interface ArduinoUnoRuntimeState {
   analogPinVoltages: Record<string, number>;
   analogPinValues: Record<string, number>;
 
+  /** Resolved analog/digital sensor values used by the runtime. */
+  sensorPinVoltages?: Record<string, number>;
+  sensorDigitalOutputs?: Record<string, 0 | 1>;
+
   ledStates: Record<string, LedRuntimeState>;
 
   resistorStates: Record<string, ResistorRuntimeState>;
