@@ -131,6 +131,7 @@ export class SimulationEngine {
   private analogState: AnalogInputState = {
     pinVoltages: new Map(),
     pinValues: new Map(),
+    digitalOutputs: new Map(),
     conflicts: [],
   };
 
@@ -254,6 +255,7 @@ export class SimulationEngine {
     this.analogState = {
       pinVoltages: new Map(),
       pinValues: new Map(),
+      digitalOutputs: new Map(),
       conflicts: [],
     };
 
@@ -364,6 +366,7 @@ export class SimulationEngine {
             preRunDrivers,
             this.powerState,
             this.arduino.getDigitalInputModes(),
+            this.analogState.digitalOutputs,
           );
 
         for (const [
