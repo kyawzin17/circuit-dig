@@ -386,12 +386,15 @@ export class SimulationEngine {
           const pinId =
             pinKey.slice(separator + 1);
 
-          if (!/^D\d+$/i.test(pinId)) {
+          if (!/^(?:D|A)\d+$/i.test(pinId)) {
             continue;
           }
 
+          const channel = Number(pinId.slice(1));
           const pinNumber =
-            Number(pinId.slice(1));
+            /^A/i.test(pinId)
+              ? 14 + channel
+              : channel;
 
           const node =
             this.circuitNodes.find(
