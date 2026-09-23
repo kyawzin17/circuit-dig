@@ -132,6 +132,8 @@ export class SimulationEngine {
     pinVoltages: new Map(),
     pinValues: new Map(),
     digitalOutputs: new Map(),
+    sensorVoltages: new Map(),
+    sensorResistanceOhms: new Map(),
     conflicts: [],
   };
 
@@ -256,6 +258,8 @@ export class SimulationEngine {
       pinVoltages: new Map(),
       pinValues: new Map(),
       digitalOutputs: new Map(),
+      sensorVoltages: new Map(),
+      sensorResistanceOhms: new Map(),
       conflicts: [],
     };
 
