@@ -73,6 +73,7 @@ export class DigitalInputSolver {
     drivers: ArduinoDigitalDriver[],
     powerState: PowerRailState,
     inputModes: Map<string, PinMode>,
+    sensorDigitalOutputs: Map<string, 0 | 1> = new Map(),
   ): DigitalInputState {
     const adjacency = new Map<PinKey, Set<PinKey>>();
 
@@ -187,6 +188,22 @@ export class DigitalInputSolver {
         sourceLabels.set(
           key,
           level === 1 ? "POWER_HIGH" : "GROUND",
+        );
+      }
+    }
+
+    // Sensor digital outputs are real electrical sources.
+    // Example: the LDR module's DO pin is HIGH in darkness
+    // and LOW in bright light.
+    for (const [netId, level] of sensorDigitalOutputs) {
+      for (const pin of netlist.netToPins.get(netId) ?? []) {
+        const key = createKey(pin.nodeId, pin.pinId);
+        sourceLevels.set(key, level);
+        sourceLabels.set(
+          key,
+          level === 1
+            ? "SENSOR_HIGH"
+            : "SENSOR_LOW",
         );
       }
     }
