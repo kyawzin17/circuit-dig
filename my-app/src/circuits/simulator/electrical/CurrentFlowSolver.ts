@@ -250,6 +250,7 @@ function buildComponentEdges(
       type === "switch"
     ) {
       const closed =
+        node.data?.switchValue === 1 ||
         node.data?.pressed === true ||
         node.data?.isPressed === true ||
         node.data?.on === true ||
