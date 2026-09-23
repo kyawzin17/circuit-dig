@@ -99,6 +99,14 @@ function getTerminalIds(node: CircuitNode): string[] {
     return ["VCC", "GND", "SIG"];
   }
 
+  if (
+    type === "ldr" ||
+    type === "photoresistor" ||
+    type === "wokwi-photoresistor-sensor"
+  ) {
+    return ["VCC", "GND", "DO", "AO"];
+  }
+
   if (type.includes("led")) {
     return ["anode", "cathode"];
   }
