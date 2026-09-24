@@ -174,8 +174,10 @@ export class NetlistBuilder {
      * must be modeled as internal unions in the netlist.
      *
      * MINI: A-E are one strip per row, F-J are another.
-     * HALF/FULL: same terminal strips plus four independent
-     * vertical power rails.
+     * HALF: same terminal strips plus four independent continuous
+     * power rails.
+     * FULL: same terminal strips plus four power rails, each split
+     * into top/bottom copper segments.
      *
      * We accept both canonical and legacy handle IDs so saved
      * projects created before the handle cleanup remain connected.
@@ -272,10 +274,11 @@ export class NetlistBuilder {
       }
 
       /*
-       * The current artwork presents each power rail as a continuous
-       * vertical rail. Keep the four rails independent from each
-       * other: VCC-L != VCC-R and GND-L != GND-R until the user
-       * physically wires them together.
+       * Keep the four rails independent from each other:
+       * VCC-L != VCC-R and GND-L != GND-R.
+       *
+       * On the full board, each rail is also split at the center,
+       * matching the physical break shown by the board UI.
        */
       for (const rail of [
         "gnd-l",
