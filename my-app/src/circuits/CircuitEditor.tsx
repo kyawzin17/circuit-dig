@@ -997,7 +997,36 @@ const stop =
     index: 0,
   });
 
-  const updateResistorValue = useCallback(
+  const updateNodeData = useCallback(
+  (nodeId: string, updates: { props?: Record<string, unknown> }) => {
+    const nextNodes = nodesRef.current.map((node) => {
+      if (node.id !== nodeId) {
+        return node;
+      }
+
+      return {
+        ...node,
+        data: {
+          ...node.data,
+          ...(updates.props
+            ? {
+                props: {
+                  ...(node.data?.props ?? {}),
+                  ...updates.props,
+                },
+              }
+            : {}),
+        },
+      };
+    });
+
+    setNodes(nextNodes);
+    pushToHistory(nextNodes, edgesRef.current);
+  },
+  [setNodes, pushToHistory],
+);
+
+const updateResistorValue = useCallback(
   (nodeId: string, value: string) => {
     setNodes((currentNodes) =>
       currentNodes.map((node) => {
@@ -2745,6 +2774,7 @@ const toggleCode = useCallback(() => {
         rotateNode={rotateNode}
         onDelete={deleteNode}
         selectedNode={selectedNode}
+        onUpdateNode={updateNodeData}
         updateResistorValue={updateResistorValue}
       />
 
