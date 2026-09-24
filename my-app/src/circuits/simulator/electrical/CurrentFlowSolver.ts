@@ -552,6 +552,8 @@ export class CurrentFlowSolver {
     const activeNets = new Set<string>();
     const activeComponents = new Set<string>();
     const componentBrightness: Record<string, number> = {};
+    const componentCurrentMa: Record<string, number> = {};
+    const componentVoltageDrop: Record<string, number> = {};
     const conflicts: string[] = [];
 
     const groundNets =
@@ -714,6 +716,14 @@ export class CurrentFlowSolver {
          */
         if (pathCurrentMa !== undefined) {
           for (const edge of path) {
+            const previous = componentCurrentMa[edge.componentId];
+            componentCurrentMa[edge.componentId] =
+              previous === undefined
+                ? pathCurrentMa
+                : Math.max(previous, pathCurrentMa);
+            componentVoltageDrop[edge.componentId] =
+              Math.max(componentVoltageDrop[edge.componentId] ?? 0, edge.voltageDrop);
+
             if (edge.componentType === "led") {
               componentBrightness[
                 edge.componentId
@@ -785,6 +795,8 @@ export class CurrentFlowSolver {
       activeNets,
       activeComponents,
       componentBrightness,
+      componentCurrentMa,
+      componentVoltageDrop,
       currentMa: firstCurrentMa,
       sourceVoltage:
         firstCurrentMa === undefined
