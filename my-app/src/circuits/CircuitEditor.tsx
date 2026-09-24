@@ -618,6 +618,26 @@ const CircuitEditor = () => {
                 "",
             ).toLowerCase();
 
+            const sevenSegmentState =
+              state.sevenSegmentStates?.[node.id];
+
+            if (
+              componentType === "7segment" ||
+              componentType === "sevensegment" ||
+              componentType === "seven-segment"
+            ) {
+              return {
+                ...node,
+                data: {
+                  ...node.data,
+                  simulation: {
+                    ...(node.data?.simulation ?? {}),
+                    sevenSegment: sevenSegmentState,
+                  },
+                },
+              };
+            }
+
             if (!componentType.includes("led")) {
               return node;
             }
