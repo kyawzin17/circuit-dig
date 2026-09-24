@@ -620,6 +620,67 @@ export class SimulationEngine {
 
     const state = this.arduino.getState().sevenSegmentStates;
     const segmentNames = ["A", "B", "C", "D", "E", "F", "G", "DP"];
+    const drivers = this.arduino.getDigitalDrivers();
+
+    const netHasDriverLevel = (
+      netId: string,
+      level: 0 | 1,
+      visited = new Set<string>(),
+    ): boolean => {
+      if (visited.has(netId)) {
+        return false;
+      }
+
+      visited.add(netId);
+
+      const pins = this.netlist!.netToPins.get(netId) ?? [];
+      if (
+        pins.some((pin) =>
+          drivers.some(
+            (driver) =>
+              driver.pin.toUpperCase() === pin.pinId.toUpperCase() &&
+              (
+                driver.level === level ||
+                (
+                  driver.pwmDuty !== undefined &&
+                  driver.pwmDuty > 0 &&
+                  level === 1
+                )
+              ),
+          ),
+        )
+      ) {
+        return true;
+      }
+
+      /*
+       * A 7-segment segment is normally driven through a resistor.
+       * Follow resistor-only links so the display state remains tied
+       * to the actual AVR GPIO driver rather than a UI shortcut.
+       */
+      for (const resistor of this.netlist!.components) {
+        if (resistor.type !== "resistor") {
+          continue;
+        }
+
+        const pin1 = resistor.terminals.pin1;
+        const pin2 = resistor.terminals.pin2;
+
+        if (pin1 === netId && pin2) {
+          if (netHasDriverLevel(pin2, level, new Set(visited))) {
+            return true;
+          }
+        }
+
+        if (pin2 === netId && pin1) {
+          if (netHasDriverLevel(pin1, level, new Set(visited))) {
+            return true;
+          }
+        }
+      }
+
+      return false;
+    };
 
     for (const component of this.netlist.components) {
       const node = this.circuitNodes.find((candidate) => candidate.id === component.id);
@@ -673,8 +734,14 @@ export class SimulationEngine {
           typeof commonNet === "string" &&
           (
             common === "cathode"
-              ? this.powerState.groundNets.has(commonNet)
-              : this.powerState.sourceNets.has(commonNet)
+              ? (
+                  this.powerState.groundNets.has(commonNet) ||
+                  netHasDriverLevel(commonNet, 0)
+                )
+              : (
+                  this.powerState.sourceNets.has(commonNet) ||
+                  netHasDriverLevel(commonNet, 1)
+                )
           );
 
         for (const segmentName of segmentNames) {
@@ -683,7 +750,14 @@ export class SimulationEngine {
           const lit =
             commonEnabled &&
             typeof segmentNet === "string" &&
-            this.currentFlowState.activeNets.has(segmentNet);
+            (
+              this.currentFlowState.activeNets.has(segmentNet) ||
+              (
+                common === "cathode"
+                  ? netHasDriverLevel(segmentNet, 1)
+                  : netHasDriverLevel(segmentNet, 0)
+              )
+            );
 
           values.push(lit ? 1 : 0);
         }
