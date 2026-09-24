@@ -421,9 +421,13 @@ function buildComponentEdges(
       const segmentNames = ["A", "B", "C", "D", "E", "F", "G", "DP"];
       const digitNames = ["COM.1", "COM.2", "DIG1", "DIG2", "DIG3", "DIG4", "COM"];
 
-      const commonNets = digitNames
-        .map((pin) => component.terminals[pin])
-        .filter((net): net is string => Boolean(net));
+      const commonNets = Array.from(
+        new Set(
+          digitNames
+            .map((pin) => component.terminals[pin])
+            .filter((net): net is string => Boolean(net)),
+        ),
+      );
 
       for (const commonNet of commonNets) {
         for (const segment of segmentNames) {
