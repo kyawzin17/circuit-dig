@@ -45,7 +45,7 @@ export const LDR_PIN = [
   },
 
   {
-    name: "DO",
+    name: "D0",
     x: 174,
     y: 34,
     dir: "top",
@@ -55,7 +55,7 @@ export const LDR_PIN = [
   },
 
   {
-    name: "AO",
+    name: "A0",
     x: 174,
     y: 45,
     dir: "top",

@@ -23,7 +23,7 @@ export const ldrModulePins: CircuitPin[] = [
   },
   {
     id: "pin_do",
-    label: "DO",
+    label: "D0",
     alias: "Digital Output",
     type: "terminal",
     direction: "passive",
@@ -31,7 +31,7 @@ export const ldrModulePins: CircuitPin[] = [
   },
   {
     id: "pin_ao",
-    label: "AO",
+    label: "A0",
     alias: "Analog Output",
     type: "terminal",
     direction: "passive",

@@ -2610,7 +2610,7 @@ const toggleCode = useCallback(() => {
             <button
               type="button"
               onClick={deleteEdge}
-              className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-sm text-red-600 transition hover:bg-red-50"
+              className="flex w-full justify-center items-center gap-2 rounded-lg px-2 py-2 text-left text-sm text-red-600 transition hover:bg-red-50"
             >
               <MdDeleteForever
                 size={17}
