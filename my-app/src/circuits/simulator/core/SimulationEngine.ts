@@ -511,6 +511,7 @@ export class SimulationEngine {
       }
 
       this.applyLedStates();
+      this.applySevenSegmentStates();
       this.refreshDiagnostics();
 
       this.emit();
@@ -612,6 +613,260 @@ export class SimulationEngine {
   getDiagnostics(): SimulationDiagnostics {
     return this.arduino.getState().diagnostics;
   }
+  private applySevenSegmentStates(): void {
+    if (!this.netlist) {
+      return;
+    }
+
+    const runtimeState =
+      this.arduino.getState().sevenSegmentStates;
+
+    const segmentNames = [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "F",
+      "G",
+      "DP",
+    ];
+
+    const drivers =
+      this.arduino.getDigitalDrivers();
+
+    const netHasDriverLevel = (
+      netId: string,
+      level: 0 | 1,
+      visited = new Set<string>(),
+    ): boolean => {
+      if (visited.has(netId)) {
+        return false;
+      }
+
+      visited.add(netId);
+
+      const pins =
+        this.netlist!.netToPins.get(netId) ?? [];
+
+      if (
+        pins.some((pin) =>
+          drivers.some((driver) =>
+            driver.pin.toUpperCase() ===
+              pin.pinId.toUpperCase() &&
+            (
+              driver.level === level ||
+              (
+                level === 1 &&
+                (driver.pwmDuty ?? 0) > 0
+              )
+            ),
+          ),
+        )
+      ) {
+        return true;
+      }
+
+      /*
+       * Segment pins are commonly connected through a current
+       * limiting resistor. Follow resistor-only links so the
+       * display state is derived from the real circuit topology.
+       */
+      for (const resistor of this.netlist!.components) {
+        if (resistor.type !== "resistor") {
+          continue;
+        }
+
+        const pin1 =
+          resistor.terminals.pin1;
+        const pin2 =
+          resistor.terminals.pin2;
+
+        if (
+          pin1 === netId &&
+          pin2 &&
+          netHasDriverLevel(
+            pin2,
+            level,
+            new Set(visited),
+          )
+        ) {
+          return true;
+        }
+
+        if (
+          pin2 === netId &&
+          pin1 &&
+          netHasDriverLevel(
+            pin1,
+            level,
+            new Set(visited),
+          )
+        ) {
+          return true;
+        }
+      }
+
+      return false;
+    };
+
+    for (const component of this.netlist.components) {
+      const node =
+        this.circuitNodes.find(
+          (candidate) =>
+            candidate.id === component.id,
+        );
+
+      if (!node) {
+        continue;
+      }
+
+      const type = String(
+        node.data?.componentType ??
+          node.type ??
+          "",
+      ).toLowerCase();
+
+      if (
+        type !== "7segment" &&
+        type !== "sevensegment" &&
+        type !== "seven-segment"
+      ) {
+        continue;
+      }
+
+      const props =
+        node.data?.props &&
+        typeof node.data.props === "object"
+          ? (node.data.props as Record<string, unknown>)
+          : {};
+
+      const common =
+        String(
+          props.common ??
+            node.data?.common ??
+            "anode",
+        ).toLowerCase() === "cathode"
+          ? "cathode"
+          : "anode";
+
+      const parsedDigits =
+        Number(
+          props.digits ??
+            node.data?.digits ??
+            1,
+        );
+
+      const digits =
+        [1, 2, 3, 4].includes(
+          parsedDigits,
+        )
+          ? parsedDigits
+          : 1;
+
+      const values: number[] = [];
+      let colon = false;
+
+      for (
+        let digitIndex = 0;
+        digitIndex < digits;
+        digitIndex += 1
+      ) {
+        const commonPin =
+          digits === 1
+            ? (
+                component.terminals["COM.1"]
+                  ? "COM.1"
+                  : component.terminals["COM1"]
+                    ? "COM1"
+                    : component.terminals["COM.2"]
+                      ? "COM.2"
+                      : component.terminals["COM2"]
+                        ? "COM2"
+                        : "COM"
+              )
+            : "DIG" +
+              (digitIndex + 1);
+
+        const commonNet =
+          component.terminals[commonPin];
+
+        const commonEnabled =
+          typeof commonNet === "string" &&
+          (
+            common === "cathode"
+              ? (
+                  this.powerState.groundNets.has(
+                    commonNet,
+                  ) ||
+                  netHasDriverLevel(
+                    commonNet,
+                    0,
+                  )
+                )
+              : (
+                  this.powerState.sourceNets.has(
+                    commonNet,
+                  ) ||
+                  netHasDriverLevel(
+                    commonNet,
+                    1,
+                  )
+                )
+          );
+
+        for (const segmentName of segmentNames) {
+          const segmentNet =
+            component.terminals[
+              segmentName
+            ];
+
+          const lit =
+            commonEnabled &&
+            typeof segmentNet === "string" &&
+            (
+              this.currentFlowState.activeNets.has(
+                segmentNet,
+              ) ||
+              (
+                common === "cathode"
+                  ? netHasDriverLevel(
+                      segmentNet,
+                      1,
+                    )
+                  : netHasDriverLevel(
+                      segmentNet,
+                      0,
+                    )
+              )
+            );
+
+          values.push(lit ? 1 : 0);
+        }
+
+        if (digitIndex === 0) {
+          const colonNet =
+            component.terminals.CLN;
+
+          colon =
+            commonEnabled &&
+            typeof colonNet === "string" &&
+            this.currentFlowState.activeNets.has(
+              colonNet,
+            );
+        }
+      }
+
+      runtimeState[node.id] = {
+        id: node.id,
+        digits,
+        common,
+        values,
+        colon,
+      };
+    }
+  }
+
   private applyLedStates(): void {
     for (const node of this.circuitNodes) {
       const type = String(
