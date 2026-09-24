@@ -283,23 +283,49 @@ export class NetlistBuilder {
         "vcc-r",
         "gnd-r",
       ]) {
-        const railKeys = [];
+        /*
+         * The full-size board has a physical break in each power
+         * rail around the middle. With 63 numbered rows, rows 1-31
+         * and 32-63 are separate rail segments.
+         *
+         * A jumper wire is required to bridge those two segments,
+         * exactly like a real full-size breadboard.
+         */
+        const railSegments = [
+          { start: 1, end: 31 },
+          { start: 32, end: 63 },
+        ];
 
-        for (let row = 1; row <= rowCount; row += 1) {
-          const key = registeredKey(node.id, [
-            "bf-" + rail + "_" + row,
-            "bf-" + rail.toUpperCase() + "_" + row,
-            rail + "_" + row,
-            rail.toUpperCase() + "_" + row,
-          ]);
+        for (const segment of railSegments) {
+          const railKeys = [];
 
-          if (key) {
-            railKeys.push(key);
+          for (
+            let row = segment.start;
+            row <= segment.end;
+            row += 1
+          ) {
+            const key = registeredKey(node.id, [
+              "bf-" + rail + "_" + row,
+              "bf-" + rail.toUpperCase() + "_" + row,
+              rail + "_" + row,
+              rail.toUpperCase() + "_" + row,
+            ]);
+
+            if (key) {
+              railKeys.push(key);
+            }
           }
-        }
 
-        for (let index = 1; index < railKeys.length; index += 1) {
-          uf.union(railKeys[0], railKeys[index]);
+          for (
+            let index = 1;
+            index < railKeys.length;
+            index += 1
+          ) {
+            uf.union(
+              railKeys[0],
+              railKeys[index],
+            );
+          }
         }
       }
     }
