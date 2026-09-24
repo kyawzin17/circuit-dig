@@ -247,6 +247,157 @@ function buildComponentEdges(
       continue;
     }
 
+    if (type === "diode" || type.includes("diode")) {
+      const anodeNet = component.terminals.anode;
+      const cathodeNet = component.terminals.cathode;
+      if (anodeNet && cathodeNet) {
+        edges.push({
+          componentId: node.id,
+          componentType: "diode",
+          fromNet: anodeNet,
+          toNet: cathodeNet,
+          resistanceOhm: 10,
+          voltageDrop: 0.7,
+        });
+      }
+      continue;
+    }
+
+    if (type === "buzzer") {
+      const positive = component.terminals["1"];
+      const negative = component.terminals["2"];
+      if (positive && negative) {
+        edges.push({
+          componentId: node.id,
+          componentType: "buzzer",
+          fromNet: positive,
+          toNet: negative,
+          resistanceOhm: 100,
+          voltageDrop: 0,
+        });
+        edges.push({
+          componentId: node.id,
+          componentType: "buzzer",
+          fromNet: negative,
+          toNet: positive,
+          resistanceOhm: 100,
+          voltageDrop: 0,
+        });
+      }
+      continue;
+    }
+
+    if (type === "servo") {
+      const vcc = component.terminals["V+"];
+      const gnd = component.terminals.GND;
+      if (vcc && gnd) {
+        edges.push({
+          componentId: node.id,
+          componentType: "servo",
+          fromNet: vcc,
+          toNet: gnd,
+          resistanceOhm: 250,
+          voltageDrop: 0,
+        });
+        edges.push({
+          componentId: node.id,
+          componentType: "servo",
+          fromNet: gnd,
+          toNet: vcc,
+          resistanceOhm: 250,
+          voltageDrop: 0,
+        });
+      }
+      continue;
+    }
+
+    if (type === "neopixel") {
+      const vdd = component.terminals.VDD;
+      const gnd = component.terminals.GND;
+      if (vdd && gnd) {
+        edges.push({
+          componentId: node.id,
+          componentType: "neopixel",
+          fromNet: vdd,
+          toNet: gnd,
+          resistanceOhm: 150,
+          voltageDrop: 0,
+        });
+        edges.push({
+          componentId: node.id,
+          componentType: "neopixel",
+          fromNet: gnd,
+          toNet: vdd,
+          resistanceOhm: 150,
+          voltageDrop: 0,
+        });
+      }
+      continue;
+    }
+
+    if (type === "rgb-led") {
+      const common = component.terminals.COM;
+      if (common) {
+        for (const colorPin of ["R", "G", "B"]) {
+          const pinNet = component.terminals[colorPin];
+          if (!pinNet) continue;
+          edges.push({
+            componentId: node.id,
+            componentType: "rgb-led",
+            fromNet: pinNet,
+            toNet: common,
+            resistanceOhm: 80,
+            voltageDrop: 2,
+          });
+        }
+      }
+      continue;
+    }
+
+    if (type === "transistor" || type === "npn") {
+      const collector = component.terminals.C;
+      const base = component.terminals.B;
+      const emitter = component.terminals.E;
+      if (collector && emitter) {
+        let enabled = false;
+        if (base) {
+          const basePins = netlist.netToPins.get(base) ?? [];
+          enabled = basePins.some((pin) => {
+            const driver = drivers.find(
+              (candidate) => candidate.pin.toUpperCase() === pin.pinId.toUpperCase(),
+            );
+            return driver?.level === 1 || (driver?.pwmDuty ?? 0) > 0;
+          });
+        }
+        if (enabled) {
+          edges.push({
+            componentId: node.id,
+            componentType: "transistor",
+            fromNet: collector,
+            toNet: emitter,
+            resistanceOhm: 20,
+            voltageDrop: 0.1,
+          });
+          edges.push({
+            componentId: node.id,
+            componentType: "transistor",
+            fromNet: emitter,
+            toNet: collector,
+            resistanceOhm: 20,
+            voltageDrop: 0.1,
+          });
+        }
+      }
+      continue;
+    }
+
+    if (type === "capacitor" || type === "cap") {
+      // A capacitor is open-circuit in the steady-state DC solver.
+      // Transient charge/discharge is intentionally handled by a future
+      // time-domain model instead of pretending a capacitor is a resistor.
+      continue;
+    }
+
     if (
       type === "pushbutton" ||
       type === "button"
