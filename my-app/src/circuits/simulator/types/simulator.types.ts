@@ -94,6 +94,15 @@ export interface ResistorRuntimeState {
   unit?: "Ω" | "kΩ" | "MΩ";
 }
 
+export interface SevenSegmentRuntimeState {
+  id: string;
+  digits: number;
+  common: "anode" | "cathode";
+  values: number[];
+  colon: boolean;
+}
+
+
 // =====================================================
 // WIRE RUNTIME STATE
 // =====================================================
@@ -177,6 +186,8 @@ export interface ArduinoUnoRuntimeState {
   ledStates: Record<string, LedRuntimeState>;
 
   resistorStates: Record<string, ResistorRuntimeState>;
+
+  sevenSegmentStates: Record<string, SevenSegmentRuntimeState>;
 
   wireStates: Record<string, WireRuntimeState>;
 
