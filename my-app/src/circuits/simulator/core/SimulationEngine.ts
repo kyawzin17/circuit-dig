@@ -8,6 +8,7 @@ import type {
   SimulationEngineOptions,
   SimulationStatus,
   ArduinoUnoRuntimeState,
+  SimulationDiagnostics,
 } from "../types/simulator.types";
 
 import {
@@ -117,6 +118,8 @@ export class SimulationEngine {
     activeNets: new Set(),
     activeComponents: new Set(),
     componentBrightness: {},
+    componentCurrentMa: {},
+    componentVoltageDrop: {},
     conflicts: [],
   };
 
@@ -140,6 +143,8 @@ export class SimulationEngine {
   private firmwareLoaded = false;
 
   private readonly cyclesPerFrame: number;
+  private simulatedCycles = 0;
+  private frameCount = 0;
 
   constructor(
     options: SimulationEngineOptions = {},
@@ -237,6 +242,8 @@ export class SimulationEngine {
       activeNets: new Set(),
       activeComponents: new Set(),
       componentBrightness: {},
+      componentCurrentMa: {},
+      componentVoltageDrop: {},
       conflicts: [],
     };
 
@@ -264,6 +271,9 @@ export class SimulationEngine {
     };
 
     this.firmwareLoaded = true;
+    this.simulatedCycles = 0;
+    this.frameCount = 0;
+    this.refreshDiagnostics();
     this.setStatus("idle");
   }
 
@@ -291,6 +301,8 @@ export class SimulationEngine {
 
   private tick(): void {
     try {
+      this.frameCount += 1;
+      this.simulatedCycles += this.cyclesPerFrame;
       /*
        * The circuit is resolved twice around AVR execution:
        *
@@ -499,6 +511,7 @@ export class SimulationEngine {
       }
 
       this.applyLedStates();
+      this.refreshDiagnostics();
 
       this.emit();
     } catch (error) {
@@ -514,6 +527,91 @@ export class SimulationEngine {
     }
   }
 
+  private refreshDiagnostics(): void {
+    const diagnostics: SimulationDiagnostics = {
+      simulatedCycles: this.simulatedCycles,
+      simulatedMs: (this.simulatedCycles / (this.options.config?.frequency ?? 16_000_000)) * 1000,
+      frameCount: this.frameCount,
+      pins: [],
+      nets: [],
+      components: [],
+      faults: [],
+    };
+
+    const netlist = this.netlist;
+    if (!netlist) {
+      this.arduino.getState().diagnostics = diagnostics;
+      return;
+    }
+
+    for (const [netId, pins] of netlist.netToPins) {
+      const active = this.currentFlowState.activeNets.has(netId);
+      const currents = Array.from(netlist.wireToNet.entries())
+        .filter(([, id]) => id === netId)
+        .map(([wireId]) => this.currentFlowState.wireStates[wireId]?.currentMa)
+        .filter((value): value is number => typeof value === "number");
+      diagnostics.nets.push({
+        netId,
+        voltage: this.powerState.netVoltages[netId],
+        currentMa: currents.length ? Math.max(...currents) : undefined,
+        active,
+        pins: pins.map((pin) => `${pin.nodeId}:${pin.pinId}`),
+      });
+    }
+
+    for (const [pin, runtime] of Object.entries(this.arduino.getState().digitalPins)) {
+      diagnostics.pins.push({
+        pin: `D${Number(pin)}`,
+        digitalLevel: runtime.level,
+        mode: runtime.mode,
+        voltage: runtime.mode === "output" ? runtime.level * 5 : undefined,
+      });
+    }
+
+    for (const [pin, voltage] of Object.entries(this.arduino.getState().analogPinVoltages)) {
+      diagnostics.pins.push({ pin, voltage });
+    }
+
+    for (const driver of this.arduino.getPowerDrivers()) {
+      diagnostics.pins.push({ pin: driver.pin, voltage: driver.voltage });
+    }
+
+    const nodeById = new Map(this.circuitNodes.map((node) => [node.id, node]));
+    for (const component of netlist.components) {
+      const node = nodeById.get(component.id);
+      if (!node) continue;
+      const type = String(node.data?.componentType ?? node.type ?? "unknown").toLowerCase();
+      const active = this.currentFlowState.activeComponents.has(component.id);
+      const currentMa = this.currentFlowState.componentCurrentMa[component.id];
+      const voltageDrop = this.currentFlowState.componentVoltageDrop[component.id] ?? (type.includes("led") && active ? 2 : undefined);
+      diagnostics.components.push({
+        id: component.id, type, voltageDrop, currentMa,
+        powerMw: currentMa !== undefined && voltageDrop !== undefined ? currentMa * voltageDrop : undefined,
+        active,
+      });
+    }
+
+    diagnostics.faults = Array.from(new Set([
+      ...this.powerState.conflicts,
+      ...this.currentFlowState.conflicts,
+      ...this.digitalState.conflicts,
+      ...this.digitalInputState.conflicts,
+      ...this.analogState.conflicts,
+    ]));
+
+    this.arduino.getState().diagnostics = diagnostics;
+  }
+
+  /** Execute exactly one simulation frame without starting the animation clock. */
+  step(): void {
+    if (this.clock.isRunning()) return;
+    if (!this.netlist) throw new Error("Circuit topology has not been built.");
+    this.tick();
+  }
+
+  getDiagnostics(): SimulationDiagnostics {
+    return this.arduino.getState().diagnostics;
+  }
   private applyLedStates(): void {
     for (const node of this.circuitNodes) {
       const type = String(
@@ -597,6 +695,8 @@ export class SimulationEngine {
   stop(): void {
     this.clock.stop();
     this.arduino.reset();
+    this.simulatedCycles = 0;
+    this.frameCount = 0;
 
     this.analogState = {
       pinVoltages: new Map(),
@@ -642,6 +742,8 @@ export class SimulationEngine {
   reset(): void {
     this.clock.stop();
     this.arduino.reset();
+    this.simulatedCycles = 0;
+    this.frameCount = 0;
     this.avr.reset();
 
     this.analogState = {

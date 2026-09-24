@@ -117,6 +117,41 @@ export interface WireRuntimeState {
 // ARDUINO UNO RUNTIME
 // =====================================================
 
+export interface SimulationPinMeasurement {
+  pin: string;
+  voltage?: number;
+  currentMa?: number;
+  digitalLevel?: PinLevel;
+  mode?: PinMode;
+}
+
+export interface SimulationNetMeasurement {
+  netId: string;
+  voltage?: number;
+  currentMa?: number;
+  active: boolean;
+  pins: string[];
+}
+
+export interface SimulationComponentMeasurement {
+  id: string;
+  type: string;
+  voltageDrop?: number;
+  currentMa?: number;
+  powerMw?: number;
+  active: boolean;
+}
+
+export interface SimulationDiagnostics {
+  simulatedCycles: number;
+  simulatedMs: number;
+  frameCount: number;
+  pins: SimulationPinMeasurement[];
+  nets: SimulationNetMeasurement[];
+  components: SimulationComponentMeasurement[];
+  faults: string[];
+}
+
 export interface ArduinoUnoRuntimeState {
   digitalPins: Record<number, RuntimePin>;
 
@@ -144,6 +179,8 @@ export interface ArduinoUnoRuntimeState {
   resistorStates: Record<string, ResistorRuntimeState>;
 
   wireStates: Record<string, WireRuntimeState>;
+
+  diagnostics: SimulationDiagnostics;
 }
 
 // =====================================================

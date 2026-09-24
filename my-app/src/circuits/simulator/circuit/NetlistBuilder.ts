@@ -111,6 +111,34 @@ function getTerminalIds(node: CircuitNode): string[] {
     return ["anode", "cathode"];
   }
 
+  if (type === "diode" || type.includes("diode")) {
+    return ["anode", "cathode"];
+  }
+
+  if (type === "buzzer") {
+    return ["1", "2"];
+  }
+
+  if (type === "capacitor" || type === "cap") {
+    return ["pin1", "pin2"];
+  }
+
+  if (type === "transistor" || type === "npn" || type === "pnp") {
+    return ["C", "B", "E"];
+  }
+
+  if (type === "servo") {
+    return ["V+", "GND", "PWM"];
+  }
+
+  if (type === "rgb-led") {
+    return ["R", "G", "B", "COM"];
+  }
+
+  if (type === "neopixel") {
+    return ["VDD", "GND", "DIN", "DOUT"];
+  }
+
   if (
     type === "pushbutton" ||
     type === "button"

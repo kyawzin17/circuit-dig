@@ -133,6 +133,15 @@ export class ArduinoUnoRuntime {
       ledStates: {},
       resistorStates: {},
       wireStates: {},
+      diagnostics: {
+        simulatedCycles: 0,
+        simulatedMs: 0,
+        frameCount: 0,
+        pins: [],
+        nets: [],
+        components: [],
+        faults: [],
+      },
     };
   }
 
