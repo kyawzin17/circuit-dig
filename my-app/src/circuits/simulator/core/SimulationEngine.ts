@@ -511,6 +511,7 @@ export class SimulationEngine {
       }
 
       this.applyLedStates();
+      this.applySevenSegmentStates();
       this.refreshDiagnostics();
 
       this.emit();
@@ -612,6 +613,100 @@ export class SimulationEngine {
   getDiagnostics(): SimulationDiagnostics {
     return this.arduino.getState().diagnostics;
   }
+  private applySevenSegmentStates(): void {
+    if (!this.netlist) {
+      return;
+    }
+
+    const state = this.arduino.getState().sevenSegmentStates;
+    const segmentNames = ["A", "B", "C", "D", "E", "F", "G", "DP"];
+
+    for (const component of this.netlist.components) {
+      const node = this.circuitNodes.find((candidate) => candidate.id === component.id);
+      if (!node) continue;
+
+      const type = String(
+        node.data?.componentType ?? node.type ?? "",
+      ).toLowerCase();
+
+      if (
+        type !== "7segment" &&
+        type !== "sevensegment" &&
+        type !== "seven-segment"
+      ) {
+        continue;
+      }
+
+      const props =
+        node.data?.props &&
+        typeof node.data.props === "object"
+          ? (node.data.props as Record<string, unknown>)
+          : {};
+
+      const common =
+        String(props.common ?? node.data?.common ?? "anode").toLowerCase() ===
+        "cathode"
+          ? "cathode"
+          : "anode";
+
+      const parsedDigits = Number(props.digits ?? node.data?.digits ?? 1);
+      const digits = [1, 2, 3, 4].includes(parsedDigits)
+        ? parsedDigits
+        : 1;
+
+      const values: number[] = [];
+      let anyColon = false;
+
+      for (let digitIndex = 0; digitIndex < digits; digitIndex += 1) {
+        const commonPin =
+          digits === 1
+            ? (component.terminals["COM.1"]
+                ? "COM.1"
+                : component.terminals["COM.2"]
+                  ? "COM.2"
+                  : "COM")
+            : "DIG" + (digitIndex + 1);
+
+        const commonNet = component.terminals[commonPin];
+
+        const commonEnabled =
+          typeof commonNet === "string" &&
+          (
+            common === "cathode"
+              ? this.powerState.groundNets.has(commonNet)
+              : this.powerState.sourceNets.has(commonNet)
+          );
+
+        for (const segmentName of segmentNames) {
+          const segmentNet = component.terminals[segmentName];
+
+          const lit =
+            commonEnabled &&
+            typeof segmentNet === "string" &&
+            this.currentFlowState.activeNets.has(segmentNet);
+
+          values.push(lit ? 1 : 0);
+        }
+
+        if (digitIndex === 0) {
+          const colonNet = component.terminals.CLN;
+          anyColon =
+            commonEnabled &&
+            typeof colonNet === "string" &&
+            this.currentFlowState.activeNets.has(colonNet);
+        }
+      }
+
+      state[node.id] = {
+        id: node.id,
+        digits,
+        common,
+        values,
+        colon: anyColon,
+      };
+    }
+  }
+
   private applyLedStates(): void {
     for (const node of this.circuitNodes) {
       const type = String(
