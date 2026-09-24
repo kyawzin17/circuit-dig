@@ -132,6 +132,7 @@ export class ArduinoUnoRuntime {
       analogPinValues: {},
       ledStates: {},
       resistorStates: {},
+      sevenSegmentStates: {} as Record<string, SevenSegmentRuntimeState>,
       wireStates: {},
       diagnostics: {
         simulatedCycles: 0,
