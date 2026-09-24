@@ -719,6 +719,8 @@ export class SimulationEngine {
       activeNets: new Set(),
       activeComponents: new Set(),
       componentBrightness: {},
+      componentCurrentMa: {},
+      componentVoltageDrop: {},
       conflicts: [],
     };
 
@@ -767,6 +769,8 @@ export class SimulationEngine {
       activeNets: new Set(),
       activeComponents: new Set(),
       componentBrightness: {},
+      componentCurrentMa: {},
+      componentVoltageDrop: {},
       conflicts: [],
     };
 
