@@ -6,6 +6,7 @@ import type {
   ArduinoPowerRailName,
   ArduinoPowerRailState,
   ArduinoPowerPinVoltage,
+  SevenSegmentRuntimeState,
 } from "../types/simulator.types";
 import { ARDUINO_UNO_PIN_MAP } from "../mapping/ArduinoUnoPinMap";
 
@@ -132,6 +133,7 @@ export class ArduinoUnoRuntime {
       analogPinValues: {},
       ledStates: {},
       resistorStates: {},
+      sevenSegmentStates: {} as Record<string, SevenSegmentRuntimeState>,
       wireStates: {},
       diagnostics: {
         simulatedCycles: 0,
