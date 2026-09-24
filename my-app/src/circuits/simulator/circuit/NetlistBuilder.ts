@@ -147,6 +147,31 @@ function getTerminalIds(node: CircuitNode): string[] {
   }
 
   if (
+    type === "7segment" ||
+    type === "sevensegment" ||
+    type === "seven-segment"
+  ) {
+    return [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "F",
+      "G",
+      "DP",
+      "COM.1",
+      "COM.2",
+      "DIG1",
+      "DIG2",
+      "DIG3",
+      "DIG4",
+      "COM",
+      "CLN",
+    ];
+  }
+
+  if (
     type === "slide-switch" ||
     type === "switch"
   ) {
