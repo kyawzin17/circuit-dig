@@ -158,7 +158,7 @@ function createMiniBreadboardPins(): BreadboardPin[] {
           y,
 
           handleId:
-            `pin_${pinId}`,
+            pinId,
         });
       }
     );
@@ -196,9 +196,9 @@ function createMiniBreadboardPins(): BreadboardPin[] {
             column.x,
 
           y,
+handleId:
 
-          handleId:
-            pinId,
+  `pin_${pinId}`,
         });
       }
     );

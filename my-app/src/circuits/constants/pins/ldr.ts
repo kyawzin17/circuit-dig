@@ -1,4 +1,4 @@
-import { analog } from "./pin";
+import { analog, digital } from "./pin";
 
 // =====================================================
 // LDR / PHOTORESISTOR SENSOR
@@ -50,7 +50,7 @@ export const LDR_PIN = [
     y: 34,
     dir: "top",
     signals: [
-        analog(0),
+        digital(0),
     ]
   },
 
