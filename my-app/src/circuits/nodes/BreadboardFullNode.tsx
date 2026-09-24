@@ -496,11 +496,27 @@ const BreadboardFullNode = ({
             POWER RAILS
         ================================================= */}
 
-        {/* LEFT GND */}
+        {/* =================================================
+            POWER RAILS
+            The full-size board has a center break in each rail.
+            Rows 1-31 and 32-63 are separate copper segments.
+        ================================================= */}
 
+        {/* LEFT GND - TOP SEGMENT */}
         <line
           x1="15"
           y1="45"
+          x2="15"
+          y2="650"
+          stroke="#3498DB"
+          strokeWidth="2"
+          strokeLinecap="round"
+        />
+
+        {/* LEFT GND - BOTTOM SEGMENT */}
+        <line
+          x1="15"
+          y1="670"
           x2="15"
           y2="1295"
           stroke="#3498DB"
@@ -508,11 +524,21 @@ const BreadboardFullNode = ({
           strokeLinecap="round"
         />
 
-        {/* LEFT VCC */}
-
+        {/* LEFT VCC - TOP SEGMENT */}
         <line
           x1="65"
           y1="45"
+          x2="65"
+          y2="650"
+          stroke="#E74C3C"
+          strokeWidth="2"
+          strokeLinecap="round"
+        />
+
+        {/* LEFT VCC - BOTTOM SEGMENT */}
+        <line
+          x1="65"
+          y1="670"
           x2="65"
           y2="1295"
           stroke="#E74C3C"
@@ -520,11 +546,21 @@ const BreadboardFullNode = ({
           strokeLinecap="round"
         />
 
-        {/* RIGHT VCC */}
-
+        {/* RIGHT VCC - TOP SEGMENT */}
         <line
           x1="375"
           y1="45"
+          x2="375"
+          y2="650"
+          stroke="#E74C3C"
+          strokeWidth="2"
+          strokeLinecap="round"
+        />
+
+        {/* RIGHT VCC - BOTTOM SEGMENT */}
+        <line
+          x1="375"
+          y1="670"
           x2="375"
           y2="1295"
           stroke="#E74C3C"
@@ -532,11 +568,21 @@ const BreadboardFullNode = ({
           strokeLinecap="round"
         />
 
-        {/* RIGHT GND */}
-
+        {/* RIGHT GND - TOP SEGMENT */}
         <line
           x1="425"
           y1="45"
+          x2="425"
+          y2="650"
+          stroke="#3498DB"
+          strokeWidth="2"
+          strokeLinecap="round"
+        />
+
+        {/* RIGHT GND - BOTTOM SEGMENT */}
+        <line
+          x1="425"
+          y1="670"
           x2="425"
           y2="1295"
           stroke="#3498DB"
