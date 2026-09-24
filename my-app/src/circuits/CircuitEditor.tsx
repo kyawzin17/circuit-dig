@@ -77,6 +77,7 @@ import {
   getSavedProject,
   saveCircuitProject,
 } from "./projectStorage";
+import { digital } from "./constants/pins/pin.ts";
 
 // * ----------> Types <----------
 // Circuit Edge Data Type (For Simulation Engine)
@@ -1165,7 +1166,6 @@ const stop =
         newEdge,
         currentEdges
       ) as CircuitEdge[];
-
       setEdges(nextEdges);
 
       pushToHistory(
@@ -1479,14 +1479,17 @@ const stop =
           props: {},
           pins: neopixelPins,
         },
-
-        "7segment": {
-          label: "7 Segment",
-          tag: "wokwi-7segment",
-          props: {},
-          pins: sevenSegmentPins,
+      "7segment": {
+        label: "7 Segment",
+        tag: "wokwi-7segment",
+        props: {
+          color: "red",
+          offColor: "white",
+          background: "#000",
+          values: [0, 0, 0, 0, 0, 0, 0, 0], // 4 ဂဏန်း ပေါ်စေရန်
         },
-
+        pins: sevenSegmentPins,
+      },
         "servo": {
           label: "Servo",
           tag: "wokwi-servo",

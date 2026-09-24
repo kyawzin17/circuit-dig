@@ -376,7 +376,6 @@ export default function PinPlanes({
             pin
           );
 
-
         return (
           isSourcePin ||
           isTargetPin

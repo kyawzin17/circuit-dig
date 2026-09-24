@@ -169,6 +169,7 @@ function findSourceNets(
 function buildComponentEdges(
   nodes: Node[],
   netlist: Netlist,
+  drivers: ArduinoDigitalDriver[],
 ): ComponentEdge[] {
   const nodeById = new Map(
     nodes.map((node) => [node.id, node]),
@@ -365,7 +366,7 @@ function buildComponentEdges(
         if (base) {
           const basePins = netlist.netToPins.get(base) ?? [];
           enabled = basePins.some((pin) => {
-            const driver = drivers?.find(
+            const driver = drivers.find(
               (candidate: any) => candidate.pin.toUpperCase() === pin.pinId.toUpperCase(),
             );
             return driver?.level === 1 || (driver?.pwmDuty ?? 0) > 0;
@@ -615,6 +616,7 @@ export class CurrentFlowSolver {
       buildComponentEdges(
         nodes,
         netlist,
+        drivers,
       );
 
     const adjacency =

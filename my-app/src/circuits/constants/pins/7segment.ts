@@ -28,8 +28,8 @@ const createPinPositions = (digits: number, pinsSetting: 'top' | 'extend' | 'non
 // ==========================================
 const pinXY1 = createPinPositions(1);
 export default [
-  { name: 'COM.1',x: pinXY1(3).x, y: pinXY1(3).y, signals: [], dir: pinXY1(3).dir },
-  { name: 'COM.2',x: pinXY1(8).x, y: pinXY1(8).y, signals: [], dir: pinXY1(8).dir },
+  { name: 'COM1',x: pinXY1(3).x, y: pinXY1(3).y, signals: [], dir: pinXY1(3).dir },
+  { name: 'COM2',x: pinXY1(8).x, y: pinXY1(8).y, signals: [], dir: pinXY1(8).dir },
   { name: 'A', x: pinXY1(7).x, y: pinXY1(7).y, signals: [], dir: pinXY1(7).dir },
   { name: 'B', x: pinXY1(6).x, y: pinXY1(6).y, signals: [], dir: pinXY1(6).dir },
   { name: 'C', x: pinXY1(4).x, y: pinXY1(4).y, signals: [], dir: pinXY1(4).dir },
