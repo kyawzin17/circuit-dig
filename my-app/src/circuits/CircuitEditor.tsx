@@ -604,6 +604,7 @@ const CircuitEditor = () => {
   const engine =
     new SimulationEngine({
       onStateChange: (state) => {
+        setDiagnostics(state.diagnostics);
         /*
          * Component visualization:
          * AVR -> GPIO -> digital solver -> LED state
@@ -2745,7 +2746,12 @@ const toggleCode = useCallback(() => {
         />
       )}
 
-      <CodeSection show={showCode} setShow={setShowCode} />
+      <CodeSection
+        show={showCode}
+        setShow={setShowCode}
+        onRun={handleRunSimulation}
+        onStop={handleStopSimulation}
+      />
 
     </div>
 
