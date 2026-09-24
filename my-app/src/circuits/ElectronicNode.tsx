@@ -29,6 +29,10 @@ type PinDefinition = {
 type SimulationState = {
   isOn?: boolean;
   brightness?: number;
+  sevenSegment?: {
+    values?: number[];
+    colon?: boolean;
+  };
 };
 
 const ElectronicNode = ({
@@ -154,6 +158,11 @@ const ElectronicNode = ({
     componentType === "photoresistor" ||
     componentType === "wokwi-photoresistor-sensor";
 
+  const isSevenSegment =
+    componentType === "7segment" ||
+    componentType === "sevensegment" ||
+    componentType === "seven-segment";
+
   const potentiometerPosition =
     typeof data.potentiometerPosition === "number"
       ? Math.max(
@@ -183,6 +192,46 @@ const ElectronicNode = ({
           )
         )
       : 1;
+
+  // =========================================================
+  // 7-SEGMENT -> CIRCUIT STATE
+  // =========================================================
+  useEffect(() => {
+    if (!isSevenSegment) {
+      return;
+    }
+
+    const element =
+      componentRef.current as
+        | (HTMLElement & {
+            values?: number[];
+            colonValue?: boolean;
+          })
+        | null;
+
+    if (!element) {
+      return;
+    }
+
+    /*
+     * The simulator owns the electrical state. The Wokwi element
+     * remains the visual renderer and receives the solved segment
+     * values only.
+     */
+    element.values =
+      Array.isArray(
+        simulation?.sevenSegment?.values,
+      )
+        ? simulation.sevenSegment.values
+        : [0, 0, 0, 0, 0, 0, 0, 0];
+
+    element.colonValue =
+      simulation?.sevenSegment?.colon === true;
+  }, [
+    isSevenSegment,
+    simulation?.sevenSegment?.values,
+    simulation?.sevenSegment?.colon,
+  ]);
 
   // =========================================================
   // POTENTIOMETER -> CIRCUIT STATE
@@ -669,7 +718,8 @@ const ElectronicNode = ({
                 isPushButton ||
                 isPotentiometer ||
                 isSlideSwitch ||
-                isLdr
+                isLdr ||
+                isSevenSegment
                   ? componentRef
                   : undefined,
             }

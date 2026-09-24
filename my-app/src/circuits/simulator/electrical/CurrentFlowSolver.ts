@@ -402,6 +402,101 @@ function buildComponentEdges(
     }
 
     if (
+      type === "7segment" ||
+      type === "sevensegment" ||
+      type === "seven-segment"
+    ) {
+      const props =
+        node.data?.props &&
+        typeof node.data.props === "object"
+          ? (node.data.props as Record<string, unknown>)
+          : {};
+
+      const common =
+        String(
+          props.common ??
+            node.data?.common ??
+            "anode",
+        ).toLowerCase() === "cathode"
+          ? "cathode"
+          : "anode";
+
+      const segmentNames = [
+        "A",
+        "B",
+        "C",
+        "D",
+        "E",
+        "F",
+        "G",
+        "DP",
+      ];
+
+      /*
+       * A 1-digit Wokwi 7-segment has two common pins
+       * (COM.1 / COM.2). They represent the same common side.
+       * The current model accepts either one if it is wired.
+       */
+      const commonNames = [
+        "COM.1",
+        "COM1",
+        "COM.2",
+        "COM2",
+        "COM",
+      ];
+
+      const commonNets = Array.from(
+        new Set(
+          commonNames
+            .map((name) => component.terminals[name])
+            .filter(
+              (net): net is string =>
+                Boolean(net),
+            ),
+        ),
+      );
+
+      for (const commonNet of commonNets) {
+        for (const segmentName of segmentNames) {
+          const segmentNet =
+            component.terminals[segmentName];
+
+          if (!segmentNet) {
+            continue;
+          }
+
+          /*
+           * Common-anode:
+           *   VCC/common -> LED segment -> GPIO LOW
+           *
+           * Common-cathode:
+           *   GPIO HIGH -> LED segment -> GND/common
+           */
+          const fromNet =
+            common === "cathode"
+              ? segmentNet
+              : commonNet;
+
+          const toNet =
+            common === "cathode"
+              ? commonNet
+              : segmentNet;
+
+          edges.push({
+            componentId: node.id,
+            componentType: "7segment",
+            fromNet,
+            toNet,
+            resistanceOhm: 0,
+            voltageDrop: 2,
+          });
+        }
+      }
+
+      continue;
+    }
+
+    if (
       type === "pushbutton" ||
       type === "button"
     ) {
