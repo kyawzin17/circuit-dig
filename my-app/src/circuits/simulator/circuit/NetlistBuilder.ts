@@ -164,6 +164,146 @@ export class NetlistBuilder {
       });
     }
 
+    /*
+     * =========================================================
+     * BREADBOARD INTERNAL COPPER
+     * =========================================================
+     *
+     * A solderless breadboard has fixed copper strips underneath
+     * its holes. These are part of the physical circuit, so they
+     * must be modeled as internal unions in the netlist.
+     *
+     * MINI: A-E are one strip per row, F-J are another.
+     * HALF/FULL: same terminal strips plus four independent
+     * vertical power rails.
+     *
+     * We accept both canonical and legacy handle IDs so saved
+     * projects created before the handle cleanup remain connected.
+     */
+    const registeredKey = (
+      nodeId: string,
+      candidates: string[],
+    ): string | null => {
+      for (const pinId of candidates) {
+        const exact = nodeId + ":" + pinId;
+        if (pinRefs.has(exact)) {
+          return exact;
+        }
+      }
+
+      const wanted = new Set(
+        candidates.map((candidate) =>
+          candidate.toLowerCase(),
+        ),
+      );
+
+      for (const key of pinRefs.keys()) {
+        if (!key.startsWith(nodeId + ":")) {
+          continue;
+        }
+
+        const pinId = key.slice(nodeId.length + 1);
+
+        if (wanted.has(pinId.toLowerCase())) {
+          return key;
+        }
+      }
+
+      return null;
+    };
+
+    const unionBreadboardPins = (
+      node: CircuitNode,
+      pinIds: string[],
+    ): void => {
+      const keys = pinIds
+        .map((pinId) =>
+          registeredKey(node.id, [
+            pinId,
+            "pin_" + pinId,
+          ]),
+        )
+        .filter(
+          (key): key is string =>
+            key !== null,
+        );
+
+      for (let index = 1; index < keys.length; index += 1) {
+        uf.union(keys[0], keys[index]);
+      }
+    };
+
+    for (const node of graph.nodes) {
+      const type = normalizeComponentType(node);
+
+      if (
+        type !== "mini-board" &&
+        type !== "half-board" &&
+        type !== "full-board"
+      ) {
+        continue;
+      }
+
+      const rowCount =
+        type === "mini-board"
+          ? 17
+          : type === "half-board"
+            ? 30
+            : 63;
+
+      for (let row = 1; row <= rowCount; row += 1) {
+        unionBreadboardPins(
+          node,
+          ["A", "B", "C", "D", "E"].map(
+            (column) => column + row,
+          ),
+        );
+
+        unionBreadboardPins(
+          node,
+          ["F", "G", "H", "I", "J"].map(
+            (column) => column + row,
+          ),
+        );
+      }
+
+      if (type === "mini-board") {
+        continue;
+      }
+
+      /*
+       * The current artwork presents each power rail as a continuous
+       * vertical rail. Keep the four rails independent from each
+       * other: VCC-L != VCC-R and GND-L != GND-R until the user
+       * physically wires them together.
+       */
+      for (const rail of [
+        "gnd-l",
+        "vcc-l",
+        "vcc-r",
+        "gnd-r",
+      ]) {
+        const railKeys = [];
+
+        for (let row = 1; row <= rowCount; row += 1) {
+          const key = registeredKey(node.id, [
+            "bf-" + rail + "_" + row,
+            "bf-" + rail.toUpperCase() + "_" + row,
+            rail + "_" + row,
+            rail.toUpperCase() + "_" + row,
+          ]);
+
+          if (key) {
+            railKeys.push(key);
+          }
+        }
+
+        for (let index = 1; index < railKeys.length; index += 1) {
+          uf.union(railKeys[0], railKeys[index]);
+        }
+      }
+    }
+
     const groups = new Map<string, CircuitPinRef[]>();
 
     for (const [key, ref] of pinRefs) {
