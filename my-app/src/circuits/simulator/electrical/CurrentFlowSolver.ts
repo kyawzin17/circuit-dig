@@ -14,6 +14,8 @@ export interface CurrentFlowState {
   activeNets: Set<string>;
   activeComponents: Set<string>;
   componentBrightness: Record<string, number>;
+  componentCurrentMa: Record<string, number>;
+  componentVoltageDrop: Record<string, number>;
   currentMa?: number;
   sourceVoltage?: number;
   voltageDrop?: number;
