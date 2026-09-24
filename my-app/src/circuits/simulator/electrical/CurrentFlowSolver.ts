@@ -101,6 +101,7 @@ function isGroundPin(pinId: string): boolean {
 
 function findGroundNets(
   netlist: Netlist,
+  drivers: ArduinoDigitalDriver[],
   powerState?: PowerRailState,
 ): Set<string> {
   if (powerState) {
@@ -116,6 +117,32 @@ function findGroundNets(
       )
     ) {
       groundNets.add(netId);
+    }
+  }
+
+  /*
+   * A digital GPIO driven LOW is also a current sink. This matters
+   * for common-anode LEDs/7-segment displays where the Arduino pin
+   * sinks current instead of a physical GND wire ending the path.
+   */
+  for (const driver of drivers) {
+    if (
+      driver.level !== 0 ||
+      (driver.pwmDuty !== undefined && driver.pwmDuty > 0)
+    ) {
+      continue;
+    }
+
+    for (const [netId, pins] of netlist.netToPins) {
+      if (
+        pins.some(
+          (pin) =>
+            pin.pinId.toUpperCase() ===
+            driver.pin.toUpperCase(),
+        )
+      ) {
+        groundNets.add(netId);
+      }
     }
   }
 
@@ -620,6 +647,7 @@ export class CurrentFlowSolver {
     const groundNets =
       findGroundNets(
         netlist,
+        drivers,
         powerState,
       );
 
