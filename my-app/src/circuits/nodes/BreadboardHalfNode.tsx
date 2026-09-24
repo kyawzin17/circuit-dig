@@ -282,9 +282,9 @@ function createBreadboardPins(): BreadboardPin[] {
           power.x,
 
         y,
+handleId:
 
-        handleId:
-          pinId,
+  `bf-${pinId.toLowerCase()}`,
       });
     });
   }
