@@ -688,7 +688,6 @@ const CircuitEditor = () => {
 
 const handleRunSimulation = () => {
   const engine = simulationEngine.current;
-  console.log("This is the engine:", engine);
   if (!engine) {
     return;
   }
@@ -2062,7 +2061,6 @@ const stop =
     simulationStatus,
     simulationCode,
     compile,
-    stop,
   ]
 );
 
