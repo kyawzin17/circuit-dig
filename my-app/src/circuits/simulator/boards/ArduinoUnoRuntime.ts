@@ -6,6 +6,7 @@ import type {
   ArduinoPowerRailName,
   ArduinoPowerRailState,
   ArduinoPowerPinVoltage,
+  SevenSegmentRuntimeState,
 } from "../types/simulator.types";
 import { ARDUINO_UNO_PIN_MAP } from "../mapping/ArduinoUnoPinMap";
 
