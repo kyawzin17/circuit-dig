@@ -169,6 +169,7 @@ function findSourceNets(
 function buildComponentEdges(
   nodes: Node[],
   netlist: Netlist,
+  drivers: ArduinoDigitalDriver[],
 ): ComponentEdge[] {
   const nodeById = new Map(
     nodes.map((node) => [node.id, node]),
@@ -615,6 +616,7 @@ export class CurrentFlowSolver {
       buildComponentEdges(
         nodes,
         netlist,
+        drivers,
       );
 
     const adjacency =
