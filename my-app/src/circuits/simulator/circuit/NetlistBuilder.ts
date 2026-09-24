@@ -242,6 +242,84 @@ export class NetlistBuilder {
       return null;
     };
 
+    /*
+     * React Flow handle IDs and electrical terminal names are not
+     * required to be identical. The 7-segment component uses
+     * pin_a/pin_b/.../pin_com1/pin_com2 handles, while the simulator
+     * uses A/B/.../COM.1/COM.2. Resolve both forms here.
+     */
+    const terminalCandidates = (
+      terminalId: string,
+    ): string[] => {
+      const aliases: Record<string, string[]> = {
+        A: ["A", "pin_a"],
+        B: ["B", "pin_b"],
+        C: ["C", "pin_c"],
+        D: ["D", "pin_d"],
+        E: ["E", "pin_e"],
+        F: ["F", "pin_f"],
+        G: ["G", "pin_g"],
+        DP: ["DP", "pin_dp"],
+        "COM.1": ["COM.1", "COM1", "pin_com1"],
+        "COM.2": ["COM.2", "COM2", "pin_com2"],
+        COM: ["COM", "pin_com", "pin_com1", "pin_com2"],
+        DIG1: ["DIG1", "pin_dig1"],
+        DIG2: ["DIG2", "pin_dig2"],
+        DIG3: ["DIG3", "pin_dig3"],
+        DIG4: ["DIG4", "pin_dig4"],
+        CLN: ["CLN", "pin_cln"],
+      };
+
+      return aliases[terminalId] ?? [
+        terminalId,
+        "pin_" + terminalId,
+      ];
+    };
+
+    const findTerminalNet = (
+      node: CircuitNode,
+      terminalId: string,
+    ): string | null => {
+      const candidates = terminalCandidates(
+        terminalId,
+      );
+
+      for (const candidate of candidates) {
+        const netId = pinToNet.get(
+          createPinKey({
+            nodeId: node.id,
+            pinId: candidate,
+          }),
+        );
+
+        if (netId) {
+          return netId;
+        }
+      }
+
+      const wanted = new Set(
+        candidates.map((candidate) =>
+          candidate.toLowerCase(),
+        ),
+      );
+
+      for (const [key, netId] of pinToNet) {
+        if (!key.startsWith(node.id + ":")) {
+          continue;
+        }
+
+        const pinId = key.slice(
+          node.id.length + 1,
+        );
+
+        if (wanted.has(pinId.toLowerCase())) {
+          return netId;
+        }
+      }
+
+      return null;
+    };
+
     const unionBreadboardPins = (
       node: CircuitNode,
       pinIds: string[],
@@ -476,12 +554,10 @@ export class NetlistBuilder {
       } else {
         for (const pinId of terminalIds) {
           terminals[pinId] =
-            pinToNet.get(
-              createPinKey({
-                nodeId: node.id,
-                pinId,
-              }),
-            ) ?? null;
+            findTerminalNet(
+              node,
+              pinId,
+            );
         }
       }
 
