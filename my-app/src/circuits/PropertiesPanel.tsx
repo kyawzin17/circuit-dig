@@ -1066,6 +1066,63 @@ const COLOR_MAP: Record<number, string> = {
 )}
 
             {/* =================================
+                7-SEGMENT SETTINGS
+            ================================= */}
+
+            {(componentType === "7segment" ||
+              componentType === "sevensegment" ||
+              componentType === "seven-segment") && (
+              <div className="mt-6">
+                <SectionTitle>
+                  7-Segment Settings
+                </SectionTitle>
+
+                <PropertyRow label="Common">
+                  <select
+                    value={data.props?.common || "anode"}
+                    onChange={(event) =>
+                      onUpdateNode?.(selectedNode.id, {
+                        props: {
+                          ...(data.props || {}),
+                          common: event.target.value,
+                        },
+                      })
+                    }
+                    className="w-full rounded-md border border-[#29405b] bg-[#111e2f] px-3 py-2 text-xs text-slate-200 outline-none"
+                  >
+                    <option value="anode">Common Anode</option>
+                    <option value="cathode">Common Cathode</option>
+                  </select>
+                </PropertyRow>
+
+                <PropertyRow label="Digits">
+                  <select
+                    value={String(data.props?.digits || "1")}
+                    onChange={(event) =>
+                      onUpdateNode?.(selectedNode.id, {
+                        props: {
+                          ...(data.props || {}),
+                          digits: event.target.value,
+                        },
+                      })
+                    }
+                    className="w-full rounded-md border border-[#29405b] bg-[#111e2f] px-3 py-2 text-xs text-slate-200 outline-none"
+                  >
+                    <option value="1">1 Digit</option>
+                    <option value="2">2 Digits</option>
+                    <option value="3">3 Digits</option>
+                    <option value="4">4 Digits</option>
+                  </select>
+                </PropertyRow>
+
+                <p className="mt-2 text-[10px] leading-4 text-slate-500">
+                  The simulator uses the selected common polarity and
+                  multiplex digit pins while AVR8JS is running.
+                </p>
+              </div>
+            )}
+
+            {/* =================================
                 BOARD SETTINGS
             ================================= */}
 
