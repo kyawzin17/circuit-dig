@@ -77,7 +77,6 @@ import {
   getSavedProject,
   saveCircuitProject,
 } from "./projectStorage";
-import { digital } from "./constants/pins/pin.ts";
 
 // * ----------> Types <----------
 // Circuit Edge Data Type (For Simulation Engine)
