@@ -580,8 +580,8 @@ export class SimulationEngine {
       if (!node) continue;
       const type = String(node.data?.componentType ?? node.type ?? "unknown").toLowerCase();
       const active = this.currentFlowState.activeComponents.has(component.id);
-      const currentMa = active ? this.currentFlowState.currentMa : undefined;
-      const voltageDrop = type.includes("led") ? 2 : undefined;
+      const currentMa = this.currentFlowState.componentCurrentMa[component.id];
+      const voltageDrop = this.currentFlowState.componentVoltageDrop[component.id] ?? (type.includes("led") && active ? 2 : undefined);
       diagnostics.components.push({
         id: component.id, type, voltageDrop, currentMa,
         powerMw: currentMa !== undefined && voltageDrop !== undefined ? currentMa * voltageDrop : undefined,
