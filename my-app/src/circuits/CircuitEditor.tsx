@@ -60,6 +60,7 @@ import Sidebar from "./Sidebar.tsx";  // Left Sidebar Component (For drag and dr
 import PropertiesPanel from "./PropertiesPanel"; // Properties Panel Component (Right Sidebar)
 import ElectronicNode from "./ElectronicNode.tsx"; // Electronic Custom Node Component (For Pin Handling)
 import CodeSection from "./CodeSection.tsx"; // Code Section Component (For Code Editing & C++)
+import SimulationDebugger from "./SimulationDebugger";
 
 // * ----------> Components Custom Nodes (For Component Handling & Design) <----------
 import BreadboardMiniNode from "./nodes/BreadboardMiniNode";
@@ -71,6 +72,7 @@ import PicoNode from "./nodes/Respberrypipico.tsx";
 // * ----------> Simulation Engine <----------
 import { useSimulationStore } from "../stores/simulationStore"; // Simulation Store for Simulation Engine ()
 import { SimulationEngine } from "./simulator/core/SimulationEngine.ts"; // Simulation Engine Component
+import type { SimulationDiagnostics } from "./simulator/types/simulator.types";
 import {
   getSavedProject,
   saveCircuitProject,
@@ -602,6 +604,7 @@ const CircuitEditor = () => {
   const engine =
     new SimulationEngine({
       onStateChange: (state) => {
+        setDiagnostics(state.diagnostics);
         /*
          * Component visualization:
          * AVR -> GPIO -> digital solver -> LED state
@@ -685,7 +688,6 @@ const CircuitEditor = () => {
 
 const handleRunSimulation = () => {
   const engine = simulationEngine.current;
-  console.log("This is the engine:", engine);
   if (!engine) {
     return;
   }
@@ -755,6 +757,41 @@ const handleStopSimulation = () => {
 
 const handlePauseSimulation = () => {
   simulationEngine.current?.pause();
+  useSimulationStore.setState({ status: "idle", error: null });
+};
+
+const handleStepSimulation = () => {
+  const engine = simulationEngine.current;
+  if (!engine) return;
+
+  try {
+    if (!engine.getNetlist()) {
+      engine.setCircuit(nodes, edges as CircuitEdge[]);
+      const currentCode = useSimulationStore.getState().code;
+      const hex = useSimulationStore.getState().hex;
+      if (currentCode.trim() && hex) {
+        engine.loadHex(hex);
+      }
+    }
+    engine.step();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    useSimulationStore.setState({ status: "error", error: message });
+  }
+};
+
+const handleResetSimulation = () => {
+  simulationEngine.current?.reset();
+  useSimulationStore.getState().reset();
+  setDiagnostics({
+    simulatedCycles: 0,
+    simulatedMs: 0,
+    frameCount: 0,
+    pins: [],
+    nets: [],
+    components: [],
+    faults: [],
+  });
 };
   /* =======================================================
      REFS
@@ -767,6 +804,16 @@ const handlePauseSimulation = () => {
   const edgesRef = useRef<CircuitEdge[]>([]);
 
   const [showCode, setShowCode] = useState<boolean>(false);
+  const [showDebugger, setShowDebugger] = useState<boolean>(false);
+  const [diagnostics, setDiagnostics] = useState<SimulationDiagnostics>({
+    simulatedCycles: 0,
+    simulatedMs: 0,
+    frameCount: 0,
+    pins: [],
+    nets: [],
+    components: [],
+    faults: [],
+  });
   /* =======================================================
      REACT FLOW STATE
   ======================================================= */
@@ -2014,7 +2061,6 @@ const stop =
     simulationStatus,
     simulationCode,
     compile,
-    stop,
   ]
 );
 
@@ -2395,6 +2441,17 @@ const toggleCode = useCallback(() => {
             New
           </button>
 
+          <button
+            type="button"
+            onClick={() => setShowDebugger((value) => !value)}
+            className={`flex h-9 items-center gap-2 rounded-lg px-3 text-xs font-medium transition ${
+              showDebugger ? "bg-slate-900 text-white" : "text-slate-700 hover:bg-slate-100"
+            }`}
+            title="Simulation debugger"
+          >
+            Debug
+          </button>
+
           {/* Play */}
           <button
             type="button"
@@ -2675,7 +2732,24 @@ const toggleCode = useCallback(() => {
           CODE SECTION
       =================================================== */}
 
-      <CodeSection show={showCode} setShow={setShowCode} />
+      {showDebugger && (
+        <SimulationDebugger
+          diagnostics={diagnostics}
+          running={simulationStatus === "running"}
+          onRun={handleRunSimulation}
+          onPause={handlePauseSimulation}
+          onStep={handleStepSimulation}
+          onStop={handleStopSimulation}
+          onReset={handleResetSimulation}
+        />
+      )}
+
+      <CodeSection
+        show={showCode}
+        setShow={setShowCode}
+        onRun={handleRunSimulation}
+        onStop={handleStopSimulation}
+      />
 
     </div>
 
