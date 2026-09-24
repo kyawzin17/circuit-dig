@@ -402,6 +402,60 @@ function buildComponentEdges(
     }
 
     if (
+      type === "7segment" ||
+      type === "sevensegment" ||
+      type === "seven-segment"
+    ) {
+      const props =
+        node.data?.props &&
+        typeof node.data.props === "object"
+          ? (node.data.props as Record<string, unknown>)
+          : {};
+
+      const common =
+        String(props.common ?? node.data?.common ?? "anode").toLowerCase() ===
+        "cathode"
+          ? "cathode"
+          : "anode";
+
+      const segmentNames = ["A", "B", "C", "D", "E", "F", "G", "DP"];
+      const digitNames = ["COM.1", "COM.2", "DIG1", "DIG2", "DIG3", "DIG4", "COM"];
+
+      const commonNets = digitNames
+        .map((pin) => component.terminals[pin])
+        .filter((net): net is string => Boolean(net));
+
+      for (const commonNet of commonNets) {
+        for (const segment of segmentNames) {
+          const segmentNet = component.terminals[segment];
+          if (!segmentNet) {
+            continue;
+          }
+
+          const fromNet =
+            common === "cathode"
+              ? segmentNet
+              : commonNet;
+          const toNet =
+            common === "cathode"
+              ? commonNet
+              : segmentNet;
+
+          edges.push({
+            componentId: node.id,
+            componentType: "7segment",
+            fromNet,
+            toNet,
+            resistanceOhm: 0,
+            voltageDrop: 2,
+          });
+        }
+      }
+
+      continue;
+    }
+
+    if (
       type === "pushbutton" ||
       type === "button"
     ) {
