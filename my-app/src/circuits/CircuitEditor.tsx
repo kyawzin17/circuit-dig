@@ -1021,9 +1021,17 @@ const stop =
     });
 
     setNodes(nextNodes);
+
+    const updatedSelectedNode =
+      nextNodes.find((node) => node.id === nodeId);
+
+    if (updatedSelectedNode) {
+      setSelectedNode(updatedSelectedNode);
+    }
+
     pushToHistory(nextNodes, edgesRef.current);
   },
-  [setNodes, pushToHistory],
+  [setNodes, setSelectedNode, pushToHistory],
 );
 
 const updateResistorValue = useCallback(
