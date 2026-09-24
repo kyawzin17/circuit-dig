@@ -284,7 +284,7 @@ function createBreadboardPins(): BreadboardPin[] {
         y,
 handleId:
 
-  `bf-${pinId.toLowerCase()}`,
+  `bf-${pinId}`,
       });
     });
   }
