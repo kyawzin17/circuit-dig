@@ -154,6 +154,11 @@ const ElectronicNode = ({
     componentType === "photoresistor" ||
     componentType === "wokwi-photoresistor-sensor";
 
+  const isSevenSegment =
+    componentType === "7segment" ||
+    componentType === "sevensegment" ||
+    componentType === "seven-segment";
+
   const potentiometerPosition =
     typeof data.potentiometerPosition === "number"
       ? Math.max(
@@ -183,6 +188,48 @@ const ElectronicNode = ({
           )
         )
       : 1;
+
+  // =========================================================
+  // 7-SEGMENT -> CIRCUIT STATE
+  // =========================================================
+
+  const sevenSegmentState =
+    data.simulation?.sevenSegment as
+      | {
+          values?: number[];
+          colon?: boolean;
+        }
+      | undefined;
+
+  useEffect(() => {
+    if (!isSevenSegment) {
+      return;
+    }
+
+    const element =
+      componentRef.current as
+        | (HTMLElement & {
+            values?: number[];
+            colonValue?: boolean;
+          })
+        | null;
+
+    if (!element) {
+      return;
+    }
+
+    element.values =
+      Array.isArray(sevenSegmentState?.values)
+        ? sevenSegmentState.values
+        : [0, 0, 0, 0, 0, 0, 0, 0];
+
+    element.colonValue =
+      sevenSegmentState?.colon === true;
+  }, [
+    isSevenSegment,
+    sevenSegmentState?.values,
+    sevenSegmentState?.colon,
+  ]);
 
   // =========================================================
   // POTENTIOMETER -> CIRCUIT STATE
@@ -786,7 +833,8 @@ const ElectronicNode = ({
                 isPushButton ||
                 isPotentiometer ||
                 isSlideSwitch ||
-                isLdr
+                isLdr ||
+                isSevenSegment
                   ? componentRef
                   : undefined,
             }
