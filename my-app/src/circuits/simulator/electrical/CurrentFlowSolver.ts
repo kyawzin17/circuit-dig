@@ -298,8 +298,12 @@ function buildComponentEdges(
     }
 
     if (type === "buzzer") {
-      const positive = component.terminals["1"];
-      const negative = component.terminals["2"];
+      const positive =
+        component.terminals.positive ??
+        component.terminals["2"];
+      const negative =
+        component.terminals.negative ??
+        component.terminals["1"];
       if (positive && negative) {
         edges.push({
           componentId: node.id,
