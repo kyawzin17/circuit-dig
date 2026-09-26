@@ -185,6 +185,100 @@ export class SimulationEngine {
     return this.status;
   }
 
+  private detectParallelLcdMode(
+    node: Node,
+  ): "4bit" | "8bit" {
+    const configured =
+      node.data?.lcdMode;
+
+    if (
+      typeof configured === "string" &&
+      configured.toLowerCase() === "8bit"
+    ) {
+      return "8bit";
+    }
+
+    const graph =
+      createCircuitGraph(
+        this.circuitNodes,
+        this.circuitEdges,
+      );
+
+    const wiredPins = new Set<string>();
+
+    for (const wire of graph.wires) {
+      for (const ref of [wire.source, wire.target]) {
+        if (ref.nodeId === node.id) {
+          wiredPins.add(
+            ref.pinId.toUpperCase(),
+          );
+        }
+      }
+    }
+
+    return ["D0", "D1", "D2", "D3"].some(
+      (pin) => wiredPins.has(pin),
+    )
+      ? "8bit"
+      : "4bit";
+  }
+
+  private isLcdI2cConnected(
+    componentId: string,
+  ): boolean {
+    if (!this.netlist) {
+      return false;
+    }
+
+    const component =
+      this.netlist.components.find(
+        (item) => item.id === componentId,
+      );
+
+    if (!component) {
+      return false;
+    }
+
+    const netHasArduinoPin = (
+      netId: string | null | undefined,
+      pinName: string,
+    ): boolean => {
+      if (!netId) {
+        return false;
+      }
+
+      return (
+        this.netlist!.netToPins
+          .get(netId)
+          ?.some(
+            (pin) =>
+              pin.pinId.toUpperCase() ===
+              pinName.toUpperCase(),
+          ) ?? false
+      );
+    };
+
+    /*
+     * Arduino UNO hardware TWI is on A4/SDA and A5/SCL.
+     * Require the actual circuit topology to connect both lines.
+     * VCC/GND must also exist on the LCD component.
+     */
+    return (
+      netHasArduinoPin(
+        component.terminals.SDA,
+        "A4",
+      ) &&
+      netHasArduinoPin(
+        component.terminals.SCL,
+        "A5",
+      ) &&
+      Boolean(
+        component.terminals.VCC &&
+        component.terminals.GND,
+      )
+    );
+  }
+
   private emit(): void {
     this.options.onStateChange?.(
       this.arduino.getState(),
@@ -318,6 +412,8 @@ export class SimulationEngine {
       new Lcd1602I2cEventHandler(
         () => Array.from(this.lcdRuntimes.values()),
         this.avr.getTwi()!,
+        (display) =>
+          this.isLcdI2cConnected(display.id),
       );
 
     this.avr.setTwiEventHandler(
