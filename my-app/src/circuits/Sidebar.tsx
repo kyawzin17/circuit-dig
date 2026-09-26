@@ -427,7 +427,13 @@ const Sidebar = () => {
       type: "7segment",
       name: "7-Segment",
       tag: "wokwi-7segment",
-      props: {},
+      // Wokwi's default is common-anode: segment pins turn ON at LOW.
+      // Keep the electrical model explicit so the runtime and visual element
+      // always agree, even if the web component's defaults change.
+      props: {
+        common: "anode",
+        digits: "1",
+      },
       scale: 0.4,
       yOffset: "0px",
       category: "basic",
