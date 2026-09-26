@@ -1284,6 +1284,7 @@ export class SimulationEngine {
   stop(): void {
     this.clock.stop();
     this.arduino.reset();
+    this.ultrasonicTriggerLevels.clear();
     this.simulatedCycles = 0;
     this.frameCount = 0;
 
@@ -1333,6 +1334,7 @@ export class SimulationEngine {
   reset(): void {
     this.clock.stop();
     this.arduino.reset();
+    this.ultrasonicTriggerLevels.clear();
     this.simulatedCycles = 0;
     this.frameCount = 0;
     this.avr.reset();
