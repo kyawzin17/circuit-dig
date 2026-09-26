@@ -140,6 +140,38 @@ function getTerminalIds(node: CircuitNode): string[] {
   }
 
   if (
+    type === "lcd1602" ||
+    type === "lcd-1602" ||
+    type === "lcd1602-full"
+  ) {
+    return [
+      "VSS",
+      "VDD",
+      "V0",
+      "RS",
+      "RW",
+      "E",
+      "D0",
+      "D1",
+      "D2",
+      "D3",
+      "D4",
+      "D5",
+      "D6",
+      "D7",
+      "A",
+      "K",
+    ];
+  }
+
+  if (
+    type === "lcd1602-i2c" ||
+    type === "lcd-1602-i2c"
+  ) {
+    return ["GND", "VCC", "SDA", "SCL"];
+  }
+
+  if (
     type === "7segment" ||
     type === "sevensegment" ||
     type === "seven-segment"
@@ -318,6 +350,26 @@ export class NetlistBuilder {
         DIG3: ["DIG3", "pin_dig3"],
         DIG4: ["DIG4", "pin_dig4"],
         CLN: ["CLN", "pin_cln"],
+        VSS: ["VSS", "vss"],
+        VDD: ["VDD", "vdd"],
+        V0: ["V0", "v0"],
+        RS: ["RS", "rs"],
+        RW: ["RW", "rw"],
+        E: ["E", "e"],
+        D0: ["D0", "d0"],
+        D1: ["D1", "d1"],
+        D2: ["D2", "d2"],
+        D3: ["D3", "d3"],
+        D4: ["D4", "d4"],
+        D5: ["D5", "d5"],
+        D6: ["D6", "d6"],
+        D7: ["D7", "d7"],
+        A: ["A", "a"],
+        K: ["K", "k"],
+        VCC: ["VCC", "vcc"],
+        GND: ["GND", "gnd"],
+        SDA: ["SDA", "sda"],
+        SCL: ["SCL", "scl"],
       };
 
       return aliases[terminalId] ?? [
