@@ -862,9 +862,6 @@ export class SimulationEngine {
      */
     this.processParallelLcdGpioChange(pin);
 
-      return;
-    }
-
     for (const component of this.netlist.components) {
       const node =
         this.circuitNodes.find(
