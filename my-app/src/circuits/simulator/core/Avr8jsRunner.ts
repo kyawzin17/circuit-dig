@@ -232,7 +232,15 @@ export class Avr8jsRunner {
     this.toggleCounts = {};
 
     while (this.cpu.cycles < targetCycles) {
-      const before = this.readOutputLevels();
+      const beforeB =
+        (this.cpu.data[PORTB] ?? 0) &
+        (this.cpu.data[DDRB] ?? 0);
+      const beforeC =
+        (this.cpu.data[PORTC] ?? 0) &
+        (this.cpu.data[DDRC] ?? 0);
+      const beforeD =
+        (this.cpu.data[PORTD] ?? 0) &
+        (this.cpu.data[DDRD] ?? 0);
 
       avrInstruction(this.cpu);
       this.cpu.tick();
@@ -249,22 +257,34 @@ export class Avr8jsRunner {
        */
       this.serviceAdc();
 
-      const after = this.readOutputLevels();
+      const afterB =
+        (this.cpu.data[PORTB] ?? 0) &
+        (this.cpu.data[DDRB] ?? 0);
+      const afterC =
+        (this.cpu.data[PORTC] ?? 0) &
+        (this.cpu.data[DDRC] ?? 0);
+      const afterD =
+        (this.cpu.data[PORTD] ?? 0) &
+        (this.cpu.data[DDRD] ?? 0);
 
-      for (const [pin, level] of Object.entries(after)) {
-        if (before[pin] === level) {
-          continue;
-        }
-
-        this.toggleCounts[pin] =
-          (this.toggleCounts[pin] ?? 0) + 1;
-
-        onGpioChange?.({
-          pin,
-          level,
-          cycle: this.cpu.cycles,
-        });
-      }
+      this.recordPortChanges(
+        "B",
+        beforeB ^ afterB,
+        afterB,
+        onGpioChange,
+      );
+      this.recordPortChanges(
+        "C",
+        beforeC ^ afterC,
+        afterC,
+        onGpioChange,
+      );
+      this.recordPortChanges(
+        "D",
+        beforeD ^ afterD,
+        afterD,
+        onGpioChange,
+      );
 
       this.applyScheduledDigitalPulses();
     }
@@ -347,48 +367,46 @@ export class Avr8jsRunner {
       (1 << 4);
   }
 
-  private readOutputLevels(): Record<string, 0 | 1> {
-    if (!this.cpu) {
-      return {};
-    }
+  private recordPortChanges(
+    port: "B" | "C" | "D",
+    changedMask: number,
+    output: number,
+    onGpioChange?: (
+      change: AvrGpioChange,
+    ) => void,
+  ): void {
+    let mask = changedMask & 0xff;
 
-    const data = this.cpu.data;
-    const levels: Record<string, 0 | 1> = {};
+    while (mask !== 0) {
+      const bit =
+        31 - Math.clz32(mask);
 
-    const ports: Array<{
-      port: "B" | "C" | "D";
-      ddr: number;
-      output: number;
-    }> = [
-      { port: "B", ddr: DDRB, output: PORTB },
-      { port: "C", ddr: DDRC, output: PORTC },
-      { port: "D", ddr: DDRD, output: PORTD },
-    ];
+      mask &= ~(1 << bit);
 
-    for (const item of ports) {
-      const ddr = data[item.ddr] ?? 0;
-      const output = data[item.output] ?? 0;
-
-      for (let bit = 0; bit < 8; bit += 1) {
-        if ((ddr & (1 << bit)) === 0) {
-          continue;
-        }
-
-        const pin = this.portBitToArduinoPin(
-          item.port,
+      const pin =
+        this.portBitToArduinoPin(
+          port,
           bit,
         );
 
-        if (pin) {
-          levels[pin] =
-            (output & (1 << bit)) !== 0
-              ? 1
-              : 0;
-        }
+      if (!pin) {
+        continue;
       }
-    }
 
-    return levels;
+      const level =
+        (output & (1 << bit)) !== 0
+          ? 1
+          : 0;
+
+      this.toggleCounts[pin] =
+        (this.toggleCounts[pin] ?? 0) + 1;
+
+      onGpioChange?.({
+        pin,
+        level,
+        cycle: this.cpu?.cycles ?? 0,
+      });
+    }
   }
 
   private writeExternalDigitalInput(
