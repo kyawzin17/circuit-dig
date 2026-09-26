@@ -9,6 +9,8 @@ import type {
   SimulationStatus,
   ArduinoUnoRuntimeState,
   SimulationDiagnostics,
+  SimulationTrace,
+  SimulationTraceStep,
 } from "../types/simulator.types";
 
 import {
@@ -145,6 +147,7 @@ export class SimulationEngine {
   private readonly cyclesPerFrame: number;
   private simulatedCycles = 0;
   private frameCount = 0;
+  private activeTrace: SimulationTrace | undefined;
 
   constructor(
     options: SimulationEngineOptions = {},
@@ -537,6 +540,7 @@ export class SimulationEngine {
       nets: [],
       components: [],
       faults: [],
+      trace: this.activeTrace,
     };
 
     const netlist = this.netlist;
@@ -1045,10 +1049,146 @@ export class SimulationEngine {
 
     this.netlist = null;
     this.firmwareLoaded = false;
+    this.activeTrace = undefined;
 
     this.setStatus("idle");
   }
 
+  /**
+   * Trace one electrical net through the live netlist.
+   * Physical wires are nets; components are boundaries between nets.
+   */
+  traceNet(netId: string): SimulationTrace {
+    const netlist = this.netlist;
+    const diagnostics = this.arduino.getState().diagnostics;
+
+    if (!netlist || !netlist.netToPins.has(netId)) {
+      const trace: SimulationTrace = {
+        target: netId,
+        status: "blocked",
+        summary: "Net was not found in the current circuit.",
+        steps: [{ kind: "fault", id: "trace:not-found", label: "NET_NOT_FOUND" }],
+        netIds: [],
+        componentIds: [],
+        faults: ["NET_NOT_FOUND:" + netId],
+      };
+      this.activeTrace = trace;
+      diagnostics.trace = trace;
+      this.emit();
+      return trace;
+    }
+
+    const steps: SimulationTraceStep[] = [];
+    const netIds: string[] = [];
+    const componentIds: string[] = [];
+    const visitedNets = new Set<string>();
+    const visitedComponents = new Set<string>();
+    const queue: string[] = [netId];
+    let reachedSource = false;
+    let reachedGround = false;
+
+    const netById = new Map(diagnostics.nets.map((net) => [net.netId, net]));
+    const componentById = new Map(diagnostics.components.map((component) => [component.id, component]));
+
+    while (queue.length > 0 && steps.length < 80) {
+      const currentNet = queue.shift()!;
+      if (visitedNets.has(currentNet)) continue;
+      visitedNets.add(currentNet);
+      netIds.push(currentNet);
+
+      const netMeasurement = netById.get(currentNet);
+      steps.push({
+        kind: "net",
+        id: currentNet,
+        label: currentNet,
+        voltage: netMeasurement?.voltage,
+        currentMa: netMeasurement?.currentMa,
+        active: netMeasurement?.active,
+      });
+
+      if (this.powerState.groundNets.has(currentNet)) reachedGround = true;
+      if (this.powerState.sourceNets.has(currentNet)) reachedSource = true;
+
+      const pins = netlist.netToPins.get(currentNet) ?? [];
+      for (const pin of pins) {
+        steps.push({
+          kind: "pin",
+          id: pin.nodeId + ":" + pin.pinId,
+          label: pin.nodeId + ":" + pin.pinId,
+        });
+      }
+
+      for (const component of netlist.components) {
+        const connectedTerminals = Object.entries(component.terminals)
+          .filter(([, connectedNet]) => connectedNet === currentNet)
+          .map(([terminal]) => terminal);
+
+        if (connectedTerminals.length === 0) continue;
+
+        if (!visitedComponents.has(component.id)) {
+          visitedComponents.add(component.id);
+          componentIds.push(component.id);
+          const measurement = componentById.get(component.id);
+          steps.push({
+            kind: "component",
+            id: component.id,
+            label: component.type + " (" + connectedTerminals.join(", ") + ")",
+            voltage: measurement?.voltageDrop,
+            currentMa: measurement?.currentMa,
+            active: measurement?.active,
+          });
+        }
+
+        for (const otherNet of Object.values(component.terminals)) {
+          if (!otherNet || otherNet === currentNet || visitedNets.has(otherNet)) continue;
+          queue.push(otherNet);
+        }
+      }
+    }
+
+    const faults = diagnostics.faults.filter((fault) =>
+      fault.includes(netId) || fault.startsWith("POWER_CONFLICT") || fault.startsWith("SHORT_CIRCUIT"),
+    );
+
+    const status: SimulationTrace["status"] =
+      faults.length > 0
+        ? "blocked"
+        : reachedSource || reachedGround
+          ? "complete"
+          : "floating";
+
+    const summary =
+      status === "complete"
+        ? reachedSource && reachedGround
+          ? "Trace reaches a source and GND through the circuit."
+          : reachedSource
+            ? "Trace reaches an electrical source."
+            : "Trace reaches GND."
+        : status === "blocked"
+          ? "Trace is affected by an electrical fault."
+          : "Trace does not currently reach a known source or GND.";
+
+    const trace: SimulationTrace = {
+      target: netId,
+      status,
+      summary,
+      steps,
+      netIds,
+      componentIds,
+      faults,
+    };
+
+    this.activeTrace = trace;
+    diagnostics.trace = trace;
+    this.emit();
+    return trace;
+  }
+
+  clearTrace(): void {
+    this.activeTrace = undefined;
+    this.arduino.getState().diagnostics.trace = undefined;
+    this.emit();
+  }
   getArduino(): ArduinoUnoRuntime {
     return this.arduino;
   }
