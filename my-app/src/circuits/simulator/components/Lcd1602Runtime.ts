@@ -30,7 +30,6 @@ export class Lcd1602Runtime {
 
   private lastE: 0 | 1 = 0;
   private pendingNibble: number | null = null;
-  private fourBitMode = true;
   private initNibbleCount = 0;
   private initialized = false;
 
@@ -73,7 +72,6 @@ export class Lcd1602Runtime {
     this.displayShift = false;
     this.lastE = 0;
     this.pendingNibble = null;
-    this.fourBitMode = true;
     this.initNibbleCount = 0;
     this.initialized = false;
     this.backlight = true;
