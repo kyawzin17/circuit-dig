@@ -30,7 +30,6 @@ export class Lcd1602Runtime {
 
   private addressCounter = 0;
   private entryIncrement = true;
-  private displayShift = false;
   private cgramMode = false;
   private pendingHighNibble: number | null = null;
   private init03Count = 0;
@@ -82,7 +81,6 @@ export class Lcd1602Runtime {
     this.cgram.fill(0);
     this.addressCounter = 0;
     this.entryIncrement = true;
-    this.displayShift = false;
     this.cgramMode = false;
     this.pendingHighNibble = null;
     this.init03Count = 0;
@@ -294,8 +292,6 @@ export class Lcd1602Runtime {
     if ((value & 0xfc) === 0x04) {
       this.entryIncrement =
         (value & 0x02) !== 0;
-      this.displayShift =
-        (value & 0x01) !== 0;
       return;
     }
 
