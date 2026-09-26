@@ -116,9 +116,7 @@ function getTerminalIds(node: CircuitNode): string[] {
   }
 
   if (type === "buzzer") {
-    // Wokwi buzzer handles are named "negative"/"positive".
-    // Keep the electrical model aligned with the actual React Flow pins.
-    return ["negative", "positive"];
+    return ["1", "2"];
   }
 
   if (type === "hc-sr04" || type === "ultrasonic") {
@@ -168,39 +166,6 @@ function getTerminalIds(node: CircuitNode): string[] {
       "COM",
       "CLN",
     ];
-  }
-
-  if (
-    type === "lcd1602" ||
-    type === "lcd-1602" ||
-    type === "lcd1602-full"
-  ) {
-    return [
-      "VSS",
-      "VDD",
-      "V0",
-      "RS",
-      "RW",
-      "E",
-      "D0",
-      "D1",
-      "D2",
-      "D3",
-      "D4",
-      "D5",
-      "D6",
-      "D7",
-      "A",
-      "K",
-    ];
-  }
-
-  if (
-    type === "lcd1602-i2c" ||
-    type === "lcd1602_i2c" ||
-    type === "lcd-i2c"
-  ) {
-    return ["GND", "VCC", "SDA", "SCL"];
   }
 
   if (
@@ -361,37 +326,11 @@ export class NetlistBuilder {
         DIG4: ["DIG4", "pin_dig4"],
         CLN: ["CLN", "pin_cln"],
 
-        // HD44780 LCD 1602.
-        VSS: ["VSS", "GND", "pin_vss"],
-        VDD: ["VDD", "VCC", "pin_vdd"],
-        V0: ["V0", "pin_v0"],
-        RS: ["RS", "pin_rs"],
-        RW: ["RW", "pin_rw"],
-        E: ["E", "EN", "pin_e", "pin_en"],
-        D0: ["D0", "pin_d0"],
-        D1: ["D1", "pin_d1"],
-        D2: ["D2", "pin_d2"],
-        D3: ["D3", "pin_d3"],
-        D4: ["D4", "pin_d4"],
-        D5: ["D5", "pin_d5"],
-        D6: ["D6", "pin_d6"],
-        D7: ["D7", "pin_d7"],
-        A: ["A", "pin_a"],
-        K: ["K", "pin_k"],
-        SDA: ["SDA", "pin_sda"],
-        SCL: ["SCL", "pin_scl"],
-        VCC: ["VCC", "pin_vcc"],
-        GND: ["GND", "pin_gnd"],
-
         // Wokwi photoresistor module uses D0/A0 handles,
         // while the electrical model uses DO/AO terminal names.
         // Keep both spellings so saved/new circuits resolve correctly.
         DO: ["DO", "D0", "pin_do", "pin_d0"],
         AO: ["AO", "A0", "pin_ao", "pin_a0"],
-
-        // Buzzer
-        negative: ["negative", "1", "pin_negative", "pin_1"],
-        positive: ["positive", "2", "pin_positive", "pin_2"],
         
       };
 
