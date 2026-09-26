@@ -645,6 +645,30 @@ const CircuitEditor = () => {
               };
             }
 
+            if (
+              componentType === "buzzer" ||
+              componentType === "hc-sr04" ||
+              componentType === "ultrasonic"
+            ) {
+              return {
+                ...node,
+                data: {
+                  ...node.data,
+                  simulation: {
+                    ...(node.data?.simulation ?? {}),
+                    buzzer:
+                      state.buzzerStates?.[node.id],
+                    ultrasonic:
+                      state.ultrasonicStates?.[node.id],
+                    traceActive:
+                      state.diagnostics.trace?.componentIds.includes(
+                        node.id,
+                      ) === true,
+                  },
+                },
+              };
+            }
+
             if (!componentType.includes("led")) {
               return node;
             }
