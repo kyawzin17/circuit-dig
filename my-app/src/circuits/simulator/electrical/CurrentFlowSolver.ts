@@ -684,7 +684,6 @@ export class CurrentFlowSolver {
     const groundNets =
       findGroundNets(
         netlist,
-        drivers,
         powerState,
       );
 
