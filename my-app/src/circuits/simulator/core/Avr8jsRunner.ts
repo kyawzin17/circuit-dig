@@ -420,7 +420,7 @@ export class Avr8jsRunner {
       return;
     }
 
-    const match = pin.match(/^([D|A])(\d+)$/i);
+    const match = pin.match(/^(D|A)(\d+)$/i);
 
     if (!match) {
       return;
