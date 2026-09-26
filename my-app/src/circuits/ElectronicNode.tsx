@@ -34,6 +34,17 @@ type SimulationState = {
     values?: number[];
     colon?: boolean;
   };
+  lcd?: {
+    text?: string;
+    characters?: number[];
+    cursorX?: number;
+    cursorY?: number;
+    displayOn?: boolean;
+    cursorOn?: boolean;
+    blink?: boolean;
+    backlight?: boolean;
+    mode?: "4bit" | "8bit" | "i2c";
+  };
   buzzer?: {
     active?: boolean;
     currentMa?: number;
@@ -182,6 +193,14 @@ const ElectronicNode = ({
     componentType === "sevensegment" ||
     componentType === "seven-segment";
 
+  const isLcd =
+    componentType === "lcd1602" ||
+    componentType === "lcd-1602" ||
+    componentType === "lcd1602-full" ||
+    componentType === "lcd1602-i2c" ||
+    componentType === "lcd1602_i2c" ||
+    componentType === "lcd-i2c";
+
   const isBuzzer = componentType === "buzzer";
 
   const isUltrasonic =
@@ -269,6 +288,67 @@ const ElectronicNode = ({
     isSevenSegment,
     simulation?.sevenSegment?.values,
     simulation?.sevenSegment?.colon,
+  ]);
+
+  // =========================================================
+  // LCD 1602 -> CIRCUIT STATE
+  // =========================================================
+  useEffect(() => {
+    if (!isLcd) {
+      return;
+    }
+
+    const element =
+      componentRef.current as
+        | (HTMLElement & {
+            characters?: number[] | Uint8Array;
+            text?: string;
+            cursorX?: number;
+            cursorY?: number;
+            displayOn?: boolean;
+            cursor?: boolean;
+            blink?: boolean;
+            backlight?: boolean;
+          })
+        | null;
+
+    if (!element) {
+      return;
+    }
+
+    const lcd = simulation?.lcd;
+    const characters =
+      Array.isArray(lcd?.characters)
+        ? lcd.characters
+        : new Array(32).fill(32);
+
+    element.characters = characters;
+    element.text =
+      typeof lcd?.text === "string"
+        ? lcd.text
+        : String.fromCharCode(...characters);
+    element.cursorX = lcd?.cursorX ?? 0;
+    element.cursorY = lcd?.cursorY ?? 0;
+    element.cursor =
+      lcd?.cursorOn === true;
+    element.blink =
+      lcd?.blink === true;
+    element.backlight =
+      lcd?.backlight !== false;
+
+    element.setAttribute(
+      "data-simulation-text",
+      element.text,
+    );
+  }, [
+    isLcd,
+    simulation?.lcd?.text,
+    simulation?.lcd?.characters,
+    simulation?.lcd?.cursorX,
+    simulation?.lcd?.cursorY,
+    simulation?.lcd?.cursorOn,
+    simulation?.lcd?.blink,
+    simulation?.lcd?.backlight,
   ]);
 
   // =========================================================
@@ -949,6 +1029,7 @@ const ElectronicNode = ({
                 isSlideSwitch ||
                 isLdr ||
                 isSevenSegment ||
+                isLcd ||
                 isBuzzer ||
                 isUltrasonic
                   ? componentRef
