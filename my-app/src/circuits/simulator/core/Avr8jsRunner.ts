@@ -5,6 +5,9 @@ import {
   timer0Config,
   timer1Config,
   timer2Config,
+  AVRTWI,
+  twiConfig,
+  type TWIEventHandler,
 } from "avr8js";
 
 import type { ArduinoUnoRuntime } from "../boards/ArduinoUnoRuntime";
@@ -62,6 +65,8 @@ export class Avr8jsRunner {
   private timer0: AVRTimer | null = null;
   private timer1: AVRTimer | null = null;
   private timer2: AVRTimer | null = null;
+  private twi: AVRTWI | null = null;
+  private gpioChangeHandler: (() => void) | null = null;
 
   loadProgram(
     program: Uint16Array,
@@ -76,6 +81,18 @@ export class Avr8jsRunner {
     this.timer1 = new AVRTimer(this.cpu, timer1Config);
     this.timer2 = new AVRTimer(this.cpu, timer2Config);
 
+    /*
+     * AVR8JS exposes the ATmega328P TWI peripheral, but it does not
+     * provide the external I2C devices. The LCD runtime supplies the
+     * TWI event handler for the PCF8574 backpack.
+     */
+    this.twi = new AVRTWI(
+      this.cpu,
+      twiConfig,
+      arduino?.getClockFrequencyHz() ?? 16_000_000,
+    );
+
+    this.installGpioWriteHooks();
     this.syncGpioToRuntime();
   }
 
@@ -85,6 +102,31 @@ export class Avr8jsRunner {
 
   getProgram(): Uint16Array | null {
     return this.program;
+  }
+
+  setGpioChangeHandler(
+    handler: (() => void) | null,
+  ): void {
+    this.gpioChangeHandler = handler;
+  }
+
+  setTwiEventHandler(
+    handler: TWIEventHandler | null,
+  ): void {
+    if (!this.twi) {
+      return;
+    }
+
+    if (handler) {
+      this.twi.eventHandler = handler;
+
+      const attachable =
+        handler as TWIEventHandler & {
+          attachTwi?: (twi: AVRTWI) => void;
+        };
+
+      attachable.attachTwi?.(this.twi);
+    }
   }
 
   /**
@@ -320,6 +362,33 @@ export class Avr8jsRunner {
     return this.cpu?.cycles ?? 0;
   }
 
+  private installGpioWriteHooks(): void {
+    if (!this.cpu) {
+      return;
+    }
+
+    const watchedRegisters = [
+      DDRB,
+      PORTB,
+      DDRC,
+      PORTC,
+      DDRD,
+      PORTD,
+    ];
+
+    for (const address of watchedRegisters) {
+      this.cpu.writeHooks[address] = (value) => {
+        if (!this.cpu) {
+          return true;
+        }
+
+        this.cpu.data[address] = value & 0xff;
+        this.syncGpioToRuntime();
+        return true;
+      };
+    }
+  }
+
   private syncGpioToRuntime(): void {
     if (!this.cpu || !this.arduino) return;
 
@@ -344,6 +413,7 @@ export class Avr8jsRunner {
     );
 
     this.syncPwmToRuntime();
+    this.gpioChangeHandler?.();
   }
 
   private syncPwmToRuntime(): void {
