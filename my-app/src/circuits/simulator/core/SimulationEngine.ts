@@ -346,19 +346,24 @@ export class SimulationEngine {
             ? (node.data.props as Record<string, unknown>)
             : {};
 
-        const address = Number(
+        const configuredAddress =
           props.address ??
-            props.i2cAddress ??
-            node.data?.i2cAddress ??
-            0x27,
-        );
+          props.i2cAddress ??
+          node.data?.i2cAddress;
+
+        const address =
+          configuredAddress === undefined
+            ? undefined
+            : Number(configuredAddress);
 
         this.lcdRuntimes.set(
           node.id,
           new Lcd1602Runtime(
             node.id,
             "i2c",
-            Number.isFinite(address) ? address : 0x27,
+            address !== undefined && Number.isFinite(address)
+              ? address
+              : undefined,
           ),
         );
       }
