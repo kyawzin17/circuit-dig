@@ -312,10 +312,14 @@ export class Lcd1602Runtime {
     if ((value & 0xe0) === 0x20) {
       if ((value & 0x10) === 0) {
         this.fourBitMode = true;
-        this.state.mode = "4bit";
+        if (this.state.mode !== "i2c") {
+          this.state.mode = "4bit";
+        }
       } else {
         this.fourBitMode = false;
-        this.state.mode = "8bit";
+        if (this.state.mode !== "i2c") {
+          this.state.mode = "8bit";
+        }
       }
       return;
     }
