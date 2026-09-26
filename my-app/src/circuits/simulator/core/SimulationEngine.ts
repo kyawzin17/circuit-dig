@@ -201,6 +201,8 @@ export class SimulationEngine {
           this.circuitEdges,
         ),
       );
+
+    this.activeTrace = undefined;
   }
 
   /**
