@@ -606,6 +606,7 @@ export class SimulationEngine {
 
       this.applyLedStates();
       this.applySevenSegmentStates();
+      this.applyLcdStates();
       this.applyBuzzerStates();
       this.applyUltrasonicStates();
       this.refreshDiagnostics();
@@ -728,6 +729,17 @@ export class SimulationEngine {
       return;
     }
 
+    /*
+     * LCD parallel bus transactions are latched on E's falling edge.
+     * The AVR runner calls this from the real PORT register transitions,
+     * so the LCD observes firmware-generated bus timing rather than
+     * receiving text directly from the React UI.
+     */
+    this.processParallelLcdGpioChange(pin);
+
+      return;
+    }
+
     for (const component of this.netlist.components) {
       const node =
         this.circuitNodes.find(
@@ -840,6 +852,115 @@ export class SimulationEngine {
           );
         }
       }
+    }
+  }
+
+  private applyLcdStates(): void {
+    const runtimeState =
+      this.arduino.getState().lcdStates;
+
+    for (const [id, runtime] of this.lcdRuntimes) {
+      runtimeState[id] = runtime.getState();
+    }
+  }
+
+  private processParallelLcdGpioChange(
+    pin: string,
+  ): void {
+    if (!this.netlist) {
+      return;
+    }
+
+    for (const component of this.netlist.components) {
+      const runtime =
+        this.lcdRuntimes.get(component.id);
+
+      if (!runtime || runtime.getState().mode === "i2c") {
+        continue;
+      }
+
+      const enableNet = component.terminals.E;
+      if (!enableNet) {
+        continue;
+      }
+
+      const enablePins =
+        this.netlist.netToPins.get(enableNet) ?? [];
+
+      const isEnablePin =
+        enablePins.some(
+          (ref) =>
+            ref.pinId.toUpperCase() ===
+            pin.toUpperCase(),
+        );
+
+      if (!isEnablePin) {
+        continue;
+      }
+
+      const resolveDigitalPin = (
+        netId: string | null | undefined,
+      ): string | null => {
+        if (!netId) {
+          return null;
+        }
+
+        const pins =
+          this.netlist!.netToPins.get(netId) ?? [];
+
+        const ref =
+          pins.find((candidate) =>
+            /^(?:D|A)\\d+$/i.test(candidate.pinId),
+          );
+
+        return ref?.pinId.toUpperCase() ?? null;
+      };
+
+      const rsPin =
+        resolveDigitalPin(component.terminals.RS);
+      const rwPin =
+        resolveDigitalPin(component.terminals.RW);
+      const ePin =
+        resolveDigitalPin(component.terminals.E);
+
+      if (!ePin) {
+        continue;
+      }
+
+      const dataPins = ["D0","D1","D2","D3","D4","D5","D6","D7"]
+        .map((name) => ({
+          name,
+          pin: resolveDigitalPin(
+            component.terminals[name],
+          ),
+        }));
+
+      const readLevel = (gpioPin: string | null): 0 | 1 =>
+        gpioPin
+          ? this.avr.getGpioLevel(gpioPin)
+          : 0;
+
+      const levels = dataPins.reduce(
+        (value, item, index) =>
+          value |
+          (readLevel(item.pin) << index),
+        0,
+      );
+
+      const mode = runtime.getState().mode;
+      const data =
+        mode === "8bit"
+          ? levels
+          : (
+              (levels >> 4) & 0x0f
+            );
+
+      runtime.processParallelEdge({
+        rs: readLevel(rsPin),
+        rw: readLevel(rwPin),
+        enable: readLevel(ePin),
+        data,
+      });
     }
   }
 
