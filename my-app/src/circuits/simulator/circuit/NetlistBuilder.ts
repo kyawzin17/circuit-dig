@@ -146,31 +146,6 @@ function getTerminalIds(node: CircuitNode): string[] {
   }
 
   if (
-    type === "7segment" ||
-    type === "sevensegment" ||
-    type === "seven-segment"
-  ) {
-    return [
-      "A",
-      "B",
-      "C",
-      "D",
-      "E",
-      "F",
-      "G",
-      "DP",
-      "COM.1",
-      "COM.2",
-      "DIG1",
-      "DIG2",
-      "DIG3",
-      "DIG4",
-      "COM",
-      "CLN",
-    ];
-  }
-
-  if (
     type === "lcd1602" ||
     type === "lcd-1602" ||
     type === "lcd1602-full"
@@ -341,7 +316,6 @@ export class NetlistBuilder {
       terminalId: string,
     ): string[] => {
       const aliases: Record<string, string[]> = {
-        A: ["A", "pin_a"],
         B: ["B", "pin_b"],
         C: ["C", "pin_c"],
         D: ["D", "pin_d"],
@@ -367,7 +341,6 @@ export class NetlistBuilder {
         V0: ["V0", "pin_v0"],
         RS: ["RS", "pin_rs"],
         RW: ["RW", "pin_rw"],
-        E: ["E", "EN", "pin_e", "pin_en"],
         D0: ["D0", "pin_d0"],
         D1: ["D1", "pin_d1"],
         D2: ["D2", "pin_d2"],
