@@ -49,6 +49,10 @@ import {
 } from "../electrical/AnalogCircuitSolver";
 
 import { intelHexToProgram } from "./IntelHex";
+import {
+  Lcd1602Runtime,
+  Lcd1602I2cEventHandler,
+} from "../components/Lcd1602Runtime";
 
 /* =========================================================
    ENGINE OPTIONS
@@ -156,6 +160,12 @@ export class SimulationEngine {
   private readonly ultrasonicTriggerLevels =
     new Map<string, 0 | 1>();
 
+  private readonly lcdRuntimes =
+    new Map<string, Lcd1602Runtime>();
+
+  private lcdI2cHandler:
+    Lcd1602I2cEventHandler | null = null;
+
   constructor(
     options: SimulationEngineOptions = {},
   ) {
@@ -211,8 +221,58 @@ export class SimulationEngine {
 
     this.activeTrace = undefined;
     this.ultrasonicTriggerLevels.clear();
+    this.lcdRuntimes.clear();
+    this.lcdI2cHandler = null;
+
+    for (const node of nodes) {
+      const type = String(
+        node.data?.componentType ??
+          node.type ??
+          "",
+      ).toLowerCase();
+
+      if (
+        type === "lcd1602" ||
+        type === "lcd-1602" ||
+        type === "lcd1602-full"
+      ) {
+        const mode = this.detectParallelLcdMode(node);
+        this.lcdRuntimes.set(
+          node.id,
+          new Lcd1602Runtime(node.id, mode),
+        );
+      } else if (
+        type === "lcd1602-i2c" ||
+        type === "lcd1602_i2c" ||
+        type === "lcd-i2c"
+      ) {
+        const props =
+          node.data?.props &&
+          typeof node.data.props === "object"
+            ? (node.data.props as Record<string, unknown>)
+            : {};
+
+        const address = Number(
+          props.address ??
+            props.i2cAddress ??
+            node.data?.i2cAddress ??
+            0x27,
+        );
+
+        this.lcdRuntimes.set(
+          node.id,
+          new Lcd1602Runtime(
+            node.id,
+            "i2c",
+            Number.isFinite(address) ? address : 0x27,
+          ),
+        );
+      }
+    }
+
     this.arduino.getState().buzzerStates = {};
     this.arduino.getState().ultrasonicStates = {};
+    this.arduino.getState().lcdStates = {};
   }
 
   /**
@@ -245,6 +305,23 @@ export class SimulationEngine {
     this.avr.loadProgram(
       program,
       this.arduino,
+    );
+
+    for (const lcd of this.lcdRuntimes.values()) {
+      lcd.reset(
+        lcd.getState().mode,
+        lcd.getState().i2cAddress,
+      );
+    }
+
+    this.lcdI2cHandler =
+      new Lcd1602I2cEventHandler(
+        () => Array.from(this.lcdRuntimes.values()),
+        this.avr.getTwi()!,
+      );
+
+    this.avr.setTwiEventHandler(
+      this.lcdI2cHandler,
     );
 
     this.digitalState = {
