@@ -10,6 +10,7 @@ type Props = {
   onStop: () => void;
   onReset: () => void;
   onTraceNet: (netId: string) => void;
+  onTraceComponent: (componentId: string) => void;
   onClearTrace: () => void;
 };
 
@@ -27,6 +28,7 @@ const SimulationDebugger: React.FC<Props> = ({
   onStop,
   onReset,
   onTraceNet,
+  onTraceComponent,
   onClearTrace,
 }) => {
   return (
@@ -135,13 +137,18 @@ const SimulationDebugger: React.FC<Props> = ({
           <div className="mb-1 text-xs font-semibold text-slate-300">Components</div>
           <div className="space-y-1">
             {diagnostics.components.map((component) => (
-              <div key={component.id} className="rounded-lg bg-slate-900 px-2 py-1.5">
+              <button
+                key={component.id}
+                onClick={() => onTraceComponent(component.id)}
+                className={`block w-full rounded-lg bg-slate-900 px-2 py-1.5 text-left transition hover:bg-slate-800 ${diagnostics.trace?.componentIds.includes(component.id) ? "ring-1 ring-cyan-400/70" : ""}`}
+                title="Trace this component"
+              >
                 <div className="flex justify-between text-[10px]">
                   <span className="truncate pr-2">{component.type}</span>
                   <span className={component.active ? "text-emerald-400" : "text-slate-500"}>{component.active ? "ON" : "OFF"}</span>
                 </div>
                 <div className="text-xs">{fmt(component.currentMa)} mA{component.powerMw !== undefined ? ` · ${fmt(component.powerMw)} mW` : ""}</div>
-              </div>
+              </button>
             ))}
           </div>
         </section>
