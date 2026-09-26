@@ -316,6 +316,8 @@ export class NetlistBuilder {
       terminalId: string,
     ): string[] => {
       const aliases: Record<string, string[]> = {
+        // Shared A terminal used by 7-segment and LCD backlight.
+        A: ["A", "pin_a"],
         B: ["B", "pin_b"],
         C: ["C", "pin_c"],
         D: ["D", "pin_d"],
