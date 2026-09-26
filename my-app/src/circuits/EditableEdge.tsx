@@ -198,11 +198,15 @@ export default function EditableEdge({
         isActive?: boolean;
         currentMa?: number;
         netId?: string;
+        traceActive?: boolean;
       }
     | undefined;
 
   const isActive =
     simulation?.isActive === true;
+
+  const isTraceActive =
+    simulation?.traceActive === true;
 
   const currentMa =
     typeof simulation?.currentMa === "number"
@@ -232,7 +236,8 @@ export default function EditableEdge({
         markerStart={markerStart}
         style={{
           stroke: style.stroke || '#0a1161',
-          strokeWidth: 6,
+          strokeWidth: isTraceActive ? 8 : 6,
+          filter: isTraceActive ? "drop-shadow(0 0 4px rgba(34,211,238,0.85))" : undefined,
           ...style,
         }}
       />
@@ -242,7 +247,7 @@ export default function EditableEdge({
           d={edgePath}
           fill="none"
           stroke={flowColor}
-          strokeWidth={3}
+          strokeWidth={isTraceActive ? 5 : 3}
           strokeLinecap="round"
           strokeLinejoin="round"
           className="circuit-wire-flow"
