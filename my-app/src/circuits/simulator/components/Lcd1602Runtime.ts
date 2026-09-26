@@ -31,6 +31,8 @@ export class Lcd1602Runtime {
   private lastE: 0 | 1 = 0;
   private pendingNibble: number | null = null;
   private fourBitMode = true;
+  private initNibbleCount = 0;
+  private initialized = false;
 
   private backlight = true;
   private displayOn = true;
@@ -72,6 +74,8 @@ export class Lcd1602Runtime {
     this.lastE = 0;
     this.pendingNibble = null;
     this.fourBitMode = true;
+    this.initNibbleCount = 0;
+    this.initialized = false;
     this.backlight = true;
     this.displayOn = true;
     this.cursorOn = false;
@@ -132,7 +136,25 @@ export class Lcd1602Runtime {
           (bus.d6 << 2) |
           (bus.d7 << 3);
 
-        if (this.pendingNibble === null) {
+        /*
+         * HD44780 4-bit initialization starts while the controller
+         * is still in 8-bit mode: 0x3, 0x3, 0x3, then 0x2 are sent
+         * as standalone nibbles. Do not pair those four pulses.
+         */
+        if (
+          !this.initialized &&
+          bus.rs === 0 &&
+          (nibble === 0x03 || nibble === 0x02)
+        ) {
+          if (nibble === 0x03) {
+            this.initNibbleCount += 1;
+          } else if (this.initNibbleCount > 0) {
+            this.initialized = true;
+            this.fourBitMode = true;
+          }
+
+          this.pendingNibble = null;
+        } else if (this.pendingNibble === null) {
           this.pendingNibble = nibble << 4;
         } else {
           const value =
@@ -164,7 +186,24 @@ export class Lcd1602Runtime {
       const nibble = (next >> 4) & 0x0f;
 
       if (rw === 0) {
-        if (this.pendingNibble === null) {
+        /*
+         * PCF8574 LCD libraries use the same standalone 0x3,0x3,0x3,0x2
+         * initialization sequence before normal 4-bit transfers.
+         */
+        if (
+          !this.initialized &&
+          rs === 0 &&
+          (nibble === 0x03 || nibble === 0x02)
+        ) {
+          if (nibble === 0x03) {
+            this.initNibbleCount += 1;
+          } else if (this.initNibbleCount > 0) {
+            this.initialized = true;
+            this.fourBitMode = true;
+          }
+
+          this.pendingNibble = null;
+        } else if (this.pendingNibble === null) {
           this.pendingNibble = nibble << 4;
         } else {
           const value8 =
