@@ -631,6 +631,10 @@ const CircuitEditor = () => {
                     ...(node.data?.simulation ?? {}),
                     sevenSegment:
                       state.sevenSegmentStates?.[node.id],
+                    traceActive:
+                      state.diagnostics.trace?.componentIds.includes(
+                        node.id,
+                      ) === true,
                   },
                 },
               };
@@ -647,6 +651,10 @@ const CircuitEditor = () => {
                 simulation: {
                   ...(node.data?.simulation ?? {}),
                   isOn: ledState?.isOn === true,
+                  traceActive:
+                    state.diagnostics.trace?.componentIds.includes(
+                      node.id,
+                    ) === true,
                   brightness:
                     typeof ledState?.brightness === "number"
                       ? ledState.brightness
@@ -677,6 +685,10 @@ const CircuitEditor = () => {
                     wireState?.currentMa,
                   netId:
                     wireState?.netId,
+                  traceActive:
+                    state.diagnostics.trace?.netIds.includes(
+                      wireState?.netId ?? "",
+                    ) === true,
                 },
               },
             };
