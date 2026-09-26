@@ -5,6 +5,9 @@ import {
   timer0Config,
   timer1Config,
   timer2Config,
+  AVRTWI,
+  twiConfig,
+  type TWIEventHandler,
 } from "avr8js";
 
 import type { ArduinoUnoRuntime } from "../boards/ArduinoUnoRuntime";
@@ -77,6 +80,7 @@ export class Avr8jsRunner {
   private timer0: AVRTimer | null = null;
   private timer1: AVRTimer | null = null;
   private timer2: AVRTimer | null = null;
+  private twi: AVRTWI | null = null;
 
   loadProgram(
     program: Uint16Array,
@@ -93,12 +97,86 @@ export class Avr8jsRunner {
     this.timer0 = new AVRTimer(this.cpu, timer0Config);
     this.timer1 = new AVRTimer(this.cpu, timer1Config);
     this.timer2 = new AVRTimer(this.cpu, timer2Config);
+    this.twi = new AVRTWI(
+      this.cpu,
+      twiConfig,
+      16_000_000,
+    );
 
     this.syncGpioToRuntime();
   }
 
   getCPU(): CPU | null {
     return this.cpu;
+  }
+
+  setTwiEventHandler(
+    handler: TWIEventHandler | null,
+  ): void {
+    if (this.twi) {
+      this.twi.eventHandler =
+        handler ??
+        this.twi.eventHandler;
+    }
+  }
+
+  getTwi(): AVRTWI | null {
+    return this.twi;
+  }
+
+  /**
+   * Read the actual ATmega328P GPIO level at the current CPU cycle.
+   * LCD parallel timing uses this at the E falling edge so the LCD
+   * sees the same firmware-generated bus values as the real MCU.
+   */
+  getGpioLevel(pin: string): 0 | 1 {
+    if (!this.cpu) {
+      return 0;
+    }
+
+    const match = pin.match(/^(D|A)(\\d+)$/i);
+    if (!match) {
+      return 0;
+    }
+
+    const prefix = match[1].toUpperCase();
+    const channel = Number(match[2]);
+
+    let port: number;
+    let ddr: number;
+    let bit: number;
+
+    if (prefix === "D" && channel >= 0 && channel <= 7) {
+      port = PORTD;
+      ddr = DDRD;
+      bit = channel;
+    } else if (prefix === "D" && channel >= 8 && channel <= 13) {
+      port = PORTB;
+      ddr = DDRB;
+      bit = channel - 8;
+    } else if (prefix === "A" && channel >= 0 && channel <= 5) {
+      port = PORTC;
+      ddr = DDRC;
+      bit = channel;
+    } else {
+      return 0;
+    }
+
+    const isOutput =
+      (this.cpu.data[ddr] & (1 << bit)) !== 0;
+
+    const register =
+      isOutput ? port : (
+        prefix === "D" && channel <= 7
+          ? PIND
+          : prefix === "D"
+            ? PINB
+            : PINC
+      );
+
+    return (this.cpu.data[register] & (1 << bit)) !== 0
+      ? 1
+      : 0;
   }
 
   getProgram(): Uint16Array | null {
@@ -698,5 +776,6 @@ export class Avr8jsRunner {
     this.timer0 = null;
     this.timer1 = null;
     this.timer2 = null;
+    this.twi = null;
   }
 }
