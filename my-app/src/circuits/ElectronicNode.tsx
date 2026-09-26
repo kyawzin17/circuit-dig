@@ -83,6 +83,13 @@ const ElectronicNode = ({
   const componentRef =
     useRef<HTMLElement | null>(null);
 
+  const buzzerAudioRef =
+    useRef<{
+      context: AudioContext;
+      oscillator: OscillatorNode;
+      gain: GainNode;
+    } | null>(null);
+
   const { setNodes } = useReactFlow();
 
   // =========================================================
@@ -433,6 +440,66 @@ const ElectronicNode = ({
     ldrRl10,
     ldrGamma,
   ]);
+
+  // =========================================================
+  // BUZZER -> BROWSER AUDIO
+  // =========================================================
+
+  useEffect(() => {
+    const stopAudio = () => {
+      const audio = buzzerAudioRef.current;
+      if (!audio) return;
+      try {
+        audio.gain.gain.setTargetAtTime(0, audio.context.currentTime, 0.01);
+        audio.oscillator.stop(audio.context.currentTime + 0.02);
+      } catch {
+        // Oscillator may already be stopped.
+      }
+      void audio.context.close();
+      buzzerAudioRef.current = null;
+    };
+
+    if (!isBuzzer || !buzzerActive || !buzzerFrequency) {
+      stopAudio();
+      return;
+    }
+
+    if (buzzerAudioRef.current) {
+      buzzerAudioRef.current.oscillator.frequency.setTargetAtTime(
+        Math.max(20, Math.min(20000, buzzerFrequency)),
+        buzzerAudioRef.current.context.currentTime,
+        0.005,
+      );
+      return stopAudio;
+    }
+
+    const AudioContextClass =
+      window.AudioContext ||
+      (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+
+    if (!AudioContextClass) return;
+
+    try {
+      const context = new AudioContextClass();
+      const oscillator = context.createOscillator();
+      const gain = context.createGain();
+
+      oscillator.type = "square";
+      oscillator.frequency.value = Math.max(20, Math.min(20000, buzzerFrequency));
+      gain.gain.value = 0.035;
+
+      oscillator.connect(gain);
+      gain.connect(context.destination);
+      oscillator.start();
+      void context.resume();
+
+      buzzerAudioRef.current = { context, oscillator, gain };
+    } catch {
+      // Browser audio permission/autoplay restrictions are non-fatal.
+    }
+
+    return stopAudio;
+  }, [isBuzzer, buzzerActive, buzzerFrequency]);
 
   // =========================================================
   // HC-SR04 -> SIMULATED DISTANCE
