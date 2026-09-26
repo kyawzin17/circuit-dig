@@ -119,6 +119,10 @@ function getTerminalIds(node: CircuitNode): string[] {
     return ["1", "2"];
   }
 
+  if (type === "hc-sr04" || type === "ultrasonic") {
+    return ["VCC", "TRIG", "ECHO", "GND"];
+  }
+
   if (type === "capacitor" || type === "cap") {
     return ["pin1", "pin2"];
   }
