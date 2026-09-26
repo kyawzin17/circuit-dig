@@ -806,6 +806,10 @@ const handleClearTrace = () => {
   simulationEngine.current?.clearTrace();
 };
 
+const handleTraceComponent = (componentId: string) => {
+  simulationEngine.current?.traceComponent(componentId);
+};
+
 const handleResetSimulation = () => {
   simulationEngine.current?.reset();
   useSimulationStore.getState().reset();
@@ -2771,6 +2775,7 @@ const toggleCode = useCallback(() => {
           onStop={handleStopSimulation}
           onReset={handleResetSimulation}
           onTraceNet={handleTraceNet}
+          onTraceComponent={handleTraceComponent}
           onClearTrace={handleClearTrace}
         />
       )}
