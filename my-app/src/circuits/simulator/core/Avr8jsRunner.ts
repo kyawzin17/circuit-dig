@@ -140,6 +140,14 @@ export class Avr8jsRunner {
         "C",
       );
 
+    this.cpu.data[PIND] =
+      this.composeInputRegister(
+        DDRD,
+        PORTD,
+        levels,
+        "D",
+      );
+
     this.externalDigitalInputs = { ...levels };
     this.applyScheduledDigitalPulses();
   }
