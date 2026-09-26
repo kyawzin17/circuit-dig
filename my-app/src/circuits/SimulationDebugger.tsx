@@ -9,6 +9,8 @@ type Props = {
   onStep: () => void;
   onStop: () => void;
   onReset: () => void;
+  onTraceNet: (netId: string) => void;
+  onClearTrace: () => void;
 };
 
 const fmt = (value: number | undefined, digits = 2) =>
@@ -24,6 +26,8 @@ const SimulationDebugger: React.FC<Props> = ({
   onStep,
   onStop,
   onReset,
+  onTraceNet,
+  onClearTrace,
 }) => {
   return (
     <div className="absolute bottom-20 right-4 z-50 w-90 max-h-[70vh] overflow-hidden rounded-2xl border border-slate-700 bg-slate-950/95 text-slate-100 shadow-2xl backdrop-blur">
@@ -83,16 +87,49 @@ const SimulationDebugger: React.FC<Props> = ({
           <div className="mb-1 text-xs font-semibold text-slate-300">Nets</div>
           <div className="space-y-1">
             {diagnostics.nets.map((net) => (
-              <div key={net.netId} className="rounded-lg bg-slate-900 px-2 py-1.5">
+              <button
+                key={net.netId}
+                onClick={() => onTraceNet(net.netId)}
+                className={`block w-full rounded-lg bg-slate-900 px-2 py-1.5 text-left transition hover:bg-slate-800 ${diagnostics.trace?.netIds.includes(net.netId) ? "ring-1 ring-cyan-400/70" : ""}`}
+                title="Trace this net"
+              >
                 <div className="flex justify-between text-[10px]">
                   <span>{net.netId}</span>
                   <span className={net.active ? "text-emerald-400" : "text-slate-500"}>{net.active ? "ACTIVE" : "idle"}</span>
                 </div>
                 <div className="text-xs">{fmt(net.voltage)} V · {fmt(net.currentMa)} mA</div>
-              </div>
+              </button>
             ))}
           </div>
         </section>
+
+        {diagnostics.trace && (
+          <section>
+            <div className="mb-1 flex items-center justify-between text-xs font-semibold text-cyan-300">
+              <span>Trace · {diagnostics.trace.target}</span>
+              <button onClick={onClearTrace} className="text-[10px] text-slate-400 hover:text-white">Clear</button>
+            </div>
+            <div className="rounded-lg border border-cyan-900/60 bg-cyan-950/30 p-2">
+              <div className="text-[10px] text-slate-300">{diagnostics.trace.summary}</div>
+              <div className="mt-2 space-y-1">
+                {diagnostics.trace.steps.slice(0, 24).map((step, index) => (
+                  <div key={step.kind + ":" + step.id + ":" + index} className="flex items-center gap-2 text-[10px]">
+                    <span className="w-16 shrink-0 uppercase text-slate-500">{step.kind}</span>
+                    <span className="truncate text-slate-200">{step.label}</span>
+                    {step.currentMa !== undefined && <span className="ml-auto text-slate-400">{fmt(step.currentMa)}mA</span>}
+                  </div>
+                ))}
+              </div>
+              {diagnostics.trace.faults.length > 0 && (
+                <div className="mt-2 space-y-1">
+                  {diagnostics.trace.faults.map((fault) => (
+                    <div key={fault} className="text-[10px] text-red-300">{fault}</div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </section>
+        )}
 
         <section>
           <div className="mb-1 text-xs font-semibold text-slate-300">Components</div>
