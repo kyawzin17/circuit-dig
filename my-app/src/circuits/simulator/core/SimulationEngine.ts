@@ -47,6 +47,10 @@ import {
 } from "../electrical/AnalogCircuitSolver";
 
 import { intelHexToProgram } from "./IntelHex";
+import {
+  Lcd1602I2cBus,
+  Lcd1602Runtime,
+} from "../components/Lcd1602Runtime";
 
 /* =========================================================
    ENGINE OPTIONS
@@ -92,6 +96,12 @@ export class SimulationEngine {
 
   private readonly analogCircuitSolver =
     new AnalogCircuitSolver();
+
+  private readonly lcdI2cBus =
+    new Lcd1602I2cBus();
+
+  private readonly lcdRuntimes =
+    new Map<string, Lcd1602Runtime>();
 
   private readonly options: SimulationEngineOptions;
 
@@ -159,6 +169,10 @@ export class SimulationEngine {
       1,
       Math.floor(frequency / 60),
     );
+
+    this.avr.setGpioChangeHandler(() => {
+      this.handleLcdParallelBusChange();
+    });
   }
 
   getStatus(): SimulationStatus {
@@ -198,6 +212,8 @@ export class SimulationEngine {
           this.circuitEdges,
         ),
       );
+
+    this.configureLcdDevices(nodes);
   }
 
   /**
@@ -226,10 +242,15 @@ export class SimulationEngine {
     }
 
     this.arduino.reset();
+    this.lcdI2cBus.reset();
 
     this.avr.loadProgram(
       program,
       this.arduino,
+    );
+
+    this.avr.setTwiEventHandler(
+      this.lcdI2cBus,
     );
 
     this.digitalState = {
@@ -512,6 +533,7 @@ export class SimulationEngine {
 
       this.applyLedStates();
       this.applySevenSegmentStates();
+      this.applyLcdStates();
       this.refreshDiagnostics();
 
       this.emit();
@@ -867,6 +889,204 @@ export class SimulationEngine {
     }
   }
 
+  private configureLcdDevices(
+    nodes: Node[],
+  ): void {
+    this.lcdRuntimes.clear();
+
+    for (const node of nodes) {
+      const type = String(
+        node.data?.componentType ??
+          node.type ??
+          "",
+      ).toLowerCase();
+
+      if (
+        type !== "lcd1602" &&
+        type !== "lcd-1602" &&
+        type !== "lcd1602-full" &&
+        type !== "lcd1602-i2c" &&
+        type !== "lcd-1602-i2c"
+      ) {
+        continue;
+      }
+
+      const props =
+        node.data?.props &&
+        typeof node.data.props === "object"
+          ? (node.data.props as Record<string, unknown>)
+          : {};
+
+      const rawAddress =
+        props.i2cAddress ??
+        node.data?.i2cAddress ??
+        "0x27";
+
+      const parsedAddress =
+        typeof rawAddress === "number"
+          ? rawAddress
+          : Number(
+              String(rawAddress).trim(),
+            );
+
+      const i2cAddress =
+        Number.isFinite(parsedAddress)
+          ? parsedAddress
+          : 0x27;
+
+      this.lcdRuntimes.set(
+        node.id,
+        new Lcd1602Runtime(
+          node.id,
+          i2cAddress,
+        ),
+      );
+    }
+
+    this.lcdI2cBus.setDevices(
+      Array.from(
+        this.lcdRuntimes.values(),
+      ).filter((runtime) =>
+        this.isI2cLcd(runtime.id),
+      ),
+    );
+  }
+
+  private isI2cLcd(
+    nodeId: string,
+  ): boolean {
+    const node =
+      this.circuitNodes.find(
+        (candidate) =>
+          candidate.id === nodeId,
+      );
+
+    if (!node) {
+      return false;
+    }
+
+    const type = String(
+      node.data?.componentType ??
+        node.type ??
+        "",
+    ).toLowerCase();
+
+    return (
+      type === "lcd1602-i2c" ||
+      type === "lcd-1602-i2c"
+    );
+  }
+
+  private readNetDigitalLevel(
+    netId: string | null,
+    drivers: ReturnType<
+      ArduinoUnoRuntime["getDigitalDrivers"]
+    >,
+  ): 0 | 1 {
+    if (!netId || !this.netlist) {
+      return 0;
+    }
+
+    const voltage =
+      this.powerState.netVoltages[netId];
+
+    if (typeof voltage === "number") {
+      return voltage >= 2.5 ? 1 : 0;
+    }
+
+    const pins =
+      this.netlist.netToPins.get(netId) ?? [];
+
+    for (const pin of pins) {
+      const driver =
+        drivers.find(
+          (candidate) =>
+            candidate.pin.toUpperCase() ===
+            pin.pinId.toUpperCase(),
+        );
+
+      if (driver) {
+        return driver.level;
+      }
+    }
+
+    return 0;
+  }
+
+  /**
+   * GPIO writes are observed at the AVR port-register boundary.
+   * This catches short E pulses that would be invisible if we only
+   * sampled the bus once per 60 Hz simulation frame.
+   */
+  private handleLcdParallelBusChange(): void {
+    if (!this.netlist) {
+      return;
+    }
+
+    const drivers =
+      this.arduino.getDigitalDrivers();
+
+    for (const component of this.netlist.components) {
+      const runtime =
+        this.lcdRuntimes.get(
+          component.id,
+        );
+
+      if (!runtime || this.isI2cLcd(component.id)) {
+        continue;
+      }
+
+      const level = (
+        name: string,
+      ): 0 | 1 =>
+        this.readNetDigitalLevel(
+          component.terminals[name],
+          drivers,
+        );
+
+      const lowNibbleWired = [
+        "D0",
+        "D1",
+        "D2",
+        "D3",
+      ].some(
+        (name) =>
+          typeof component.terminals[name] ===
+          "string",
+      );
+
+      runtime.processParallelBus({
+        rs: level("RS"),
+        rw: level("RW"),
+        e: level("E"),
+        d0: level("D0"),
+        d1: level("D1"),
+        d2: level("D2"),
+        d3: level("D3"),
+        d4: level("D4"),
+        d5: level("D5"),
+        d6: level("D6"),
+        d7: level("D7"),
+        lowNibbleWired,
+      });
+    }
+
+    this.applyLcdStates();
+  }
+
+  private applyLcdStates(): void {
+    const states =
+      this.arduino.getState().lcdStates;
+
+    for (const [
+      id,
+      runtime,
+    ] of this.lcdRuntimes) {
+      states[id] =
+        runtime.getState();
+    }
+  }
+
   private applyLedStates(): void {
     for (const node of this.circuitNodes) {
       const type = String(
@@ -950,6 +1170,7 @@ export class SimulationEngine {
   stop(): void {
     this.clock.stop();
     this.arduino.reset();
+    this.lcdI2cBus.reset();
     this.simulatedCycles = 0;
     this.frameCount = 0;
 
@@ -999,6 +1220,7 @@ export class SimulationEngine {
   reset(): void {
     this.clock.stop();
     this.arduino.reset();
+    this.lcdI2cBus.reset();
     this.simulatedCycles = 0;
     this.frameCount = 0;
     this.avr.reset();
