@@ -107,6 +107,19 @@ export interface SevenSegmentRuntimeState {
   colon: boolean;
 }
 
+export interface Lcd1602RuntimeState {
+  id: string;
+  lines: [string, string];
+  characters: number[];
+  cursorX: number;
+  cursorY: number;
+  backlight: boolean;
+  displayOn: boolean;
+  cursorOn: boolean;
+  blink: boolean;
+  i2cAddress: number;
+}
+
 // =====================================================
 // WIRE RUNTIME STATE
 // =====================================================
@@ -192,6 +205,7 @@ export interface ArduinoUnoRuntimeState {
   resistorStates: Record<string, ResistorRuntimeState>;
 
   sevenSegmentStates: Record<string, SevenSegmentRuntimeState>;
+  lcdStates: Record<string, Lcd1602RuntimeState>;
 
   wireStates: Record<string, WireRuntimeState>;
 
