@@ -33,6 +33,16 @@ type SimulationState = {
     values?: number[];
     colon?: boolean;
   };
+  lcd?: {
+    lines?: [string, string];
+    characters?: number[];
+    cursorX?: number;
+    cursorY?: number;
+    backlight?: boolean;
+    displayOn?: boolean;
+    cursorOn?: boolean;
+    blink?: boolean;
+  };
 };
 
 const ElectronicNode = ({
@@ -163,6 +173,13 @@ const ElectronicNode = ({
     componentType === "sevensegment" ||
     componentType === "seven-segment";
 
+  const isLcd =
+    componentType === "lcd1602" ||
+    componentType === "lcd-1602" ||
+    componentType === "lcd1602-full" ||
+    componentType === "lcd1602-i2c" ||
+    componentType === "lcd-1602-i2c";
+
   const potentiometerPosition =
     typeof data.potentiometerPosition === "number"
       ? Math.max(
@@ -231,6 +248,68 @@ const ElectronicNode = ({
     isSevenSegment,
     simulation?.sevenSegment?.values,
     simulation?.sevenSegment?.colon,
+  ]);
+
+  // =========================================================
+  // LCD1602 -> CIRCUIT STATE
+  // =========================================================
+  useEffect(() => {
+    if (!isLcd) {
+      return;
+    }
+
+    const element =
+      componentRef.current as
+        | (HTMLElement & {
+            text?: string;
+            backlight?: boolean;
+            cursorX?: number;
+            cursorY?: number;
+            cursor?: boolean;
+            blink?: boolean;
+          })
+        | null;
+
+    if (!element) {
+      return;
+    }
+
+    const lcd = simulation?.lcd;
+    const lines =
+      Array.isArray(lcd?.lines)
+        ? lcd.lines
+        : ["                ", "                "];
+
+    const text =
+      lines
+        .map((line) =>
+          String(line ?? "")
+            .padEnd(16, " ")
+            .slice(0, 16),
+        )
+        .join("");
+
+    element.text = text;
+    element.backlight =
+      lcd?.backlight !== false &&
+      lcd?.displayOn !== false;
+
+    if (typeof lcd?.cursorX === "number") {
+      element.cursorX = lcd.cursorX;
+    }
+
+    if (typeof lcd?.cursorY === "number") {
+      element.cursorY = lcd.cursorY;
+    }
+
+    element.cursor =
+      lcd?.cursorOn === true;
+    element.blink =
+      lcd?.blink === true;
+
+  }, [
+    isLcd,
+    simulation?.lcd,
   ]);
 
   // =========================================================
@@ -719,7 +798,8 @@ const ElectronicNode = ({
                 isPotentiometer ||
                 isSlideSwitch ||
                 isLdr ||
-                isSevenSegment
+                isSevenSegment ||
+                isLcd
                   ? componentRef
                   : undefined,
             }
