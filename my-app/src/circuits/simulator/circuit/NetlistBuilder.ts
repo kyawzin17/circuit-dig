@@ -351,7 +351,7 @@ export class NetlistBuilder {
         D5: ["D5", "pin_d5"],
         D6: ["D6", "pin_d6"],
         D7: ["D7", "pin_d7"],
-        A: ["A", "pin_a"],
+
         K: ["K", "pin_k"],
         SDA: ["SDA", "pin_sda"],
         SCL: ["SCL", "pin_scl"],
