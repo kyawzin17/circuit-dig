@@ -85,6 +85,9 @@ export class Avr8jsRunner {
     this.program = program;
     this.cpu = new CPU(program);
     this.arduino = arduino ?? null;
+    this.externalDigitalInputs = {};
+    this.scheduledDigitalPulses = [];
+    this.toggleCounts = {};
 
     // Arduino UNO's Timer0 drives millis()/micros()/delay().
     this.timer0 = new AVRTimer(this.cpu, timer0Config);
