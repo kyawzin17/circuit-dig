@@ -310,6 +310,8 @@ export class NetlistBuilder {
         F: ["F", "pin_f"],
         G: ["G", "pin_g"],
         DP: ["DP", "pin_dp"],
+
+        // 7-segment common pins.
         "COM.1": ["COM.1", "COM1", "pin_com1"],
         "COM.2": ["COM.2", "COM2", "pin_com2"],
         COM: ["COM", "pin_com", "pin_com1", "pin_com2"],
@@ -318,6 +320,12 @@ export class NetlistBuilder {
         DIG3: ["DIG3", "pin_dig3"],
         DIG4: ["DIG4", "pin_dig4"],
         CLN: ["CLN", "pin_cln"],
+
+        // Wokwi photoresistor module uses D0/A0 handles,
+        // while the electrical model uses DO/AO terminal names.
+        // Keep both spellings so saved/new circuits resolve correctly.
+        DO: ["DO", "D0", "pin_do", "pin_d0"],
+        AO: ["AO", "A0", "pin_ao", "pin_a0"],
       };
 
       return aliases[terminalId] ?? [
