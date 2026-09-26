@@ -569,64 +569,101 @@ function buildComponentEdges(
   return edges;
 }
 
-function findPathToGround(
+function findAllPathsToTargets(
   sourceNet: string,
-  groundNets: Set<string>,
+  targetNets: Set<string>,
   adjacency: Map<string, ComponentEdge[]>,
-): ComponentEdge[] | null {
-  if (groundNets.has(sourceNet)) {
-    return [];
+  maxPaths = 128,
+): ComponentEdge[][] {
+  const paths: ComponentEdge[][] = [];
+
+  if (targetNets.has(sourceNet)) {
+    return [[]];
   }
 
-  const queue: string[] = [sourceNet];
-  const visited = new Set<string>([sourceNet]);
+  type SearchState = {
+    netId: string;
+    path: ComponentEdge[];
+    visited: Set<string>;
+  };
 
-  const previous = new Map<
-    string,
+  const stack: SearchState[] = [
     {
-      previousNet: string;
-      edge: ComponentEdge;
-    }
-  >();
+      netId: sourceNet,
+      path: [],
+      visited: new Set([sourceNet]),
+    },
+  ];
 
-  while (queue.length > 0) {
-    const currentNet = queue.shift()!;
+  while (stack.length > 0 && paths.length < maxPaths) {
+    const state = stack.pop()!;
 
-    for (const edge of adjacency.get(currentNet) ?? []) {
-      if (visited.has(edge.toNet)) {
+    for (const edge of adjacency.get(state.netId) ?? []) {
+      if (state.visited.has(edge.toNet)) {
         continue;
       }
 
-      visited.add(edge.toNet);
-      previous.set(edge.toNet, {
-        previousNet: currentNet,
+      const nextPath = [
+        ...state.path,
         edge,
-      });
+      ];
 
-      if (groundNets.has(edge.toNet)) {
-        const path: ComponentEdge[] = [];
-        let cursor = edge.toNet;
-
-        while (cursor !== sourceNet) {
-          const step = previous.get(cursor);
-
-          if (!step) {
-            return null;
-          }
-
-          path.push(step.edge);
-          cursor = step.previousNet;
+      if (targetNets.has(edge.toNet)) {
+        paths.push(nextPath);
+        if (paths.length >= maxPaths) {
+          break;
         }
-
-        path.reverse();
-        return path;
+        continue;
       }
 
-      queue.push(edge.toNet);
+      const nextVisited = new Set(state.visited);
+      nextVisited.add(edge.toNet);
+
+      stack.push({
+        netId: edge.toNet,
+        path: nextPath,
+        visited: nextVisited,
+      });
     }
   }
 
-  return null;
+  return paths;
+}
+
+function findSinkNets(
+  netlist: Netlist,
+  drivers: ArduinoDigitalDriver[],
+): Set<string> {
+  const sinkNets = new Set<string>();
+
+  for (const driver of drivers) {
+    if (driver.mode !== "output") {
+      continue;
+    }
+
+    const pwmDuty = driver.pwmDuty;
+    const isHigh =
+      driver.level === 1 ||
+      (pwmDuty ?? 0) > 0;
+
+    if (isHigh) {
+      continue;
+    }
+
+    for (const [netId, pins] of netlist.netToPins) {
+      if (
+        pins.some(
+          (pin) =>
+            pin.pinId.toUpperCase() ===
+            driver.pin.toUpperCase(),
+        )
+      ) {
+        sinkNets.add(netId);
+      }
+    }
+  }
+
+  return sinkNets;
 }
 
 export class CurrentFlowSolver {
@@ -720,144 +757,173 @@ export class CurrentFlowSolver {
     let firstVoltageDrop: number | undefined;
     let firstSourceVoltage: number | undefined;
 
+    const sinkNets = findSinkNets(
+      netlist,
+      drivers,
+    );
+
+    const targetNets = new Set<string>([
+      ...groundNets,
+      ...sinkNets,
+    ]);
+
+    /*
+     * A digital LOW GPIO is an electrical current sink.
+     * This is required for common-anode displays:
+     *
+     *   5V -> COM -> segment -> resistor -> GPIO LOW
+     *
+     * Ground-only path finding would incorrectly mark that
+     * circuit inactive.
+     */
+    const wireCurrentById = new Map<string, number>();
+
     for (const [
       sourceNet,
       sourceVoltage,
     ] of sourceNets) {
-      /*
-       * A source net that is already GND is a short
-       * circuit, not a normal current-flow path.
-       */
-      if (groundNets.has(sourceNet)) {
+      if (targetNets.has(sourceNet)) {
         conflicts.push(
           "SHORT_CIRCUIT:" + sourceNet,
         );
         continue;
       }
 
-      const path = findPathToGround(
+      /*
+       * One source net can feed many parallel branches. This is
+       * important for a 7-segment display where one COM net feeds
+       * A..G/DP independently.
+       */
+      const paths = findAllPathsToTargets(
         sourceNet,
-        groundNets,
+        targetNets,
         adjacency,
       );
 
-      if (!path) {
-        continue;
-      }
+      for (const path of paths) {
+        const pathNets = new Set<string>([
+          sourceNet,
+        ]);
 
-      const pathNets = new Set<string>([
-        sourceNet,
-      ]);
+        let totalResistance = 0;
+        let totalVoltageDrop = 0;
 
-      let totalResistance = 0;
-      let totalVoltageDrop = 0;
+        for (const edge of path) {
+          pathNets.add(edge.fromNet);
+          pathNets.add(edge.toNet);
+          activeComponents.add(
+            edge.componentId,
+          );
 
-      for (const edge of path) {
-        pathNets.add(edge.fromNet);
-        pathNets.add(edge.toNet);
-        activeComponents.add(
-          edge.componentId,
-        );
+          totalResistance +=
+            edge.resistanceOhm;
 
-        totalResistance +=
-          edge.resistanceOhm;
+          totalVoltageDrop +=
+            edge.voltageDrop;
+        }
 
-        totalVoltageDrop +=
-          edge.voltageDrop;
-      }
+        for (const netId of pathNets) {
+          activeNets.add(netId);
+        }
 
-      for (const netId of pathNets) {
-        activeNets.add(netId);
-      }
+        let pathCurrentMa: number | undefined;
 
-      /*
-       * This is intentionally a first-order DC
-       * calculation, not a SPICE solver.
-       *
-       * For a simple Arduino -> resistor -> LED
-       * -> GND path:
-       *
-       *   I = (Vs - Vf) / R
-       */
-      let pathCurrentMa: number | undefined;
+        if (totalResistance > 0) {
+          const currentA = Math.max(
+            0,
+            (sourceVoltage -
+              totalVoltageDrop) /
+              totalResistance,
+          );
 
-      if (totalResistance > 0) {
-        const currentA = Math.max(
-          0,
-          (sourceVoltage -
-            totalVoltageDrop) /
-            totalResistance,
-        );
+          const duty =
+            sourceDuties.get(sourceNet) ?? 1;
 
-        const duty =
-          sourceDuties.get(sourceNet) ?? 1;
+          pathCurrentMa =
+            currentA * 1000 * duty;
 
-        pathCurrentMa =
-          currentA * 1000 * duty;
+          if (pathCurrentMa !== undefined) {
+            for (const edge of path) {
+              const previous =
+                componentCurrentMa[
+                  edge.componentId
+                ];
 
-        /*
-         * Visual LED brightness is intentionally a simple
-         * current-based model. 20 mA is treated as the
-         * reference "full brightness" point.
-         *
-         * This is not a photometric LED model; it gives
-         * resistor-value changes a visible effect while
-         * keeping the electrical solver first-order.
-         */
-        if (pathCurrentMa !== undefined) {
-          for (const edge of path) {
-            const previous = componentCurrentMa[edge.componentId];
-            componentCurrentMa[edge.componentId] =
-              previous === undefined
-                ? pathCurrentMa
-                : Math.max(previous, pathCurrentMa);
-            componentVoltageDrop[edge.componentId] =
-              Math.max(componentVoltageDrop[edge.componentId] ?? 0, edge.voltageDrop);
+              componentCurrentMa[
+                edge.componentId
+              ] =
+                previous === undefined
+                  ? pathCurrentMa
+                  : Math.max(
+                      previous,
+                      pathCurrentMa,
+                    );
 
-            if (edge.componentType === "led") {
-              componentBrightness[
+              componentVoltageDrop[
                 edge.componentId
               ] = Math.max(
-                0,
-                Math.min(
-                  1,
-                  pathCurrentMa / 20,
-                ),
+                componentVoltageDrop[
+                  edge.componentId
+                ] ?? 0,
+                edge.voltageDrop,
               );
+
+              if (
+                edge.componentType === "led" ||
+                edge.componentType === "7segment"
+              ) {
+                componentBrightness[
+                  edge.componentId
+                ] = Math.max(
+                  componentBrightness[
+                    edge.componentId
+                  ] ?? 0,
+                  Math.min(
+                    1,
+                    pathCurrentMa / 20,
+                  ),
+                );
+              }
             }
+          }
+
+          if (
+            firstCurrentMa === undefined ||
+            pathCurrentMa > firstCurrentMa
+          ) {
+            firstCurrentMa =
+              pathCurrentMa;
+            firstVoltageDrop =
+              totalVoltageDrop;
+            firstSourceVoltage =
+              sourceVoltage;
           }
         }
 
-        if (
-          firstCurrentMa === undefined ||
-          pathCurrentMa > firstCurrentMa
-        ) {
-          firstCurrentMa = pathCurrentMa;
-          firstVoltageDrop =
-            totalVoltageDrop;
-          firstSourceVoltage =
-            sourceVoltage;
-        }
-      }
-
-      /*
-       * All wires whose electrical net belongs
-       * to the discovered source-to-ground path
-       * are energized.
-       */
-      for (const [
-        wireId,
-        netId,
-      ] of netlist.wireToNet) {
-        if (!pathNets.has(netId)) {
-          continue;
-        }
-
-        wireStates[wireId] = {
-          isActive: true,
-          currentMa: pathCurrentMa,
+        for (const [
+          wireId,
           netId,
-        };
+        ] of netlist.wireToNet) {
+          if (!pathNets.has(netId)) {
+            continue;
+          }
+
+          const previous =
+            wireCurrentById.get(wireId) ?? 0;
+
+          wireCurrentById.set(
+            wireId,
+            previous +
+              (pathCurrentMa ?? 0),
+          );
+
+          wireStates[wireId] = {
+            isActive: true,
+            currentMa:
+              wireCurrentById.get(wireId),
+            netId,
+          };
+        }
       }
     }
 
