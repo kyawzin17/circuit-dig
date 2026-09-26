@@ -602,8 +602,17 @@ export class SimulationEngine {
       const node = nodeById.get(component.id);
       if (!node) continue;
       const type = String(node.data?.componentType ?? node.type ?? "unknown").toLowerCase();
-      const active = this.currentFlowState.activeComponents.has(component.id);
-      const currentMa = this.currentFlowState.componentCurrentMa[component.id];
+      const active =
+        this.currentFlowState.activeComponents.has(component.id) ||
+        (type === "buzzer" &&
+          this.arduino.getState().buzzerStates[component.id]?.active === true) ||
+        ((type === "hc-sr04" || type === "ultrasonic") &&
+          (
+            this.arduino.getState().ultrasonicStates[component.id]?.echoHigh === true ||
+            this.arduino.getState().ultrasonicStates[component.id]?.triggerActive === true
+          ));
+      const currentMa = this.currentFlowState.componentCurrentMa[component.id] ??
+        this.arduino.getState().buzzerStates[component.id]?.currentMa;
       const voltageDrop = this.currentFlowState.componentVoltageDrop[component.id] ?? (type.includes("led") && active ? 2 : undefined);
       diagnostics.components.push({
         id: component.id, type, voltageDrop, currentMa,
