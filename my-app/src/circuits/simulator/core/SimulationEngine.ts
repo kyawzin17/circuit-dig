@@ -149,6 +149,13 @@ export class SimulationEngine {
   private frameCount = 0;
   private activeTrace: SimulationTrace | undefined;
 
+  /**
+   * Last observed TRIG level for each HC-SR04.
+   * The AVR runner reports GPIO edges while executing the real firmware.
+   */
+  private readonly ultrasonicTriggerLevels =
+    new Map<string, 0 | 1>();
+
   constructor(
     options: SimulationEngineOptions = {},
   ) {
@@ -203,6 +210,9 @@ export class SimulationEngine {
       );
 
     this.activeTrace = undefined;
+    this.ultrasonicTriggerLevels.clear();
+    this.arduino.getState().buzzerStates = {};
+    this.arduino.getState().ultrasonicStates = {};
   }
 
   /**
@@ -463,6 +473,8 @@ export class SimulationEngine {
 
           this.avr.runCycles(
             this.cyclesPerFrame,
+            (change) =>
+              this.handleGpioChange(change.pin, change.level, change.cycle),
           );
         }
       }
@@ -517,6 +529,8 @@ export class SimulationEngine {
 
       this.applyLedStates();
       this.applySevenSegmentStates();
+      this.applyBuzzerStates();
+      this.applyUltrasonicStates();
       this.refreshDiagnostics();
 
       this.emit();
@@ -619,6 +633,130 @@ export class SimulationEngine {
   getDiagnostics(): SimulationDiagnostics {
     return this.arduino.getState().diagnostics;
   }
+  private handleGpioChange(
+    pin: string,
+    level: 0 | 1,
+    cycle: number,
+  ): void {
+    if (!this.netlist) {
+      return;
+    }
+
+    for (const component of this.netlist.components) {
+      const node =
+        this.circuitNodes.find(
+          (candidate) => candidate.id === component.id,
+        );
+
+      if (!node) {
+        continue;
+      }
+
+      const type = String(
+        node.data?.componentType ??
+          node.type ??
+          "",
+      ).toLowerCase();
+
+      if (type !== "hc-sr04" && type !== "ultrasonic") {
+        continue;
+      }
+
+      const trigNet =
+        component.terminals.TRIG ??
+        component.terminals.trig;
+
+      if (!trigNet) {
+        continue;
+      }
+
+      const trigPins =
+        this.netlist.netToPins.get(trigNet) ?? [];
+
+      const isConnectedToPin =
+        trigPins.some(
+          (ref) =>
+            ref.pinId.toUpperCase() ===
+            pin.toUpperCase(),
+        );
+
+      if (!isConnectedToPin) {
+        continue;
+      }
+
+      const previous =
+        this.ultrasonicTriggerLevels.get(node.id) ?? 0;
+
+      this.ultrasonicTriggerLevels.set(
+        node.id,
+        level,
+      );
+
+      /*
+       * HC-SR04 starts a measurement after a HIGH trigger pulse.
+       * Arduino code normally drives TRIG HIGH for >=10us then LOW.
+       * We schedule the ECHO pulse on the falling edge, after a small
+       * acoustic/processing delay. The pulse width follows the real
+       * HC-SR04 relation: distance(cm) = echo_us / 58.
+       */
+      if (previous === 1 && level === 0) {
+        const props =
+          node.data?.props &&
+          typeof node.data.props === "object"
+            ? (node.data.props as Record<string, unknown>)
+            : {};
+
+        const rawDistance =
+          node.data?.ultrasonicDistanceCm ??
+          props.distance ??
+          100;
+
+        const distanceCm = Math.max(
+          2,
+          Math.min(
+            400,
+            Number(rawDistance) || 100,
+          ),
+        );
+
+        const echoDelayUs = 100;
+        const echoPulseUs = distanceCm * 58;
+        const echoStartCycle =
+          cycle +
+          Math.round(echoDelayUs * 16);
+
+        const echoDurationCycles =
+          Math.max(
+            1,
+            Math.round(echoPulseUs * 16),
+          );
+
+        const echoNet =
+          component.terminals.ECHO ??
+          component.terminals.echo;
+
+        if (!echoNet) {
+          continue;
+        }
+
+        const echoPins =
+          this.netlist.netToPins.get(echoNet) ?? [];
+
+        for (const echoPin of echoPins) {
+          if (!/^(?:D|A)\\d+$/i.test(echoPin.pinId)) {
+            continue;
+          }
+
+          this.avr.scheduleDigitalPulse(
+            echoPin.pinId.toUpperCase(),
+            echoStartCycle,
+            echoDurationCycles,
+          );
+        }
+      }
+    }
+  }
+
   private applySevenSegmentStates(): void {
     if (!this.netlist) {
       return;
@@ -871,6 +1009,187 @@ export class SimulationEngine {
         colon,
       };
     }
+  }
+
+  private applyBuzzerStates(): void {
+    if (!this.netlist) {
+      return;
+    }
+
+    const runtimeState =
+      this.arduino.getState().buzzerStates;
+
+    for (const component of this.netlist.components) {
+      const node =
+        this.circuitNodes.find(
+          (candidate) => candidate.id === component.id,
+        );
+
+      if (!node) {
+        continue;
+      }
+
+      const type = String(
+        node.data?.componentType ??
+          node.type ??
+          "",
+      ).toLowerCase();
+
+      if (type !== "buzzer") {
+        continue;
+      }
+
+      const positive =
+        component.terminals["2"] ??
+        component.terminals.positive;
+
+      const negative =
+        component.terminals["1"] ??
+        component.terminals.negative;
+
+      const connectedPins = new Set<string>();
+
+      for (const netId of [positive, negative]) {
+        if (!netId) continue;
+
+        for (const pin of this.netlist.netToPins.get(netId) ?? []) {
+          if (/^(?:D|A)\\d+$/i.test(pin.pinId)) {
+            connectedPins.add(pin.pinId.toUpperCase());
+          }
+        }
+      }
+
+      let frequencyHz: number | undefined;
+
+      for (const pin of connectedPins) {
+        const measured =
+          this.avr.getToggleFrequencyHz(
+            pin,
+            this.cyclesPerFrame,
+          );
+
+        if (
+          measured !== undefined &&
+          measured >= 20 &&
+          (
+            frequencyHz === undefined ||
+            measured > frequencyHz
+          )
+        ) {
+          frequencyHz = measured;
+        }
+      }
+
+      const electricalCurrent =
+        this.currentFlowState.componentCurrentMa[node.id];
+
+      const active =
+        this.currentFlowState.activeComponents.has(node.id) ||
+        frequencyHz !== undefined;
+
+      runtimeState[node.id] = {
+        id: node.id,
+        active,
+        currentMa: electricalCurrent,
+        frequencyHz,
+      };
+    }
+  }
+
+  private applyUltrasonicStates(): void {
+    if (!this.netlist) {
+      return;
+    }
+
+    const runtimeState =
+      this.arduino.getState().ultrasonicStates;
+
+    for (const component of this.netlist.components) {
+      const node =
+        this.circuitNodes.find(
+          (candidate) => candidate.id === component.id,
+        );
+
+      if (!node) continue;
+
+      const type = String(
+        node.data?.componentType ??
+          node.type ??
+          "",
+      ).toLowerCase();
+
+      if (type !== "hc-sr04" && type !== "ultrasonic") {
+        continue;
+      }
+
+      const props =
+        node.data?.props &&
+        typeof node.data.props === "object"
+          ? (node.data.props as Record<string, unknown>)
+          : {};
+
+      const distanceCm = Math.max(
+        2,
+        Math.min(
+          400,
+          Number(
+            node.data?.ultrasonicDistanceCm ??
+              props.distance ??
+              100,
+          ) || 100,
+        ),
+      );
+
+      const echoNet =
+        component.terminals.ECHO ??
+        component.terminals.echo;
+
+      const echoHigh =
+        echoNet
+          ? Array.from(
+              this.netlist.netToPins.get(echoNet) ?? [],
+            ).some((pin) =>
+              this.arduino.digitalRead(
+                this.pinToRuntimeNumber(pin.pinId),
+              ) === 1,
+            )
+          : false;
+
+      const trigNet =
+        component.terminals.TRIG ??
+        component.terminals.trig;
+
+      const triggerActive =
+        trigNet
+          ? Array.from(
+              this.netlist.netToPins.get(trigNet) ?? [],
+            ).some((pin) =>
+              this.arduino.digitalRead(
+                this.pinToRuntimeNumber(pin.pinId),
+              ) === 1,
+            )
+          : false;
+
+      runtimeState[node.id] = {
+        id: node.id,
+        distanceCm,
+        echoHigh,
+        triggerActive,
+        echoPulseUs: distanceCm * 58,
+      };
+    }
+  }
+
+  private pinToRuntimeNumber(pin: string): number {
+    if (/^A\\d+$/i.test(pin)) {
+      return 14 + Number(pin.slice(1));
+    }
+
+    if (/^D\\d+$/i.test(pin)) {
+      return Number(pin.slice(1));
+    }
+
+    return -1;
   }
 
   private applyLedStates(): void {
