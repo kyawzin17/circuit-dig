@@ -93,6 +93,7 @@ type CircuitEdgeData = {
     isActive: boolean;
     currentMa?: number;
     netId?: string;
+    traceActive?: boolean;
   };
 };
 type CircuitEdge = Edge<CircuitEdgeData>;
