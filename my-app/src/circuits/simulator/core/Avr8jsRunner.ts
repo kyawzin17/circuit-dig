@@ -523,5 +523,6 @@ export class Avr8jsRunner {
     this.timer0 = null;
     this.timer1 = null;
     this.timer2 = null;
+    this.twi = null;
   }
 }
