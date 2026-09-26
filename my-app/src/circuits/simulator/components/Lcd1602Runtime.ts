@@ -341,6 +341,9 @@ export class Lcd1602I2cEventHandler
   constructor(
     private readonly displays: () => Lcd1602Runtime[],
     private readonly twi: AVRTWI,
+    private readonly canConnect?: (
+      display: Lcd1602Runtime,
+    ) => boolean,
   ) {}
 
   start(): void {
@@ -359,7 +362,10 @@ export class Lcd1602I2cEventHandler
   ): void {
     const display = this.displays().find(
       (item) =>
-        item.getState().i2cAddress === addr,
+        item.getState().i2cAddress === addr &&
+        (this.canConnect
+          ? this.canConnect(item)
+          : true),
     );
 
     this.selected =
