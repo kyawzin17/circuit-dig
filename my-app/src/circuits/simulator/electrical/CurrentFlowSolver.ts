@@ -782,6 +782,15 @@ export class CurrentFlowSolver {
         continue;
       }
 
+      // A HIGH source sharing a net with an OUTPUT LOW is a GPIO conflict,
+      // not a valid current path. Do not silently treat that net as GND.
+      if (sinkNets.has(sourceNet)) {
+        conflicts.push(
+          "GPIO_CONFLICT:" + sourceNet,
+        );
+        continue;
+      }
+
       const path = findPathToGround(
         sourceNet,
         sinkNets,
