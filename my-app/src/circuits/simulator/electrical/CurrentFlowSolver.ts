@@ -201,6 +201,7 @@ function buildComponentEdges(
   nodes: Node[],
   netlist: Netlist,
   drivers: ArduinoDigitalDriver[],
+  powerState?: PowerRailState,
 ): ComponentEdge[] {
   const nodeById = new Map(
     nodes.map((node) => [node.id, node]),
@@ -447,7 +448,7 @@ function buildComponentEdges(
           ? (node.data.props as Record<string, unknown>)
           : {};
 
-      const common =
+      const configuredCommon =
         String(
           props.common ??
             node.data?.common ??
@@ -455,6 +456,23 @@ function buildComponentEdges(
         ).toLowerCase() === "cathode"
           ? "cathode"
           : "anode";
+
+      /*
+       * Prefer the real electrical topology over the display attribute
+       * when the common pin is clearly connected to GND or a supply.
+       * This makes both common-anode and common-cathode wiring work
+       * without forcing the user to edit component properties.
+       */
+      const sourceNets = findSourceNets(
+        netlist,
+        drivers,
+        powerState,
+      );
+      const sinkNets = findSinkNets(
+        netlist,
+        drivers,
+        powerState,
+      );
 
       const segmentNames = [
         "A",
@@ -467,17 +485,16 @@ function buildComponentEdges(
         "DP",
       ];
 
-      /*
-       * A 1-digit Wokwi 7-segment has two common pins
-       * (COM.1 / COM.2). They represent the same common side.
-       * The current model accepts either one if it is wired.
-       */
       const commonNames = [
         "COM.1",
         "COM1",
         "COM.2",
         "COM2",
         "COM",
+        "DIG1",
+        "DIG2",
+        "DIG3",
+        "DIG4",
       ];
 
       const commonNets = Array.from(
@@ -492,6 +509,24 @@ function buildComponentEdges(
       );
 
       for (const commonNet of commonNets) {
+        const common =
+          powerState?.groundNets.has(commonNet)
+            ? "cathode"
+            : sourceNets.has(commonNet)
+              ? "anode"
+              : configuredCommon;
+
+        /* Only the currently driven common pin participates in the
+         * electrical path. This is important for multiplexed displays. */
+        const commonEnabled =
+          common === "cathode"
+            ? sinkNets.has(commonNet)
+            : sourceNets.has(commonNet);
+
+        if (!commonEnabled) {
+          continue;
+        }
+
         for (const segmentName of segmentNames) {
           const segmentNet =
             component.terminals[segmentName];
@@ -500,13 +535,6 @@ function buildComponentEdges(
             continue;
           }
 
-          /*
-           * Common-anode:
-           *   VCC/common -> LED segment -> GPIO LOW
-           *
-           * Common-cathode:
-           *   GPIO HIGH -> LED segment -> GND/common
-           */
           const fromNet =
             common === "cathode"
               ? segmentNet
@@ -813,6 +841,7 @@ export class CurrentFlowSolver {
         nodes,
         netlist,
         drivers,
+        powerState,
       );
 
     const adjacency =
