@@ -42,12 +42,19 @@ export class Lcd1602Runtime {
   private backlight = true;
 
   private state: Lcd1602RuntimeState;
+  private readonly acceptedI2cAddresses: Set<number>;
 
   constructor(
     public readonly id: string,
     mode: "4bit" | "8bit" | "i2c",
     i2cAddress?: number,
   ) {
+    this.acceptedI2cAddresses =
+      new Set(
+        i2cAddress === undefined
+          ? [0x27, 0x3f]
+          : [i2cAddress & 0x7f],
+      );
     this.state = {
       id,
       text: " ".repeat(32),
@@ -100,6 +107,14 @@ export class Lcd1602Runtime {
       mode,
       i2cAddress,
     };
+  }
+
+  acceptsI2cAddress(
+    address: number,
+  ): boolean {
+    return this.acceptedI2cAddresses.has(
+      address & 0x7f,
+    );
   }
 
   getState(): Lcd1602RuntimeState {
@@ -362,7 +377,7 @@ export class Lcd1602I2cEventHandler
   ): void {
     const display = this.displays().find(
       (item) =>
-        item.getState().i2cAddress === addr &&
+        item.acceptsI2cAddress(addr) &&
         (this.canConnect
           ? this.canConnect(item)
           : true),
