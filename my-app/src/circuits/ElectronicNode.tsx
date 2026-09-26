@@ -34,6 +34,17 @@ type SimulationState = {
     values?: number[];
     colon?: boolean;
   };
+  buzzer?: {
+    active?: boolean;
+    currentMa?: number;
+    frequencyHz?: number;
+  };
+  ultrasonic?: {
+    distanceCm?: number;
+    echoHigh?: boolean;
+    triggerActive?: boolean;
+    echoPulseUs?: number;
+  };
 };
 
 const ElectronicNode = ({
@@ -163,6 +174,25 @@ const ElectronicNode = ({
     componentType === "7segment" ||
     componentType === "sevensegment" ||
     componentType === "seven-segment";
+
+  const isBuzzer = componentType === "buzzer";
+
+  const isUltrasonic =
+    componentType === "hc-sr04" ||
+    componentType === "ultrasonic";
+
+  const buzzerActive =
+    simulation?.buzzer?.active === true;
+
+  const buzzerFrequency =
+    typeof simulation?.buzzer?.frequencyHz === "number"
+      ? simulation.buzzer.frequencyHz
+      : undefined;
+
+  const ultrasonicDistanceCm =
+    typeof data.ultrasonicDistanceCm === "number"
+      ? Math.max(2, Math.min(400, data.ultrasonicDistanceCm))
+      : 100;
 
   const potentiometerPosition =
     typeof data.potentiometerPosition === "number"
@@ -403,6 +433,20 @@ const ElectronicNode = ({
     ldrRl10,
     ldrGamma,
   ]);
+
+  // =========================================================
+  // HC-SR04 -> SIMULATED DISTANCE
+  // =========================================================
+
+  useEffect(() => {
+    if (!isUltrasonic) return;
+    const element = componentRef.current as
+      | (HTMLElement & { distance?: number | string })
+      | null;
+    if (!element) return;
+    element.distance = ultrasonicDistanceCm;
+    element.setAttribute("distance", String(ultrasonicDistanceCm));
+  }, [isUltrasonic, ultrasonicDistanceCm]);
 
   // =========================================================
   // PUSHBUTTON -> CIRCUIT STATE
@@ -837,7 +881,9 @@ const ElectronicNode = ({
                 isPotentiometer ||
                 isSlideSwitch ||
                 isLdr ||
-                isSevenSegment
+                isSevenSegment ||
+                isBuzzer ||
+                isUltrasonic
                   ? componentRef
                   : undefined,
             }
@@ -882,6 +928,42 @@ const ElectronicNode = ({
               </span>
               <span>Bright</span>
             </div>
+          </div>
+        )}
+
+        {isUltrasonic && (
+          <div
+            className="absolute left-1/2 top-full z-40 mt-2 w-40 -translate-x-1/2 rounded-lg border border-slate-300 bg-white/95 px-2 py-2 shadow-lg backdrop-blur"
+            onPointerDown={(event) => event.stopPropagation()}
+            onPointerMove={(event) => event.stopPropagation()}
+            onPointerUp={(event) => event.stopPropagation()}
+          >
+            <div className="mb-1 flex items-center justify-between text-[8px] font-medium text-slate-500">
+              <span>2 cm</span>
+              <span className="font-semibold text-slate-700">{ultrasonicDistanceCm.toFixed(0)} cm</span>
+              <span>400 cm</span>
+            </div>
+            <input type="range" min="2" max="400" step="1" value={ultrasonicDistanceCm}
+              onChange={(event) => {
+                const distanceCm = Math.max(2, Math.min(400, Number(event.target.value)));
+                setNodes((currentNodes) => currentNodes.map((node) =>
+                  node.id === id ? { ...node, data: { ...node.data, ultrasonicDistanceCm: distanceCm } } : node,
+                ));
+              }}
+              className="h-1.5 w-full cursor-pointer accent-cyan-500"
+              aria-label="HC-SR04 distance"
+            />
+            <div className="mt-1 flex items-center justify-between text-[8px] text-slate-400">
+              <span>Near</span>
+              <span>Echo {simulation?.ultrasonic?.echoHigh ? "HIGH" : "LOW"}</span>
+              <span>Far</span>
+            </div>
+          </div>
+        )}
+
+        {isBuzzer && buzzerActive && (
+          <div className="absolute left-1/2 top-full z-40 mt-2 -translate-x-1/2 whitespace-nowrap rounded-lg border border-amber-300 bg-white/95 px-2 py-1 text-[8px] font-medium text-slate-700 shadow-lg">
+            {"🔊 " + (buzzerFrequency ? Math.round(buzzerFrequency) + " Hz" : "ACTIVE")}
           </div>
         )}
 
