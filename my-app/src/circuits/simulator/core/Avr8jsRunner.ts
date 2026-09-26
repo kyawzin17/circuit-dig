@@ -89,7 +89,7 @@ export class Avr8jsRunner {
     this.twi = new AVRTWI(
       this.cpu,
       twiConfig,
-      arduino?.getClockFrequencyHz() ?? 16_000_000,
+      16_000_000,
     );
 
     this.installGpioWriteHooks();
