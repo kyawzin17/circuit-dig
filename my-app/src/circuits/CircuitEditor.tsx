@@ -619,6 +619,26 @@ const CircuitEditor = () => {
             ).toLowerCase();
 
             if (
+              componentType === "lcd1602" ||
+              componentType === "lcd-1602" ||
+              componentType === "lcd1602-full" ||
+              componentType === "lcd1602-i2c" ||
+              componentType === "lcd-1602-i2c"
+            ) {
+              return {
+                ...node,
+                data: {
+                  ...node.data,
+                  simulation: {
+                    ...(node.data?.simulation ?? {}),
+                    lcd:
+                      state.lcdStates?.[node.id],
+                  },
+                },
+              };
+            }
+
+            if (
               componentType === "7segment" ||
               componentType === "sevensegment" ||
               componentType === "seven-segment"
