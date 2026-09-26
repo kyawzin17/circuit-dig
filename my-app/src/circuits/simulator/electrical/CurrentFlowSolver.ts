@@ -99,6 +99,37 @@ function isGroundPin(pinId: string): boolean {
   return /^GND(?:\d+)?$/i.test(pinId.trim());
 }
 
+function findSinkNets(
+  netlist: Netlist,
+  drivers: ArduinoDigitalDriver[],
+  powerState?: PowerRailState,
+): Set<string> {
+  const sinkNets = findGroundNets(netlist, powerState);
+
+  // An Arduino OUTPUT LOW is an electrical sink for current.
+  // This is essential for common-anode 7-segment displays:
+  // 5V/common -> segment -> resistor -> GPIO LOW.
+  for (const driver of drivers) {
+    if (driver.level !== 0 || driver.pwmDuty !== undefined) {
+      continue;
+    }
+
+    for (const [netId, pins] of netlist.netToPins) {
+      if (
+        pins.some(
+          (pin) =>
+            pin.pinId.toUpperCase() ===
+            driver.pin.toUpperCase(),
+        )
+      ) {
+        sinkNets.add(netId);
+      }
+    }
+  }
+
+  return sinkNets;
+}
+
 function findGroundNets(
   netlist: Netlist,
   powerState?: PowerRailState,
@@ -660,6 +691,13 @@ export class CurrentFlowSolver {
         powerState,
       );
 
+    const sinkNets =
+      findSinkNets(
+        netlist,
+        drivers,
+        powerState,
+      );
+
     const sourceNets =
       findSourceNets(
         netlist,
@@ -746,7 +784,7 @@ export class CurrentFlowSolver {
 
       const path = findPathToGround(
         sourceNet,
-        groundNets,
+        sinkNets,
         adjacency,
       );
 
