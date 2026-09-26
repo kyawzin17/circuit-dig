@@ -752,7 +752,7 @@ export class SimulationEngine {
           this.netlist.netToPins.get(echoNet) ?? [];
 
         for (const echoPin of echoPins) {
-          if (!/^(?:D|A)\\d+$/i.test(echoPin.pinId)) {
+          if (!/^(?:D|A)\d+$/i.test(echoPin.pinId)) {
             continue;
           }
 
@@ -1049,12 +1049,12 @@ export class SimulationEngine {
       }
 
       const positive =
-        component.terminals["2"] ??
-        component.terminals.positive;
+        component.terminals.positive ??
+        component.terminals["2"];
 
       const negative =
-        component.terminals["1"] ??
-        component.terminals.negative;
+        component.terminals.negative ??
+        component.terminals["1"];
 
       const connectedPins = new Set<string>();
 
@@ -1190,11 +1190,11 @@ export class SimulationEngine {
   }
 
   private pinToRuntimeNumber(pin: string): number {
-    if (/^A\\d+$/i.test(pin)) {
+    if (/^A\d+$/i.test(pin)) {
       return 14 + Number(pin.slice(1));
     }
 
-    if (/^D\\d+$/i.test(pin)) {
+    if (/^D\d+$/i.test(pin)) {
       return Number(pin.slice(1));
     }
 
