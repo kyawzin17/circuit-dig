@@ -4,6 +4,7 @@ import path from "node:path";
 import crypto from "node:crypto";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+import { fileURLToPath } from "node:url";
 
 const execFileAsync = promisify(execFile);
 
@@ -71,13 +72,7 @@ export async function compileSketch(options: CompileOptions): Promise<CompileRes
 
     const sketchDirectory = path.join(tempRoot, "Sketch");
     const outputDirectory = path.join(tempRoot, "build");
-    const customLibrariesDirectory = path.join(
-      tempRoot,
-      "arduino-libraries",
-    );
-
     await fs.mkdir(sketchDirectory, { recursive: true });
-    await fs.mkdir(customLibrariesDirectory, { recursive: true });
     await fs.mkdir(outputDirectory, { recursive: true });
 
     /* ---------------------------------------------
@@ -101,9 +96,9 @@ export async function compileSketch(options: CompileOptions): Promise<CompileRes
       "--output-dir",
       outputDirectory,
       "--libraries",
-      path.join(
-        process.cwd(),
-        "arduino-libraries",
+      path.resolve(
+        path.dirname(fileURLToPath(import.meta.url)),
+        "../../arduino-libraries",
       ),
       sketchDirectory,
     ];
