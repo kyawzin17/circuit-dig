@@ -798,6 +798,14 @@ const handleStepSimulation = () => {
   }
 };
 
+const handleTraceNet = (netId: string) => {
+  simulationEngine.current?.traceNet(netId);
+};
+
+const handleClearTrace = () => {
+  simulationEngine.current?.clearTrace();
+};
+
 const handleResetSimulation = () => {
   simulationEngine.current?.reset();
   useSimulationStore.getState().reset();
@@ -809,6 +817,7 @@ const handleResetSimulation = () => {
     nets: [],
     components: [],
     faults: [],
+    trace: undefined,
   });
 };
   /* =======================================================
@@ -2761,6 +2770,8 @@ const toggleCode = useCallback(() => {
           onStep={handleStepSimulation}
           onStop={handleStopSimulation}
           onReset={handleResetSimulation}
+          onTraceNet={handleTraceNet}
+          onClearTrace={handleClearTrace}
         />
       )}
 
