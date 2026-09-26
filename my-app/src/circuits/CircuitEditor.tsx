@@ -632,6 +632,10 @@ const CircuitEditor = () => {
                     ...(node.data?.simulation ?? {}),
                     sevenSegment:
                       state.sevenSegmentStates?.[node.id],
+                    buzzer:
+                      state.buzzerStates?.[node.id],
+                    ultrasonic:
+                      state.ultrasonicStates?.[node.id],
                     traceActive:
                       state.diagnostics.trace?.componentIds.includes(
                         node.id,
@@ -1741,6 +1745,16 @@ const stop =
           ldrThreshold:
             type === "ldr"
               ? 2.5
+              : undefined,
+
+          /*
+           * HC-SR04 environment state. The sensor is driven by
+           * real TRIG/ECHO timing in the AVR runtime; this value
+           * only describes the simulated obstacle distance.
+           */
+          ultrasonicDistanceCm:
+            type === "hc-sr04"
+              ? 100
               : undefined,
         },
 
