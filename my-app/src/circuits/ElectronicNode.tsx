@@ -27,6 +27,7 @@ type PinDefinition = {
 };
 
 type SimulationState = {
+  traceActive?: boolean;
   isOn?: boolean;
   brightness?: number;
   sevenSegment?: {
@@ -802,13 +803,13 @@ const ElectronicNode = ({
             : undefined,
       }}
 
-      className="
+      className={`
         group
         relative
         border-2
-        border-transparent
+        ${simulation?.traceActive ? "border-cyan-400 shadow-[0_0_18px_rgba(34,211,238,0.55)]" : "border-transparent"}
         hover:border-blue-400/60
-      "
+      `}
     >
 
       <div className="relative">
