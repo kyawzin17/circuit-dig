@@ -155,6 +155,31 @@ export interface SimulationComponentMeasurement {
   active: boolean;
 }
 
+export type SimulationTraceKind =
+  | "pin"
+  | "net"
+  | "component"
+  | "fault";
+
+export interface SimulationTraceStep {
+  kind: SimulationTraceKind;
+  id: string;
+  label: string;
+  voltage?: number;
+  currentMa?: number;
+  active?: boolean;
+}
+
+export interface SimulationTrace {
+  target: string;
+  status: "complete" | "blocked" | "floating";
+  summary: string;
+  steps: SimulationTraceStep[];
+  netIds: string[];
+  componentIds: string[];
+  faults: string[];
+}
+
 export interface SimulationDiagnostics {
   simulatedCycles: number;
   simulatedMs: number;
@@ -163,6 +188,7 @@ export interface SimulationDiagnostics {
   nets: SimulationNetMeasurement[];
   components: SimulationComponentMeasurement[];
   faults: string[];
+  trace?: SimulationTrace;
 }
 
 export interface ArduinoUnoRuntimeState {
