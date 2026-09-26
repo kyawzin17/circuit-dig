@@ -763,7 +763,13 @@ export class SimulationEngine {
           ? (node.data.props as Record<string, unknown>)
           : {};
 
-      const common =
+      /*
+       * Wokwi defaults to common-anode, but the physical circuit is
+       * authoritative. If the common pin is actually wired to GND/5V,
+       * infer the polarity from the real net so a cathode display wired
+       * to GND works without requiring a hidden UI attribute.
+       */
+      const configuredCommon =
         String(
           props.common ??
             node.data?.common ??
@@ -771,6 +777,29 @@ export class SimulationEngine {
         ).toLowerCase() === "cathode"
           ? "cathode"
           : "anode";
+
+      const commonCandidate =
+        component.terminals["COM.1"] ??
+        component.terminals["COM1"] ??
+        component.terminals["COM.2"] ??
+        component.terminals["COM2"] ??
+        component.terminals.COM ??
+        null;
+
+      const inferredCommon =
+        commonCandidate &&
+        this.powerState.groundNets.has(
+          commonCandidate,
+        )
+          ? "cathode"
+          : commonCandidate &&
+              this.powerState.sourceNets.has(
+                commonCandidate,
+              )
+            ? "anode"
+            : configuredCommon;
+
+      const common = inferredCommon;
 
       const parsedDigits =
         Number(
