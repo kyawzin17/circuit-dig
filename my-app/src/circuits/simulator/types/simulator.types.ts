@@ -107,6 +107,22 @@ export interface SevenSegmentRuntimeState {
   colon: boolean;
 }
 
+export interface BuzzerRuntimeState {
+  id: string;
+  active: boolean;
+  currentMa?: number;
+  frequencyHz?: number;
+  dutyCycle?: number;
+}
+
+export interface UltrasonicRuntimeState {
+  id: string;
+  distanceCm: number;
+  echoHigh: boolean;
+  triggerActive: boolean;
+  echoPulseUs?: number;
+}
+
 // =====================================================
 // WIRE RUNTIME STATE
 // =====================================================
@@ -218,6 +234,10 @@ export interface ArduinoUnoRuntimeState {
   resistorStates: Record<string, ResistorRuntimeState>;
 
   sevenSegmentStates: Record<string, SevenSegmentRuntimeState>;
+
+  buzzerStates: Record<string, BuzzerRuntimeState>;
+
+  ultrasonicStates: Record<string, UltrasonicRuntimeState>;
 
   wireStates: Record<string, WireRuntimeState>;
 
