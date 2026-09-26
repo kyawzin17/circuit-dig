@@ -21,12 +21,9 @@ export interface Lcd1602RuntimeState {
  */
 export class Lcd1602Runtime {
   private readonly ddram = new Uint8Array(80);
-  private readonly cgram = new Uint8Array(64);
-
   private address = 0;
   private cgramMode = false;
   private increment = true;
-  private displayShift = false;
 
   private lastE: 0 | 1 = 0;
   private pendingNibble: number | null = null;
@@ -45,8 +42,6 @@ export class Lcd1602Runtime {
     public readonly i2cAddress = 0x27,
   ) {
     this.ddram.fill(0x20);
-    this.cgram.fill(0);
-
     this.state = {
       id,
       lines: ["                ", "                "],
@@ -69,7 +64,6 @@ export class Lcd1602Runtime {
     this.address = 0;
     this.cgramMode = false;
     this.increment = true;
-    this.displayShift = false;
     this.lastE = 0;
     this.pendingNibble = null;
     this.initNibbleCount = 0;
@@ -245,7 +239,6 @@ export class Lcd1602Runtime {
 
     if ((command & 0xfc) === 0x04) {
       this.increment = (command & 0x02) !== 0;
-      this.displayShift = (command & 0x01) !== 0;
       return;
     }
 
@@ -294,10 +287,7 @@ export class Lcd1602Runtime {
   }
 
   private writeData(value: number): void {
-    if (this.cgramMode) {
-      this.cgram[this.address & 0x3f] =
-        value & 0x1f;
-    } else {
+    if (!this.cgramMode) {
       this.ddram[this.address % this.ddram.length] =
         value & 0xff;
     }
