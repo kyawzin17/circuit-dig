@@ -1184,6 +1184,28 @@ export class SimulationEngine {
     return trace;
   }
 
+  tracePin(nodeId: string, pinId: string): SimulationTrace {
+    const netlist = this.netlist;
+    if (!netlist) return this.traceNet("__missing__");
+
+    const netId = netlist.pinToNet.get(nodeId + ":" + pinId);
+    if (!netId) return this.traceNet("__missing__");
+    return this.traceNet(netId);
+  }
+
+  traceComponent(componentId: string): SimulationTrace {
+    const netlist = this.netlist;
+    if (!netlist) return this.traceNet("__missing__");
+
+    const component = netlist.components.find((item) => item.id === componentId);
+    const netId = component
+      ? Object.values(component.terminals).find((value): value is string => Boolean(value))
+      : undefined;
+
+    if (!netId) return this.traceNet("__missing__");
+    return this.traceNet(netId);
+  }
+
   clearTrace(): void {
     this.activeTrace = undefined;
     this.arduino.getState().diagnostics.trace = undefined;
