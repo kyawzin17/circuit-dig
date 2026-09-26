@@ -532,6 +532,65 @@ function buildComponentEdges(
     }
 
     if (
+      type === "lcd1602" ||
+      type === "lcd-1602" ||
+      type === "lcd1602-full" ||
+      type === "lcd1602-i2c" ||
+      type === "lcd1602_i2c" ||
+      type === "lcd-i2c"
+    ) {
+      const vcc =
+        component.terminals.VDD ??
+        component.terminals.VCC;
+      const gnd =
+        component.terminals.VSS ??
+        component.terminals.GND;
+
+      /*
+       * The HD44780 logic is powered by VDD/VSS. The simulator's
+       * display protocol is handled separately, but keeping a small
+       * equivalent load here makes LCD power visible in the same
+       * electrical diagnostics as the other peripherals.
+       */
+      if (vcc && gnd) {
+        edges.push({
+          componentId: node.id,
+          componentType: "lcd1602",
+          fromNet: vcc,
+          toNet: gnd,
+          resistanceOhm: 1000,
+          voltageDrop: 0,
+        });
+        edges.push({
+          componentId: node.id,
+          componentType: "lcd1602",
+          fromNet: gnd,
+          toNet: vcc,
+          resistanceOhm: 1000,
+          voltageDrop: 0,
+        });
+      }
+
+      /*
+       * Optional LED backlight (A/K on the full 16-pin module).
+       */
+      const backlightAnode = component.terminals.A;
+      const backlightCathode = component.terminals.K;
+      if (backlightAnode && backlightCathode) {
+        edges.push({
+          componentId: node.id,
+          componentType: "lcd1602-backlight",
+          fromNet: backlightAnode,
+          toNet: backlightCathode,
+          resistanceOhm: 100,
+          voltageDrop: 1.2,
+        });
+      }
+
+      continue;
+    }
+
+    if (
       type === "pushbutton" ||
       type === "button"
     ) {
