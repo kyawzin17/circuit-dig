@@ -1582,7 +1582,9 @@ const stop =
           color: "red",
           offColor: "white",
           background: "#000",
-          values: [0, 0, 0, 0, 0, 0, 0, 0], // 4 ဂဏန်း ပေါ်စေရန်
+          common: "anode",
+          digits: 1,
+          values: [0, 0, 0, 0, 0, 0, 0, 0]
         },
         pins: sevenSegmentPins,
       },
