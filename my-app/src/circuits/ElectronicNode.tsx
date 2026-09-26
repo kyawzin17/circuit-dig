@@ -263,6 +263,8 @@ const ElectronicNode = ({
         | (HTMLElement & {
             values?: number[];
             colonValue?: boolean;
+            common?: "anode" | "cathode";
+            digits?: number;
           })
         | null;
 
@@ -271,21 +273,75 @@ const ElectronicNode = ({
     }
 
     /*
-     * The simulator owns the electrical state. The Wokwi element
-     * remains the visual renderer and receives the solved segment
-     * values only.
+     * Wokwi's 7-segment element has an important electrical attribute:
+     *   common="anode"   -> segment LOW = ON
+     *   common="cathode" -> segment HIGH = ON
+     *
+     * The simulator determines the real common type from the circuit
+     * topology (5V/GND/GPIO), so the visual Web Component must receive
+     * the same mode. Previously we only updated "values", leaving the
+     * Wokwi element at its default common-anode mode. A common-cathode
+     * circuit could therefore be electrically correct while the display
+     * stayed visually OFF.
      */
-    element.values =
-      Array.isArray(
-        simulation?.sevenSegment?.values,
-      )
-        ? simulation.sevenSegment.values
-        : [0, 0, 0, 0, 0, 0, 0, 0];
+    const sevenSegment =
+      simulation?.sevenSegment;
+
+    const common =
+      sevenSegment?.common === "cathode"
+        ? "cathode"
+        : "anode";
+
+    const digits =
+      Number.isFinite(sevenSegment?.digits)
+        ? Math.max(
+            1,
+            Math.min(
+              4,
+              Number(sevenSegment?.digits),
+            ),
+          )
+        : 1;
+
+    const values =
+      Array.isArray(sevenSegment?.values)
+        ? sevenSegment.values.map((value) =>
+            value ? 1 : 0,
+          )
+        : new Array(
+            digits * 8,
+          ).fill(0);
+
+    // Keep both the property and attribute in sync. This works with
+    // the current @wokwi/elements Web Component implementation and
+    // also keeps the DOM state inspectable in DevTools.
+    element.common = common;
+    element.setAttribute(
+      "common",
+      common,
+    );
+
+    element.digits = digits;
+    element.setAttribute(
+      "digits",
+      String(digits),
+    );
+
+    element.values = values;
 
     element.colonValue =
-      simulation?.sevenSegment?.colon === true;
+      sevenSegment?.colon === true;
+
+    element.setAttribute(
+      "colonValue",
+      sevenSegment?.colon === true
+        ? "1"
+        : "0",
+    );
   }, [
     isSevenSegment,
+    simulation?.sevenSegment?.common,
+    simulation?.sevenSegment?.digits,
     simulation?.sevenSegment?.values,
     simulation?.sevenSegment?.colon,
   ]);
