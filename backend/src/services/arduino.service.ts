@@ -4,6 +4,7 @@ import path from "node:path";
 import crypto from "node:crypto";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+import { fileURLToPath } from "node:url";
 
 const execFileAsync = promisify(execFile);
 
@@ -71,7 +72,6 @@ export async function compileSketch(options: CompileOptions): Promise<CompileRes
 
     const sketchDirectory = path.join(tempRoot, "Sketch");
     const outputDirectory = path.join(tempRoot, "build");
-
     await fs.mkdir(sketchDirectory, { recursive: true });
     await fs.mkdir(outputDirectory, { recursive: true });
 
@@ -85,6 +85,9 @@ export async function compileSketch(options: CompileOptions): Promise<CompileRes
        5. Execute Arduino CLI Compile
     --------------------------------------------- */
     console.log(`[Arduino CLI] Compiling ${fqbn}`);
+    // The repository ships simulator-compatible libraries in
+    // backend/arduino-libraries so common Arduino sketches do not depend
+    // on each developer having the same global Library Manager state.
 
     const args = [
       "compile",
@@ -92,6 +95,11 @@ export async function compileSketch(options: CompileOptions): Promise<CompileRes
       fqbn,
       "--output-dir",
       outputDirectory,
+      "--libraries",
+      path.resolve(
+        path.dirname(fileURLToPath(import.meta.url)),
+        "../../arduino-libraries",
+      ),
       sketchDirectory,
     ];
 

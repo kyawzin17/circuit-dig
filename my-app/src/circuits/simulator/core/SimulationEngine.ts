@@ -396,6 +396,7 @@ export class SimulationEngine {
     this.arduino.getState().buzzerStates = {};
     this.arduino.getState().ultrasonicStates = {};
     this.arduino.getState().lcdStates = {};
+    this.arduino.getState().sevenSegmentStates = {};
   }
 
   /**
@@ -1218,7 +1219,7 @@ export class SimulationEngine {
           ? (node.data.props as Record<string, unknown>)
           : {};
 
-      const common =
+      const configuredCommon =
         String(
           props.common ??
             node.data?.common ??
@@ -1268,27 +1269,24 @@ export class SimulationEngine {
         const commonNet =
           component.terminals[commonPin];
 
+        const common =
+          this.powerState.groundNets.has(commonNet as string)
+            ? "cathode"
+            : this.powerState.sourceNets.has(commonNet as string)
+              ? "anode"
+              : configuredCommon;
+
         const commonEnabled =
           typeof commonNet === "string" &&
           (
             common === "cathode"
               ? (
-                  this.powerState.groundNets.has(
-                    commonNet,
-                  ) ||
-                  netHasDriverLevel(
-                    commonNet,
-                    0,
-                  )
+                  this.powerState.groundNets.has(commonNet) ||
+                  netHasDriverLevel(commonNet, 0)
                 )
               : (
-                  this.powerState.sourceNets.has(
-                    commonNet,
-                  ) ||
-                  netHasDriverLevel(
-                    commonNet,
-                    1,
-                  )
+                  this.powerState.sourceNets.has(commonNet) ||
+                  netHasDriverLevel(commonNet, 1)
                 )
           );
 

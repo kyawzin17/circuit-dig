@@ -144,28 +144,36 @@ function getTerminalIds(node: CircuitNode): string[] {
   }
 
   if (
-    type === "7segment" ||
-    type === "sevensegment" ||
-    type === "seven-segment"
+    type === "lcd1602" ||
+    type === "lcd-1602" ||
+    type === "lcd1602-full"
   ) {
     return [
-      "A",
-      "B",
-      "C",
-      "D",
+      "VSS",
+      "VDD",
+      "V0",
+      "RS",
+      "RW",
       "E",
-      "F",
-      "G",
-      "DP",
-      "COM.1",
-      "COM.2",
-      "DIG1",
-      "DIG2",
-      "DIG3",
-      "DIG4",
-      "COM",
-      "CLN",
+      "D0",
+      "D1",
+      "D2",
+      "D3",
+      "D4",
+      "D5",
+      "D6",
+      "D7",
+      "A",
+      "K",
     ];
+  }
+
+  if (
+    type === "lcd1602-i2c" ||
+    type === "lcd1602_i2c" ||
+    type === "lcd-i2c"
+  ) {
+    return ["GND", "VCC", "SDA", "SCL"];
   }
 
   if (
@@ -306,6 +314,7 @@ export class NetlistBuilder {
       terminalId: string,
     ): string[] => {
       const aliases: Record<string, string[]> = {
+        // Shared A terminal used by 7-segment and LCD backlight.
         A: ["A", "pin_a"],
         B: ["B", "pin_b"],
         C: ["C", "pin_c"],
@@ -325,6 +334,27 @@ export class NetlistBuilder {
         DIG3: ["DIG3", "pin_dig3"],
         DIG4: ["DIG4", "pin_dig4"],
         CLN: ["CLN", "pin_cln"],
+
+        // HD44780 LCD 1602.
+        VSS: ["VSS", "GND", "pin_vss"],
+        VDD: ["VDD", "VCC", "pin_vdd"],
+        V0: ["V0", "pin_v0"],
+        RS: ["RS", "pin_rs"],
+        RW: ["RW", "pin_rw"],
+        D0: ["D0", "pin_d0"],
+        D1: ["D1", "pin_d1"],
+        D2: ["D2", "pin_d2"],
+        D3: ["D3", "pin_d3"],
+        D4: ["D4", "pin_d4"],
+        D5: ["D5", "pin_d5"],
+        D6: ["D6", "pin_d6"],
+        D7: ["D7", "pin_d7"],
+
+        K: ["K", "pin_k"],
+        SDA: ["SDA", "pin_sda"],
+        SCL: ["SCL", "pin_scl"],
+        VCC: ["VCC", "pin_vcc"],
+        GND: ["GND", "pin_gnd"],
 
         // Wokwi photoresistor module uses D0/A0 handles,
         // while the electrical model uses DO/AO terminal names.
