@@ -223,6 +223,33 @@ export class SimulationEngine {
       : "4bit";
   }
 
+  private isLcdPowered(
+    component: {
+      terminals: Record<string, string | null>;
+    },
+  ): boolean {
+    const vcc =
+      component.terminals.VDD ??
+      component.terminals.VCC ??
+      null;
+
+    const gnd =
+      component.terminals.VSS ??
+      component.terminals.GND ??
+      null;
+
+    return Boolean(
+      vcc &&
+      gnd &&
+      (
+        this.powerState.sourceNets.has(vcc) ||
+        this.powerState.netVoltages[vcc] === 5 ||
+        this.powerState.netVoltages[vcc] === 3.3
+      ) &&
+      this.powerState.groundNets.has(gnd),
+    );
+  }
+
   private isLcdI2cConnected(
     componentId: string,
   ): boolean {
@@ -272,10 +299,7 @@ export class SimulationEngine {
         component.terminals.SCL,
         "A5",
       ) &&
-      Boolean(
-        component.terminals.VCC &&
-        component.terminals.GND,
-      )
+      this.isLcdPowered(component)
     );
   }
 
@@ -976,7 +1000,11 @@ export class SimulationEngine {
       const runtime =
         this.lcdRuntimes.get(component.id);
 
-      if (!runtime || runtime.getState().mode === "i2c") {
+      if (
+        !runtime ||
+        runtime.getState().mode === "i2c" ||
+        !this.isLcdPowered(component)
+      ) {
         continue;
       }
 
