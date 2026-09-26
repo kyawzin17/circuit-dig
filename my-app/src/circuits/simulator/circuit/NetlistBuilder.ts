@@ -116,7 +116,9 @@ function getTerminalIds(node: CircuitNode): string[] {
   }
 
   if (type === "buzzer") {
-    return ["1", "2"];
+    // Wokwi buzzer handles are named "negative"/"positive".
+    // Keep the electrical model aligned with the actual React Flow pins.
+    return ["negative", "positive"];
   }
 
   if (type === "hc-sr04" || type === "ultrasonic") {
@@ -331,6 +333,10 @@ export class NetlistBuilder {
         // Keep both spellings so saved/new circuits resolve correctly.
         DO: ["DO", "D0", "pin_do", "pin_d0"],
         AO: ["AO", "A0", "pin_ao", "pin_a0"],
+
+        // Buzzer
+        negative: ["negative", "1", "pin_negative", "pin_1"],
+        positive: ["positive", "2", "pin_positive", "pin_2"],
         
       };
 
