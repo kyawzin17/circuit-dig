@@ -123,6 +123,22 @@ export interface UltrasonicRuntimeState {
   echoPulseUs?: number;
 }
 
+export interface Lcd1602RuntimeState {
+  id: string;
+  text: string;
+  characters: number[];
+  rows: 2;
+  cols: 16;
+  cursorX: number;
+  cursorY: number;
+  displayOn: boolean;
+  cursorOn: boolean;
+  blink: boolean;
+  backlight: boolean;
+  mode: "4bit" | "8bit" | "i2c";
+  i2cAddress?: number;
+}
+
 // =====================================================
 // WIRE RUNTIME STATE
 // =====================================================
@@ -238,6 +254,8 @@ export interface ArduinoUnoRuntimeState {
   buzzerStates: Record<string, BuzzerRuntimeState>;
 
   ultrasonicStates: Record<string, UltrasonicRuntimeState>;
+
+  lcdStates: Record<string, Lcd1602RuntimeState>;
 
   wireStates: Record<string, WireRuntimeState>;
 
