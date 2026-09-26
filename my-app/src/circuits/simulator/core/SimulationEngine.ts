@@ -1062,7 +1062,7 @@ export class SimulationEngine {
         if (!netId) continue;
 
         for (const pin of this.netlist.netToPins.get(netId) ?? []) {
-          if (/^(?:D|A)\\d+$/i.test(pin.pinId)) {
+          if (/^(?:D|A)\d+$/i.test(pin.pinId)) {
             connectedPins.add(pin.pinId.toUpperCase());
           }
         }
