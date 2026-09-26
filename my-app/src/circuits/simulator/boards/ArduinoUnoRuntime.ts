@@ -7,6 +7,8 @@ import type {
   ArduinoPowerRailState,
   ArduinoPowerPinVoltage,
   SevenSegmentRuntimeState,
+  BuzzerRuntimeState,
+  UltrasonicRuntimeState,
 } from "../types/simulator.types";
 import { ARDUINO_UNO_PIN_MAP } from "../mapping/ArduinoUnoPinMap";
 
@@ -134,6 +136,8 @@ export class ArduinoUnoRuntime {
       ledStates: {},
       resistorStates: {},
       sevenSegmentStates: {} as Record<string, SevenSegmentRuntimeState>,
+      buzzerStates: {} as Record<string, BuzzerRuntimeState>,
+      ultrasonicStates: {} as Record<string, UltrasonicRuntimeState>,
       wireStates: {},
       diagnostics: {
         simulatedCycles: 0,
