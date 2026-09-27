@@ -84,7 +84,21 @@ export class Lcd1602Runtime {
     this.cgramMode = false;
     this.pendingHighNibble = null;
     this.init03Count = 0;
-    this.fourBitMode = mode !== "8bit";
+    /*
+     * HD44780 power-up state is 8-bit even when the Arduino library
+     * is configured for 4-bit operation.
+     *
+     * LiquidCrystal::begin() performs the real bootstrap sequence:
+     *   0x3, 0x3, 0x3, 0x2
+     * as individual nibbles. The runtime must therefore start in
+     * controller 8-bit bootstrap mode and only switch to 4-bit after
+     * the final 0x2 nibble.
+     *
+     * Previously this was initialized from the requested host mode,
+     * which made a 4-bit LCD interpret 0x3/0x3 as a complete 0x33
+     * byte and shifted every following command/data nibble.
+     */
+    this.fourBitMode = mode === "8bit";
     this.rs = 0;
     this.rw = 0;
     this.enable = 0;
@@ -148,7 +162,12 @@ export class Lcd1602Runtime {
         return;
       }
 
-      if (this.fourBitMode || this.state.mode === "4bit") {
+      /*
+       * Do not use state.mode here. For a 4-bit LCD, state.mode is
+       * already "4bit" while the HD44780 is still executing its
+       * power-up 0x3,0x3,0x3,0x2 bootstrap sequence.
+       */
+      if (this.fourBitMode) {
         this.writeNibble(levels.data & 0x0f, this.rs === 1);
       } else {
         this.writeByte(levels.data & 0xff, this.rs === 1);
