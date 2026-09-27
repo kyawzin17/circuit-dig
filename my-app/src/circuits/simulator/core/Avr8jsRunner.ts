@@ -673,6 +673,18 @@ export class Avr8jsRunner {
 
     const data = this.cpu.data;
 
+    /*
+     * Timer1 is owned by Servo.h while one or more servos are attached.
+     * Servo.h uses CTC mode (WGM12) and drives the signal pins with direct
+     * GPIO writes from TIMER1_COMPA_vect. In that mode D9/D10 are NOT
+     * hardware-PWM outputs, so never expose their OCR values as generic
+     * pwmDuty state. Doing so can make the electrical solver interpret the
+     * servo control line as analogWrite-style PWM.
+     */
+    const timer1ControlB = data[0x81] ?? 0; // TCCR1B
+    const timer1CtcMode =
+      (timer1ControlB & (1 << 3)) !== 0;
+
     const pwmChannels: Array<{
       pin: number;
       tccrAddress: number;
@@ -722,6 +734,16 @@ export class Avr8jsRunner {
     ];
 
     for (const channel of pwmChannels) {
+      if (
+        timer1CtcMode &&
+        (channel.pin === 9 || channel.pin === 10)
+      ) {
+        this.arduino.getState().digitalPins[
+          channel.pin
+        ].pwmDuty = undefined;
+        continue;
+      }
+
       const control =
         data[channel.tccrAddress] ?? 0;
 
