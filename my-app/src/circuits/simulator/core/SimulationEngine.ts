@@ -1330,15 +1330,17 @@ export class SimulationEngine {
               colonNet,
             );
         }
-      }
 
-      runtimeState[node.id] = {
+        runtimeState[node.id] = {
         id: node.id,
         digits,
         common,
         values,
         colon,
       };
+      }
+
+      
     }
   }
 
