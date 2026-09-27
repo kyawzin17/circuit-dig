@@ -32,7 +32,11 @@
           "${env:LOCALAPPDATA}/Arduino15/packages/arduino/tools/avr-gcc/*/avr/include",
           "${env:LOCALAPPDATA}/Arduino15/packages/arduino/tools/avr-gcc/*/lib/gcc/avr/*/include"
         ]
-      }
+      },
+      "compilerPath": "${env:LOCALAPPDATA}/Arduino15/packages/arduino/tools/avr-gcc/7.3.0-atmel3.6.1-arduino7/bin/avr-g++.exe",
+      "compilerArgs": [
+        "-mmcu=atmega328p"
+      ]
     }
   ],
   "version": 4
