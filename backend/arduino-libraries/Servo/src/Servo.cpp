@@ -35,6 +35,43 @@ uint16_t clampPulse(int value, int minPulse, int maxPulse) {
   return static_cast<uint16_t>(value);
 }
 
+/*
+ * Drive the servo signal pin directly through the ATmega328P GPIO
+ * registers.
+ *
+ * Using Arduino digitalWrite() here is subtly wrong for Servo:
+ * digitalWrite() first disables the hardware PWM channel associated
+ * with pins such as D9/D10. Servo itself owns Timer1, so repeatedly
+ * touching the PWM-control bits from inside the Timer1 ISR can disturb
+ * the timer configuration that is generating the servo schedule.
+ *
+ * Direct PORT writes change exactly the same GPIO register that the
+ * simulator observes, while leaving Timer1's CTC configuration alone.
+ */
+void writeServoPin(uint8_t pin, bool high) {
+  volatile uint8_t* port = nullptr;
+  uint8_t bit = 0;
+
+  if (pin <= 7) {
+    port = &PORTD;
+    bit = pin;
+  } else if (pin <= 13) {
+    port = &PORTB;
+    bit = static_cast<uint8_t>(pin - 8);
+  } else if (pin <= 19) {
+    port = &PORTC;
+    bit = static_cast<uint8_t>(pin - 14);
+  } else {
+    return;
+  }
+
+  if (high) {
+    *port |= _BV(bit);
+  } else {
+    *port &= static_cast<uint8_t>(~_BV(bit));
+  }
+}
+
 bool hasActiveServo() {
   for (uint8_t i = 0; i < MAX_SERVOS; ++i) {
     if (channels[i].active) return true;
@@ -110,9 +147,9 @@ void startTimer1() {
   pulseHigh = false;
 
   if (currentChannel >= 0) {
-    digitalWrite(
+    writeServoPin(
       channels[currentChannel].pin,
-      HIGH
+      true
     );
 
     pulseHigh = true;
@@ -151,9 +188,9 @@ void stopTimer1() {
   OCR1A = 0;
 
   if (currentChannel >= 0) {
-    digitalWrite(
+    writeServoPin(
       channels[currentChannel].pin,
-      LOW
+      false
     );
   }
 
@@ -312,7 +349,7 @@ uint8_t Servo::attach(
   }
 
   pinMode(pin, OUTPUT);
-  digitalWrite(pin, LOW);
+  writeServoPin(static_cast<uint8_t>(pin), false);
 
   const uint8_t savedSreg = SREG;
   cli();
@@ -344,9 +381,9 @@ void Servo::detach() {
 
   channels[servoIndex_].active = false;
 
-  digitalWrite(
+  writeServoPin(
     channels[servoIndex_].pin,
-    LOW
+    false
   );
 
   if (!hasActiveServo()) {
