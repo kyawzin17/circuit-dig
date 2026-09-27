@@ -1606,7 +1606,11 @@ const stop =
         "servo": {
           label: "Servo",
           tag: "wokwi-servo",
-          props: {},
+          props: {
+            signal: "PWM",
+            vcc: "V+",
+            gnd: "GND"
+          },
           pins: servoPins,
         },
 
