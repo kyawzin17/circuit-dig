@@ -670,6 +670,21 @@ const CircuitEditor = () => {
               };
             }
 
+            if (componentType === "servo") {
+              return {
+                ...node,
+                data: {
+                  ...node.data,
+                  simulation: {
+                    ...(node.data?.simulation ?? {}),
+                    servo: state.servoStates?.[node.id],
+                    traceActive:
+                      state.diagnostics.trace?.componentIds.includes(node.id) === true,
+                  },
+                },
+              };
+            }
+
             if (
               componentType === "buzzer" ||
               componentType === "hc-sr04" ||
