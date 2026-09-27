@@ -224,7 +224,7 @@ public:
     send(value, LOW);
   }
 
-  int write(uint8_t value) override {
+  size_t write(uint8_t value) override {
     send(value, HIGH);
     return 1;
   }
