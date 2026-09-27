@@ -31,6 +31,8 @@ type SimulationState = {
   isOn?: boolean;
   brightness?: number;
   sevenSegment?: {
+    common?: "cathode" | "anode";
+    digits?: number;
     values?: number[];
     colon?: boolean;
   };
@@ -214,7 +216,9 @@ const ElectronicNode = ({
     componentType === "ultrasonic";
 
   const isServo =
-    componentType === "servo";
+    componentType === "servo" ||
+    componentType === "servo-motor" ||
+    componentType === "servomotor";
 
   const buzzerActive =
     simulation?.buzzer?.active === true;
@@ -359,22 +363,61 @@ const ElectronicNode = ({
   // SERVO -> CIRCUIT STATE
   // =========================================================
   useEffect(() => {
-    if (componentType !== "servo") return;
+    if (!isServo) return;
 
-    const element = componentRef.current as
-      | (HTMLElement & { angle?: number })
-      | null;
+    const applyServoState = () => {
+      const element = componentRef.current as
+        | (HTMLElement & {
+            angle?: number;
+            pulseWidthUs?: number;
+          })
+        | null;
 
-    if (!element) return;
+      if (!element) return;
 
-    const angle =
-      typeof simulation?.servo?.angle === "number"
-        ? Math.max(0, Math.min(180, simulation.servo.angle))
-        : 0;
+      const angle =
+        typeof simulation?.servo?.angle === "number"
+          ? Math.max(0, Math.min(180, simulation.servo.angle))
+          : 0;
 
-    element.angle = angle;
-    element.setAttribute("angle", String(angle));
-  }, [componentType, simulation?.servo?.angle]);
+      element.angle = angle;
+      element.setAttribute("angle", String(angle));
+
+      if (typeof simulation?.servo?.pulseWidthUs === "number") {
+        element.pulseWidthUs = simulation.servo.pulseWidthUs;
+        element.setAttribute(
+          "data-pulse-width-us",
+          String(simulation.servo.pulseWidthUs),
+        );
+      }
+
+      element.setAttribute(
+        "data-powered",
+        simulation?.servo?.powered === true ? "true" : "false",
+      );
+    };
+
+    applyServoState();
+
+    /*
+     * @wokwi/elements registers custom elements asynchronously in some
+     * bundling/dev-server orders. Re-apply once the servo element is
+     * upgraded so the property assignment is never lost.
+     */
+    if (
+      typeof customElements !== "undefined" &&
+      !customElements.get("wokwi-servo")
+    ) {
+      void customElements.whenDefined("wokwi-servo").then(() => {
+        applyServoState();
+      });
+    }
+  }, [
+    isServo,
+    simulation?.servo?.angle,
+    simulation?.servo?.pulseWidthUs,
+    simulation?.servo?.powered,
+  ]);
 
   // =========================================================
   // LCD 1602 -> CIRCUIT STATE

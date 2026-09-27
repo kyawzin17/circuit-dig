@@ -46,15 +46,36 @@ void startTimer1() {
   cli();
 
   TCCR1A = 0;
-  TCCR1B = _BV(CS11);
+  TCCR1B = _BV(CS11); // Normal counting mode, /8
   TCNT1 = 0;
 
   /*
    * Start the first frame almost immediately. The ISR then creates
    * the real 50 Hz servo waveform from Timer1 compare events.
    */
-  OCR1A = 1;
-  TIFR1 = _BV(OCF1A);
+  currentChannel = findNextActiveChannel(-1);
+  pulseHigh = false;
+
+  if (currentChannel >= 0) {
+    writeServoPin(
+      channels[currentChannel].pin,
+      true
+    );
+
+    pulseHigh = true;
+
+    OCR1A = static_cast<uint16_t>(
+      TCNT1 + channels[currentChannel].pulseTicks
+    );
+  } else {
+    OCR1A = 0;
+  }
+
+  /*
+   * On AVR, writing a 1 clears OCF1A. Use |= so the operation matches
+   * the real TIFR1 write-one-to-clear semantics and AVR8JS's timer hook.
+   */
+  TIFR1 |= _BV(OCF1A);
   TIMSK1 |= _BV(OCIE1A);
 
   currentChannel = -1;
@@ -97,7 +118,7 @@ void scheduleNextPulse() {
     digitalWrite(channels[next].pin, HIGH);
 
     OCR1A = static_cast<uint16_t>(
-      TCNT1 + channels[next].pulseTicks
+      TCNT1 + gapTicks
     );
     return;
   }
@@ -112,10 +133,18 @@ void scheduleNextPulse() {
     ticksFromMicroseconds(REFRESH_INTERVAL);
   const uint16_t now = TCNT1;
 
-  OCR1A =
-    now < refreshTicks
-      ? refreshTicks
-      : static_cast<uint16_t>(now + refreshTicks);
+  currentChannel = first;
+
+  writeServoPin(
+    channels[currentChannel].pin,
+    true
+  );
+
+  pulseHigh = true;
+
+  OCR1A = static_cast<uint16_t>(
+    TCNT1 + channels[currentChannel].pulseTicks
+  );
 }
 
 ISR(TIMER1_COMPA_vect) {
