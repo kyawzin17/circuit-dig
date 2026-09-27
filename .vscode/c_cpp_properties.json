@@ -1,0 +1,39 @@
+{
+  "configurations": [
+    {
+      "name": "RDE Arduino Simulator",
+      "intelliSenseMode": "windows-gcc-x64",
+      "cStandard": "c11",
+      "cppStandard": "c++17",
+      "includePath": [
+        "${workspaceFolder}/backend/arduino-libraries/**",
+        "${workspaceFolder}/backend/**",
+        "${env:LOCALAPPDATA}/Arduino15/packages/arduino/hardware/avr/*/cores/arduino",
+        "${env:LOCALAPPDATA}/Arduino15/packages/arduino/hardware/avr/*/variants/standard",
+        "${env:LOCALAPPDATA}/Arduino15/packages/arduino/hardware/avr/*/libraries/**",
+        "${env:LOCALAPPDATA}/Arduino15/packages/arduino/tools/avr-gcc/*/avr/include",
+        "${env:LOCALAPPDATA}/Arduino15/packages/arduino/tools/avr-gcc/*/lib/gcc/avr/*/include",
+        "${env:LOCALAPPDATA}/Arduino15/packages/arduino/tools/avr-gcc/*/lib/gcc/avr/*/include-fixed"
+      ],
+      "defines": [
+        "ARDUINO=10819",
+        "ARDUINO_AVR_UNO",
+        "ARDUINO_ARCH_AVR",
+        "F_CPU=16000000L",
+        "USB_VID=0x2341",
+        "USB_PID=0x0043"
+      ],
+      "browse": {
+        "limitSymbolsToIncludedHeaders": true,
+        "path": [
+          "${workspaceFolder}/backend/arduino-libraries/**",
+          "${env:LOCALAPPDATA}/Arduino15/packages/arduino/hardware/avr/*/cores/arduino",
+          "${env:LOCALAPPDATA}/Arduino15/packages/arduino/hardware/avr/*/variants/standard",
+          "${env:LOCALAPPDATA}/Arduino15/packages/arduino/tools/avr-gcc/*/avr/include",
+          "${env:LOCALAPPDATA}/Arduino15/packages/arduino/tools/avr-gcc/*/lib/gcc/avr/*/include"
+        ]
+      }
+    }
+  ],
+  "version": 4
+}
