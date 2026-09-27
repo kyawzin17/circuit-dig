@@ -216,9 +216,9 @@ void scheduleNextTimerInterval() {
     /*
      * End the current HIGH pulse.
      */
-    digitalWrite(
+    writeServoPin(
       channels[currentChannel].pin,
-      LOW
+      false
     );
 
     pulseHigh = false;
@@ -231,9 +231,9 @@ void scheduleNextTimerInterval() {
        */
       currentChannel = next;
 
-      digitalWrite(
+      writeServoPin(
         channels[currentChannel].pin,
-        HIGH
+        true
       );
 
       pulseHigh = true;
@@ -283,9 +283,9 @@ void scheduleNextTimerInterval() {
 
   currentChannel = first;
 
-  digitalWrite(
+  writeServoPin(
     channels[currentChannel].pin,
-    HIGH
+    true
   );
 
   pulseHigh = true;
