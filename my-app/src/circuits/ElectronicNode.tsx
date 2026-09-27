@@ -347,6 +347,27 @@ const ElectronicNode = ({
   ]);
 
   // =========================================================
+  // SERVO -> CIRCUIT STATE
+  // =========================================================
+  useEffect(() => {
+    if (componentType !== "servo") return;
+
+    const element = componentRef.current as
+      | (HTMLElement & { angle?: number })
+      | null;
+
+    if (!element) return;
+
+    const angle =
+      typeof simulation?.servo?.angle === "number"
+        ? Math.max(0, Math.min(180, simulation.servo.angle))
+        : 0;
+
+    element.angle = angle;
+    element.setAttribute("angle", String(angle));
+  }, [componentType, simulation?.servo?.angle]);
+
+  // =========================================================
   // LCD 1602 -> CIRCUIT STATE
   // =========================================================
   useEffect(() => {
