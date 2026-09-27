@@ -116,8 +116,6 @@ function getTerminalIds(node: CircuitNode): string[] {
   }
 
   if (type === "buzzer") {
-    // Wokwi buzzer handles are named "negative"/"positive".
-    // Keep the simulator terminals aligned with the actual React Flow pins.
     return ["negative", "positive"];
   }
 
@@ -151,22 +149,9 @@ function getTerminalIds(node: CircuitNode): string[] {
     type === "lcd1602-full"
   ) {
     return [
-      "VSS",
-      "VDD",
-      "V0",
-      "RS",
-      "RW",
-      "E",
-      "D0",
-      "D1",
-      "D2",
-      "D3",
-      "D4",
-      "D5",
-      "D6",
-      "D7",
-      "A",
-      "K",
+      "VSS", "VDD", "V0", "RS", "RW", "E",
+      "D0", "D1", "D2", "D3", "D4", "D5", "D6", "D7",
+      "A", "K",
     ];
   }
 
@@ -191,22 +176,9 @@ function getTerminalIds(node: CircuitNode): string[] {
     type === "seven-segment"
   ) {
     return [
-      "A",
-      "B",
-      "C",
-      "D",
-      "E",
-      "F",
-      "G",
-      "DP",
-      "COM.1",
-      "COM.2",
-      "DIG1",
-      "DIG2",
-      "DIG3",
-      "DIG4",
-      "COM",
-      "CLN",
+      "A", "B", "C", "D", "E", "F", "G", "DP",
+      "COM.1", "COM.2", "DIG1", "DIG2", "DIG3", "DIG4",
+      "COM", "CLN",
     ];
   }
 
@@ -214,8 +186,6 @@ function getTerminalIds(node: CircuitNode): string[] {
     type === "slide-switch" ||
     type === "switch"
   ) {
-    // Wokwi slide switch is SPDT: 1 and 3 are the throws,
-    // while 2 is the common contact.
     return ["1", "2", "3"];
   }
 
@@ -238,12 +208,6 @@ export class NetlistBuilder {
       return key;
     };
 
-    /*
-     * IMPORTANT:
-     *
-     * A wire is the only thing that merges two electrical points
-     * into the same net.
-     */
     for (const wire of graph.wires) {
       const sourceKey = registerPin(wire.source);
       const targetKey = registerPin(wire.target);
@@ -256,24 +220,6 @@ export class NetlistBuilder {
       });
     }
 
-    /*
-     * =========================================================
-     * BREADBOARD INTERNAL COPPER
-     * =========================================================
-     *
-     * A solderless breadboard has fixed copper strips underneath
-     * its holes. These are part of the physical circuit, so they
-     * must be modeled as internal unions in the netlist.
-     *
-     * MINI: A-E are one strip per row, F-J are another.
-     * HALF: same terminal strips plus four independent continuous
-     * power rails.
-     * FULL: same terminal strips plus four power rails, each split
-     * into top/bottom copper segments.
-     *
-     * We accept both canonical and legacy handle IDs so saved
-     * projects created before the handle cleanup remain connected.
-     */
     const registeredKey = (
       nodeId: string,
       candidates: string[],
@@ -308,15 +254,13 @@ export class NetlistBuilder {
 
     /*
      * React Flow handle IDs and electrical terminal names are not
-     * required to be identical. The 7-segment component uses
-     * pin_a/pin_b/.../pin_com1/pin_com2 handles, while the simulator
-     * uses A/B/.../COM.1/COM.2. Resolve both forms here.
+     * required to be identical. Keep explicit aliases here so the
+     * electrical model follows the actual component handle IDs.
      */
     const terminalCandidates = (
       terminalId: string,
     ): string[] => {
       const aliases: Record<string, string[]> = {
-        // Shared A terminal used by 7-segment and LCD backlight.
         A: ["A", "pin_a"],
         B: ["B", "pin_b"],
         C: ["C", "pin_c"],
@@ -326,8 +270,7 @@ export class NetlistBuilder {
         G: ["G", "pin_g"],
         DP: ["DP", "pin_dp"],
 
-        // 7-segment
-       "COM.1": ["COM.1", "COM1", "pin_com1"],
+        "COM.1": ["COM.1", "COM1", "pin_com1"],
         "COM.2": ["COM.2", "COM2", "pin_com2"],
         COM: ["COM", "pin_com", "pin_com1", "pin_com2"],
 
@@ -337,7 +280,6 @@ export class NetlistBuilder {
         DIG4: ["DIG4", "pin_dig4"],
         CLN: ["CLN", "pin_cln"],
 
-        // HD44780 LCD 1602.
         VSS: ["VSS", "GND", "pin_vss"],
         VDD: ["VDD", "VCC", "pin_vdd"],
         V0: ["V0", "pin_v0"],
@@ -358,12 +300,22 @@ export class NetlistBuilder {
         VCC: ["VCC", "pin_vcc"],
         GND: ["GND", "pin_gnd"],
 
-        // Wokwi photoresistor module uses D0/A0 handles,
-        // while the electrical model uses DO/AO terminal names.
-        // Keep both spellings so saved/new circuits resolve correctly.
         DO: ["DO", "D0", "pin_do", "pin_d0"],
         AO: ["AO", "A0", "pin_ao", "pin_a0"],
-        
+
+        /*
+         * ServoMotorPins.ts uses:
+         *   vcc    -> physical +5V
+         *   gnd    -> physical 0V
+         *   signal -> Arduino PWM signal
+         *
+         * The simulator runtime intentionally uses the electrical
+         * names V+, GND and PWM. Without these aliases the servo
+         * component was created with all three terminals as null,
+         * so the real AVR PWM could never reach the servo runtime.
+         */
+        "V+": ["V+", "VCC", "vcc", "pin_vcc"],
+        PWM: ["PWM", "SIGNAL", "signal", "pin_signal"],
       };
 
       return aliases[terminalId] ?? [
@@ -475,27 +427,12 @@ export class NetlistBuilder {
         continue;
       }
 
-      /*
-       * Keep the four rails independent from each other:
-       * VCC-L != VCC-R and GND-L != GND-R.
-       *
-       * On the full board, each rail is also split at the center,
-       * matching the physical break shown by the board UI.
-       */
       for (const rail of [
         "gnd-l",
         "vcc-l",
         "vcc-r",
         "gnd-r",
       ]) {
-        /*
-         * The full-size board has a physical break in each power
-         * rail around the middle. With 63 numbered rows, rows 1-31
-         * and 32-63 are separate rail segments.
-         *
-         * A jumper wire is required to bridge those two segments,
-         * exactly like a real full-size breadboard.
-         */
         const railSegments = [
           { start: 1, end: 31 },
           { start: 32, end: 63 },
@@ -552,7 +489,7 @@ export class NetlistBuilder {
     let index = 0;
 
     for (const [root, pins] of groups) {
-      const id = `net-${index++}`;
+      const id = "net-" + index++;
 
       rootToNet.set(root, id);
       nets.push({ id, pins });
@@ -574,20 +511,6 @@ export class NetlistBuilder {
       }
     }
 
-    /*
-     * Components are NOT electrically collapsed into nets.
-     *
-     * Example:
-     *
-     *   D13 --- R.pin1 | RESISTOR | R.pin2 --- LED.A
-     *
-     * becomes:
-     *
-     *   net-0 = D13 + R.pin1
-     *   net-1 = R.pin2 + LED.A
-     *
-     * The resistor itself is an element between net-0 and net-1.
-     */
     const components: NetlistComponent[] = [];
 
     for (const node of graph.nodes) {
@@ -602,15 +525,6 @@ export class NetlistBuilder {
 
       const terminals: Record<string, string | null> = {};
 
-      /*
-       * Wokwi pushbuttons are four-pin components, not two-pin
-       * components. Pins 1.l and 1.r are permanently connected,
-       * and pins 2.l and 2.r are permanently connected. The
-       * button press connects those two sides.
-       *
-       * Expose those two physical sides to the electrical solver
-       * as logical pin1/pin2 terminals.
-       */
       if (
         componentType === "pushbutton" ||
         componentType === "button"
