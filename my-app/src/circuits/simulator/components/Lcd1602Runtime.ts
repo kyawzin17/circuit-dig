@@ -162,7 +162,12 @@ export class Lcd1602Runtime {
         return;
       }
 
-      if (this.fourBitMode || this.state.mode === "4bit") {
+      /*
+       * Do not use state.mode here. For a 4-bit LCD, state.mode is
+       * already "4bit" while the HD44780 is still executing its
+       * power-up 0x3,0x3,0x3,0x2 bootstrap sequence.
+       */
+      if (this.fourBitMode) {
         this.writeNibble(levels.data & 0x0f, this.rs === 1);
       } else {
         this.writeByte(levels.data & 0xff, this.rs === 1);
