@@ -1037,7 +1037,7 @@ export class SimulationEngine {
 
         const ref =
           pins.find((candidate) =>
-            /^(?:D|A)\\d+$/i.test(candidate.pinId),
+            /^(?:D|A)\d+$/i.test(candidate.pinId),
           );
 
         return ref?.pinId.toUpperCase() ?? null;
