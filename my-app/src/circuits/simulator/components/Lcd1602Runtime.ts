@@ -167,10 +167,31 @@ export class Lcd1602Runtime {
        * already "4bit" while the HD44780 is still executing its
        * power-up 0x3,0x3,0x3,0x2 bootstrap sequence.
        */
-      if (this.fourBitMode) {
-        this.writeNibble(levels.data & 0x0f, this.rs === 1);
+      /*
+       * A parallel LCD configured for 4-bit operation must feed every
+       * E falling edge through the nibble path, including the initial
+       * HD44780 bootstrap sequence. `fourBitMode` is deliberately false
+       * during that bootstrap, so checking only that flag would send
+       * 0x3/0x3/0x3/0x2 as full bytes and the controller would never
+       * enter the correct 4-bit state.
+       *
+       * `state.mode` describes the physical interface selected by the
+       * circuit; `fourBitMode` describes the controller current
+       * HD44780 state.
+       */
+      if (
+        this.fourBitMode ||
+        this.state.mode === "4bit"
+      ) {
+        this.writeNibble(
+          levels.data & 0x0f,
+          this.rs === 1,
+        );
       } else {
-        this.writeByte(levels.data & 0xff, this.rs === 1);
+        this.writeByte(
+          levels.data & 0xff,
+          this.rs === 1,
+        );
       }
     }
   }
