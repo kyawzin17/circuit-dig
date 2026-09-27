@@ -80,6 +80,40 @@ bool hasActiveServo() {
   return false;
 }
 
+/*
+ * The browser simulator creates a fresh AVR CPU for every Run/Compile
+ * cycle, but this C++ library lives in the same JavaScript module instance.
+ * Static Servo state therefore survives a firmware reload unless we
+ * explicitly recognize the new, reset Timer1 register state.
+ *
+ * On a real Uno, a reset clears Timer1. If our previous simulated firmware
+ * left Servo active, timerInitialized can still be true while the new AVR
+ * starts with TCCR1A/B and TIMSK1 cleared. Treat that combination as a
+ * simulator CPU reset and rebuild the Servo channel table.
+ */
+void resetStaleSimulatorState() {
+  if (
+    !timerInitialized ||
+    TCCR1A != 0 ||
+    TCCR1B != 0 ||
+    TIMSK1 != 0
+  ) {
+    return;
+  }
+
+  for (uint8_t i = 0; i < MAX_SERVOS; ++i) {
+    channels[i].pin = 0;
+    channels[i].pulseTicks =
+      ticksFromMicroseconds(DEFAULT_PULSE_WIDTH);
+    channels[i].active = false;
+  }
+
+  currentChannel = -1;
+  servoCount = 0;
+  pulseHigh = false;
+  timerInitialized = false;
+}
+
 uint16_t totalActivePulseTicks() {
   uint32_t total = 0;
 
@@ -307,6 +341,8 @@ Servo::Servo()
       maxPulse_(MAX_PULSE_WIDTH) {
   const uint8_t savedSreg = SREG;
   cli();
+
+  resetStaleSimulatorState();
 
   if (servoCount < MAX_SERVOS) {
     servoIndex_ = servoCount++;
