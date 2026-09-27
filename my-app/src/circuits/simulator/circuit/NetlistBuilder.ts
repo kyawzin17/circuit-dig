@@ -116,7 +116,9 @@ function getTerminalIds(node: CircuitNode): string[] {
   }
 
   if (type === "buzzer") {
-    return ["1", "2"];
+    // Wokwi buzzer handles are named "negative"/"positive".
+    // Keep the simulator terminals aligned with the actual React Flow pins.
+    return ["negative", "positive"];
   }
 
   if (type === "hc-sr04" || type === "ultrasonic") {
