@@ -213,6 +213,9 @@ const ElectronicNode = ({
     componentType === "hc-sr04" ||
     componentType === "ultrasonic";
 
+  const isServo =
+    componentType === "servo";
+
   const buzzerActive =
     simulation?.buzzer?.active === true;
 
@@ -1114,7 +1117,8 @@ const ElectronicNode = ({
                 isSevenSegment ||
                 isLcd ||
                 isBuzzer ||
-                isUltrasonic
+                isUltrasonic ||
+                isServo
                   ? componentRef
                   : undefined,
             }
