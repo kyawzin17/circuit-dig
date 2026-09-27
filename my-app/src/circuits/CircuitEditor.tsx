@@ -25,7 +25,7 @@ import { resistorPins } from "./pins/resistorPins.ts";
 import { ledPins } from "./pins/ledPins.ts";
 import { buzzerPins } from "./pins/buzzerPins.ts";
 import { hcsr04Pins } from "./pins/hcsr04Pins.ts";
-import { servoPins } from "./pins/servoMotorPins.ts";
+import { servoPins } from "./Pins/servoMotorPins.ts";
 import { lcd1602I2cPins } from "./pins/lcd1602_i2cPins.ts";
 import { lcd1602Pins } from "./pins/lcd1602Pins.ts";
 import { miniBreadboardPins } from "./pins/miniBreadBoardPins.ts";
