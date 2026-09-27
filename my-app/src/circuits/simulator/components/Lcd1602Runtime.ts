@@ -98,7 +98,7 @@ export class Lcd1602Runtime {
      * which made a 4-bit LCD interpret 0x3/0x3 as a complete 0x33
      * byte and shifted every following command/data nibble.
      */
-    this.fourBitMode = mode === "8bit";
+    this.fourBitMode = false;
     this.rs = 0;
     this.rw = 0;
     this.enable = 0;
