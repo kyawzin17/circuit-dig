@@ -670,7 +670,11 @@ const CircuitEditor = () => {
               };
             }
 
-            if (componentType === "servo") {
+            if (
+              componentType === "servo" ||
+              componentType === "servo-motor" ||
+              componentType === "servomotor"
+            ) {
               return {
                 ...node,
                 data: {
