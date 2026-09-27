@@ -56,6 +56,12 @@ type SimulationState = {
     triggerActive?: boolean;
     echoPulseUs?: number;
   };
+  servo?: {
+    angle?: number;
+    pulseWidthUs?: number;
+    signalPin?: string;
+    powered?: boolean;
+  };
 };
 
 const ElectronicNode = ({
