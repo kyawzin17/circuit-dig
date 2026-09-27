@@ -19,7 +19,6 @@ volatile uint8_t servoCount = 0;
 bool timerInitialized = false;
 
 constexpr uint16_t ticksFromMicroseconds(uint16_t microseconds) {
-  // Arduino Uno: 16 MHz / 8 = 2 timer ticks per microsecond.
   return static_cast<uint16_t>(microseconds * 2U);
 }
 
@@ -28,48 +27,56 @@ constexpr uint16_t microsecondsFromTicks(uint16_t ticks) {
 }
 
 uint16_t clampPulse(int value, int minPulse, int maxPulse) {
-  if (value < minPulse) {
-    return static_cast<uint16_t>(minPulse);
-  }
-  if (value > maxPulse) {
-    return static_cast<uint16_t>(maxPulse);
-  }
+  if (value < minPulse) return static_cast<uint16_t>(minPulse);
+  if (value > maxPulse) return static_cast<uint16_t>(maxPulse);
   return static_cast<uint16_t>(value);
 }
 
-void startTimer1() {
-  if (timerInitialized) {
-    return;
+bool hasActiveServo() {
+  for (uint8_t i = 0; i < MAX_SERVOS; ++i) {
+    if (channels[i].active) return true;
   }
+  return false;
+}
 
-  uint8_t savedSreg = SREG;
+void startTimer1() {
+  if (timerInitialized) return;
+
+  const uint8_t savedSreg = SREG;
   cli();
 
   TCCR1A = 0;
-  TCCR1B = _BV(CS11); // normal mode, prescaler 8
+  TCCR1B = _BV(CS11);
   TCNT1 = 0;
-  OCR1A = ticksFromMicroseconds(REFRESH_INTERVAL);
 
+  /*
+   * Start the first frame almost immediately. The ISR then creates
+   * the real 50 Hz servo waveform from Timer1 compare events.
+   */
+  OCR1A = 1;
   TIFR1 = _BV(OCF1A);
   TIMSK1 |= _BV(OCIE1A);
 
+  currentChannel = -1;
   timerInitialized = true;
+
   SREG = savedSreg;
 }
 
 void stopTimer1() {
-  if (!timerInitialized) {
-    return;
-  }
+  if (!timerInitialized) return;
 
-  uint8_t savedSreg = SREG;
+  const uint8_t savedSreg = SREG;
   cli();
 
   TIMSK1 &= static_cast<uint8_t>(~_BV(OCIE1A));
   TCCR1A = 0;
   TCCR1B = 0;
-  timerInitialized = false;
+  TCNT1 = 0;
+  OCR1A = 0;
+
   currentChannel = -1;
+  timerInitialized = false;
 
   SREG = savedSreg;
 }
@@ -77,39 +84,46 @@ void stopTimer1() {
 void scheduleNextPulse() {
   int8_t next = currentChannel + 1;
 
-  while (next < static_cast<int8_t>(MAX_SERVOS) &&
-         !channels[next].active) {
+  while (
+    next < static_cast<int8_t>(MAX_SERVOS) &&
+    !channels[next].active
+  ) {
     ++next;
   }
 
   if (next < static_cast<int8_t>(MAX_SERVOS)) {
     currentChannel = next;
+
     digitalWrite(channels[next].pin, HIGH);
+
     OCR1A = static_cast<uint16_t>(
       TCNT1 + channels[next].pulseTicks
     );
     return;
   }
 
-  // End of the current 20 ms frame.
+  /*
+   * No more active channels. Wait for the 20 ms frame boundary.
+   * TCNT1 is reset only when that boundary interrupt fires.
+   */
   currentChannel = -1;
 
   const uint16_t refreshTicks =
     ticksFromMicroseconds(REFRESH_INTERVAL);
-
   const uint16_t now = TCNT1;
 
-  if (now + 4U < refreshTicks) {
-    OCR1A = refreshTicks;
-  } else {
-    OCR1A = static_cast<uint16_t>(now + 4U);
-  }
+  OCR1A =
+    now < refreshTicks
+      ? refreshTicks
+      : static_cast<uint16_t>(now + refreshTicks);
 }
 
 ISR(TIMER1_COMPA_vect) {
-  if (currentChannel >= 0 &&
-      currentChannel < static_cast<int8_t>(MAX_SERVOS) &&
-      channels[currentChannel].active) {
+  if (
+    currentChannel >= 0 &&
+    currentChannel < static_cast<int8_t>(MAX_SERVOS) &&
+    channels[currentChannel].active
+  ) {
     digitalWrite(channels[currentChannel].pin, LOW);
   }
 
@@ -117,7 +131,11 @@ ISR(TIMER1_COMPA_vect) {
     TCNT1 = 0;
   }
 
-  scheduleNextPulse();
+  if (hasActiveServo()) {
+    scheduleNextPulse();
+  } else {
+    stopTimer1();
+  }
 }
 
 } // namespace
@@ -126,11 +144,12 @@ Servo::Servo()
     : servoIndex_(INVALID_SERVO),
       minPulse_(MIN_PULSE_WIDTH),
       maxPulse_(MAX_PULSE_WIDTH) {
-  uint8_t savedSreg = SREG;
+  const uint8_t savedSreg = SREG;
   cli();
 
   if (servoCount < MAX_SERVOS) {
     servoIndex_ = servoCount++;
+
     channels[servoIndex_].pin = 0;
     channels[servoIndex_].pulseTicks =
       ticksFromMicroseconds(DEFAULT_PULSE_WIDTH);
@@ -145,25 +164,18 @@ uint8_t Servo::attach(int pin) {
 }
 
 uint8_t Servo::attach(int pin, int min, int max) {
-  if (servoIndex_ == INVALID_SERVO) {
-    return INVALID_SERVO;
-  }
+  if (servoIndex_ == INVALID_SERVO) return INVALID_SERVO;
 
   minPulse_ = min;
   maxPulse_ = max;
 
-  if (minPulse_ < 100) {
-    minPulse_ = 100;
-  }
-
-  if (maxPulse_ <= minPulse_) {
-    maxPulse_ = minPulse_ + 1;
-  }
+  if (minPulse_ < 100) minPulse_ = 100;
+  if (maxPulse_ <= minPulse_) maxPulse_ = minPulse_ + 1;
 
   pinMode(pin, OUTPUT);
   digitalWrite(pin, LOW);
 
-  uint8_t savedSreg = SREG;
+  const uint8_t savedSreg = SREG;
   cli();
 
   channels[servoIndex_].pin = static_cast<uint8_t>(pin);
@@ -174,32 +186,19 @@ uint8_t Servo::attach(int pin, int min, int max) {
   startTimer1();
 
   SREG = savedSreg;
-
   return servoIndex_;
 }
 
 void Servo::detach() {
-  if (servoIndex_ == INVALID_SERVO) {
-    return;
-  }
+  if (servoIndex_ == INVALID_SERVO) return;
 
-  uint8_t savedSreg = SREG;
+  const uint8_t savedSreg = SREG;
   cli();
 
   channels[servoIndex_].active = false;
   digitalWrite(channels[servoIndex_].pin, LOW);
 
-  bool anyActive = false;
-  for (uint8_t i = 0; i < MAX_SERVOS; ++i) {
-    if (channels[i].active) {
-      anyActive = true;
-      break;
-    }
-  }
-
-  if (!anyActive) {
-    stopTimer1();
-  }
+  if (!hasActiveServo()) stopTimer1();
 
   SREG = savedSreg;
 }
@@ -207,27 +206,19 @@ void Servo::detach() {
 void Servo::write(int value) {
   if (value < MIN_PULSE_WIDTH) {
     value = constrain(value, 0, 180);
-    value = map(
-      value,
-      0,
-      180,
-      minPulse_,
-      maxPulse_
-    );
+    value = map(value, 0, 180, minPulse_, maxPulse_);
   }
 
   writeMicroseconds(value);
 }
 
 void Servo::writeMicroseconds(int value) {
-  if (servoIndex_ == INVALID_SERVO) {
-    return;
-  }
+  if (servoIndex_ == INVALID_SERVO) return;
 
   const uint16_t pulse =
     clampPulse(value, minPulse_, maxPulse_);
 
-  uint8_t savedSreg = SREG;
+  const uint8_t savedSreg = SREG;
   cli();
 
   channels[servoIndex_].pulseTicks =
@@ -238,10 +229,7 @@ void Servo::writeMicroseconds(int value) {
 
 int Servo::read() {
   const int pulse = readMicroseconds();
-
-  if (pulse <= 0) {
-    return 0;
-  }
+  if (pulse <= 0) return 0;
 
   return map(
     pulse,
@@ -253,11 +241,9 @@ int Servo::read() {
 }
 
 int Servo::readMicroseconds() {
-  if (servoIndex_ == INVALID_SERVO) {
-    return 0;
-  }
+  if (servoIndex_ == INVALID_SERVO) return 0;
 
-  uint8_t savedSreg = SREG;
+  const uint8_t savedSreg = SREG;
   cli();
 
   const uint16_t ticks =
@@ -269,11 +255,8 @@ int Servo::readMicroseconds() {
 }
 
 bool Servo::attached() {
-  if (servoIndex_ == INVALID_SERVO) {
-    return false;
-  }
-
-  return channels[servoIndex_].active;
+  return servoIndex_ != INVALID_SERVO &&
+         channels[servoIndex_].active;
 }
 
 #else
