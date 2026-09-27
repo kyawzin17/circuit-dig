@@ -163,6 +163,18 @@ export class SimulationEngine {
   private readonly lcdRuntimes =
     new Map<string, Lcd1602Runtime>();
 
+  /*
+   * Cache the last firmware-driven GPIO level for parallel LCD pins.
+   *
+   * The LCD latches its bus on E's falling edge. Reading AVR registers
+   * again inside that callback is fragile when several GPIO changes are
+   * produced by the same firmware operation. The callback already gives
+   * us the exact level that changed, so keep that electrical bus state
+   * and sample the cached values when E falls.
+   */
+  private readonly parallelLcdGpioLevels =
+    new Map<string, 0 | 1>();
+
   private lcdI2cHandler:
     Lcd1602I2cEventHandler | null = null;
 
@@ -340,6 +352,7 @@ export class SimulationEngine {
     this.activeTrace = undefined;
     this.ultrasonicTriggerLevels.clear();
     this.lcdRuntimes.clear();
+    this.parallelLcdGpioLevels.clear();
     this.lcdI2cHandler = null;
 
     for (const node of nodes) {
@@ -425,6 +438,7 @@ export class SimulationEngine {
     }
 
     this.arduino.reset();
+    this.parallelLcdGpioLevels.clear();
 
     this.avr.loadProgram(
       program,
@@ -856,6 +870,15 @@ export class SimulationEngine {
     }
 
     /*
+     * Keep the firmware-generated GPIO state synchronized with the
+     * physical parallel LCD bus. The LCD is sampled on E's falling edge.
+     */
+    this.parallelLcdGpioLevels.set(
+      pin.toUpperCase(),
+      level,
+    );
+
+    /*
      * LCD parallel bus transactions are latched on E's falling edge.
      * The AVR runner calls this from the real PORT register transitions,
      * so the LCD observes firmware-generated bus timing rather than
@@ -1064,7 +1087,12 @@ export class SimulationEngine {
 
       const readLevel = (gpioPin: string | null): 0 | 1 =>
         gpioPin
-          ? this.avr.getGpioLevel(gpioPin)
+          ? (
+              this.parallelLcdGpioLevels.get(
+                gpioPin.toUpperCase(),
+              ) ??
+              this.avr.getGpioLevel(gpioPin)
+            )
           : 0;
 
       const levels = dataPins.reduce(
