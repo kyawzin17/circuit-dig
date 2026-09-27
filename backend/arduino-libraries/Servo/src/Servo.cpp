@@ -135,7 +135,7 @@ void startTimer1() {
   cli();
 
   TCCR1A = 0;
-  TCCR1B = _BV(WGM12) | _BV(CS11); // CTC, /8
+  TCCR1B = _BV(CS11); // Normal counting mode, /8
   TCNT1 = 0;
 
   /*
@@ -155,7 +155,7 @@ void startTimer1() {
     pulseHigh = true;
 
     OCR1A = static_cast<uint16_t>(
-      channels[currentChannel].pulseTicks - 1U
+      TCNT1 + channels[currentChannel].pulseTicks
     );
   } else {
     OCR1A = 0;
@@ -265,7 +265,7 @@ void scheduleNextTimerInterval() {
         : 1U;
 
     OCR1A = static_cast<uint16_t>(
-      gapTicks - 1U
+      TCNT1 + gapTicks
     );
 
     return;
@@ -291,7 +291,7 @@ void scheduleNextTimerInterval() {
   pulseHigh = true;
 
   OCR1A = static_cast<uint16_t>(
-    channels[currentChannel].pulseTicks - 1U
+    TCNT1 + channels[currentChannel].pulseTicks
   );
 }
 
