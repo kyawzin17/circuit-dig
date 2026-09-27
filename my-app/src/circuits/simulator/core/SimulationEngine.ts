@@ -1089,7 +1089,7 @@ export class SimulationEngine {
 
       const start = this.servoPulseStarts.get(component.id);
       if (start === undefined || cycle <= start) {
-        return;
+        continue;
       }
 
       const pulseWidthUs =
