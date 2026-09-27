@@ -123,6 +123,14 @@ export interface UltrasonicRuntimeState {
   echoPulseUs?: number;
 }
 
+export interface ServoRuntimeState {
+  id: string;
+  angle: number;
+  pulseWidthUs?: number;
+  signalPin?: string;
+  powered: boolean;
+}
+
 export interface Lcd1602RuntimeState {
   id: string;
   text: string;
@@ -254,6 +262,8 @@ export interface ArduinoUnoRuntimeState {
   buzzerStates: Record<string, BuzzerRuntimeState>;
 
   ultrasonicStates: Record<string, UltrasonicRuntimeState>;
+
+  servoStates: Record<string, ServoRuntimeState>;
 
   lcdStates: Record<string, Lcd1602RuntimeState>;
 
