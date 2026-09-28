@@ -155,6 +155,20 @@ export interface Ssd1306RuntimeState {
   frame: number;
 }
 
+export interface NeoPixelRuntimeState {
+  id: string;
+  red: number;
+  green: number;
+  blue: number;
+  color: string;
+  brightness: number;
+  powered: boolean;
+  latched: boolean;
+  frame: number;
+  dataBits: number;
+  interfaceType: "ws2812b";
+}
+
 export interface Lcd1602RuntimeState {
   id: string;
   text: string;
@@ -294,6 +308,8 @@ export interface ArduinoUnoRuntimeState {
   lcdStates: Record<string, Lcd1602RuntimeState>;
 
   ssd1306States: Record<string, Ssd1306RuntimeState>;
+
+  neopixelStates: Record<string, NeoPixelRuntimeState>;
 
   wireStates: Record<string, WireRuntimeState>;
 
