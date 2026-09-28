@@ -272,7 +272,9 @@ private:
       static_cast<int64_t>(minute) * 60LL +
       second;
 
-    return static_cast<uint32_t>(seconds + 946684800ULL);
+    // daysFromCivil() returns days since the Unix epoch, so the
+    // resulting timestamp is already Unix seconds.
+    return static_cast<uint32_t>(seconds);
   }
 
   static uint32_t fromCompileDateTime(
