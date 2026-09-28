@@ -61,6 +61,7 @@ import {
   Ssd1306SoftwareSpiDecoder,
 } from "../components/Ssd1306Runtime";
 import { NeoPixelRuntime } from "../components/NeoPixelRuntime";
+import { Ds1307Runtime } from "../components/Ds1307Runtime";
 
 /* =========================================================
    ENGINE OPTIONS
@@ -240,6 +241,9 @@ export class SimulationEngine {
 
   private readonly neoPixelRuntimes =
     new Map<string, NeoPixelRuntime>();
+
+  private readonly ds1307Runtimes =
+    new Map<string, Ds1307Runtime>();
 
   /**
    * PIR timing is kept in simulated AVR cycles so the sensor follows
@@ -450,6 +454,136 @@ export class SimulationEngine {
     }
 
     return null;
+  }
+
+  private isDs1307I2cConnected(
+    componentId: string,
+  ): boolean {
+    if (!this.netlist) {
+      return false;
+    }
+
+    const component =
+      this.netlist.components.find(
+        (item) => item.id === componentId,
+      );
+
+    if (!component) {
+      return false;
+    }
+
+    const netHasArduinoPin = (
+      netId: string | null | undefined,
+      pinName: string,
+    ): boolean => {
+      if (!netId) {
+        return false;
+      }
+
+      return (
+        this.netlist!.netToPins
+          .get(netId)
+          ?.some(
+            (pin) =>
+              pin.pinId.toUpperCase() ===
+              pinName.toUpperCase(),
+          ) ?? false
+      );
+    };
+
+    return (
+      netHasArduinoPin(component.terminals.SDA, "A4") &&
+      netHasArduinoPin(component.terminals.SCL, "A5") &&
+      this.isDs1307Powered(component)
+    );
+  }
+
+  private isDs1307Powered(
+    component: Netlist["components"][number],
+  ): boolean {
+    const vcc = component.terminals.VCC;
+    const gnd = component.terminals.GND;
+
+    if (!vcc || !gnd) {
+      return false;
+    }
+
+    const vccVoltage =
+      this.powerState.netVoltages[vcc];
+
+    const gndVoltage =
+      this.powerState.netVoltages[gnd];
+
+    const hasPositiveSource =
+      this.powerState.sourceNets.has(vcc) ||
+      (typeof vccVoltage === "number" &&
+        vccVoltage >= 3);
+
+    const hasGroundReference =
+      this.powerState.groundNets.has(gnd) ||
+      (typeof gndVoltage === "number" &&
+        Math.abs(gndVoltage) < 0.05);
+
+    return (
+      hasPositiveSource &&
+      hasGroundReference &&
+      vccVoltage !== undefined &&
+      gndVoltage !== undefined &&
+      vccVoltage - gndVoltage >= 3
+    );
+  }
+
+  private updateDs1307PowerStates(
+    cycle: number,
+  ): void {
+    if (!this.netlist) {
+      return;
+    }
+
+    for (const component of this.netlist.components) {
+      const runtime =
+        this.ds1307Runtimes.get(component.id);
+
+      if (!runtime) {
+        continue;
+      }
+
+      runtime.setPowered(
+        this.isDs1307Powered(component),
+      );
+
+      runtime.advanceToCycle(cycle);
+    }
+  }
+
+  private resolveDs1307SqwOutputs(
+    cycle: number,
+  ): Map<string, 0 | 1> {
+    const outputs = new Map<string, 0 | 1>();
+
+    if (!this.netlist) {
+      return outputs;
+    }
+
+    for (const component of this.netlist.components) {
+      const runtime =
+        this.ds1307Runtimes.get(component.id);
+
+      const sqwNet =
+        component.terminals.SQW;
+
+      if (!runtime || !sqwNet) {
+        continue;
+      }
+
+      runtime.advanceToCycle(cycle);
+      outputs.set(
+        sqwNet,
+        runtime.getSqwLevel(cycle),
+      );
+    }
+
+    return outputs;
   }
 
   private updateSsd1306PowerStates(): void {
@@ -737,6 +871,7 @@ export class SimulationEngine {
     this.lcdRuntimes.clear();
     this.ssd1306Runtimes.clear();
     this.neoPixelRuntimes.clear();
+    this.ds1307Runtimes.clear();
     this.pirRuntime.clear();
     this.parallelLcdGpioLevels.clear();
     this.lcdI2cHandler = null;
@@ -804,6 +939,25 @@ export class SimulationEngine {
             optionsFrequency(this.options),
           ),
         );
+      } else if (
+        type === "ds1307" ||
+        type === "rtc-ds1307" ||
+        type === "rtc"
+      ) {
+        const props =
+          node.data?.props &&
+          typeof node.data.props === "object"
+            ? (node.data.props as Record<string, unknown>)
+            : {};
+
+        this.ds1307Runtimes.set(
+          node.id,
+          new Ds1307Runtime(
+            node.id,
+            props.initTime ?? node.data?.initTime,
+            optionsFrequency(this.options),
+          ),
+        );
       }
     }
 
@@ -864,6 +1018,14 @@ export class SimulationEngine {
       pixel.reset();
     }
 
+    for (const rtc of this.ds1307Runtimes.values()) {
+      const initialEpoch = rtc.getEpochMs();
+      rtc.reset(
+        new Date(initialEpoch).toISOString(),
+        optionsFrequency(this.options),
+      );
+    }
+
     const lcdI2cPeripherals = () =>
       Array.from(this.lcdRuntimes.values());
 
@@ -873,6 +1035,9 @@ export class SimulationEngine {
         this.avr.getTwi()!,
         (display) =>
           this.isLcdI2cConnected(display.id),
+        this.ds1307Runtimes.values().next().value,
+        (rtc) =>
+          this.isDs1307I2cConnected(rtc.id),
       );
 
     this.avr.setTwiEventHandler(
@@ -1020,6 +1185,9 @@ export class SimulationEngine {
 
         this.updateSsd1306PowerStates();
         this.updateNeoPixelPowerStates();
+        this.updateDs1307PowerStates(
+          this.simulatedCycles,
+        );
 
         /*
          * Resolve analog voltages before AVR execution.
@@ -1069,6 +1237,15 @@ export class SimulationEngine {
           );
 
         for (const [netId, level] of this.resolvePirOutputs()) {
+          sensorDigitalOutputs.set(netId, level);
+        }
+
+        for (
+          const [netId, level]
+          of this.resolveDs1307SqwOutputs(
+            this.simulatedCycles,
+          )
+        ) {
           sensorDigitalOutputs.set(netId, level);
         }
 

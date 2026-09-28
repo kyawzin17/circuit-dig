@@ -152,6 +152,14 @@ function getTerminalIds(node: CircuitNode): string[] {
   }
 
   if (
+    type === "ds1307" ||
+    type === "rtc-ds1307" ||
+    type === "rtc"
+  ) {
+    return ["GND", "VCC", "SDA", "SCL", "SQW"];
+  }
+
+  if (
     type === "lcd1602" ||
     type === "lcd-1602" ||
     type === "lcd1602-full"
@@ -327,6 +335,7 @@ export class NetlistBuilder {
         VIN: ["VIN", "pin_vin"],
         VCC: ["VCC", "pin_vcc"],
         GND: ["GND", "pin_gnd"],
+        SQW: ["SQW", "pin_sqw"],
 
         DO: ["DO", "D0", "pin_do", "pin_d0"],
         AO: ["AO", "A0", "pin_ao", "pin_a0"],
