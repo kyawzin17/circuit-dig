@@ -123,6 +123,14 @@ function getTerminalIds(node: CircuitNode): string[] {
     return ["VCC", "TRIG", "ECHO", "GND"];
   }
 
+  if (
+    type === "pir" ||
+    type === "pir-motion-sensor" ||
+    type === "pir-motion"
+  ) {
+    return ["VCC", "OUT", "GND"];
+  }
+
   if (type === "capacitor" || type === "cap") {
     return ["pin1", "pin2"];
   }
