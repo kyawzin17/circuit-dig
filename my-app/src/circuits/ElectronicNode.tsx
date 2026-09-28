@@ -265,6 +265,14 @@ const ElectronicNode = ({
   const isNeoPixel =
     componentType === "neopixel";
 
+  // DS1307 is a real Wokwi custom element too. Keep its DOM ref attached
+  // so the RTC node can participate in the same component bridge lifecycle
+  // as the other simulator-backed peripherals.
+  const isDs1307 =
+    componentType === "ds1307" ||
+    componentType === "rtc-ds1307" ||
+    componentType === "rtc";
+
   const buzzerActive =
     simulation?.buzzer?.active === true;
 
@@ -1466,7 +1474,8 @@ const ElectronicNode = ({
                 isPir ||
                 isServo ||
                 isSsd1306 ||
-                isNeoPixel
+                isNeoPixel ||
+                isDs1307
                   ? componentRef
                   : undefined,
             }
