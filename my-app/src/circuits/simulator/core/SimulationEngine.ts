@@ -513,7 +513,9 @@ export class SimulationEngine {
 
       const state =
         this.pirRuntime.get(node.id) ?? {
-          lastTriggerId: triggerId,
+          // Start from zero so the first UI motion event (triggerId=1)
+          // is never swallowed when it happens before the first tick.
+          lastTriggerId: 0,
           highUntilCycle: 0,
           inhibitUntilCycle: 0,
         };
