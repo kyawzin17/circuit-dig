@@ -149,6 +149,30 @@ export class NeoPixelRuntime {
   }
 
   /**
+   * Flush a WS2812B reset/latch interval even when the firmware does not
+   * produce another rising edge. This is required for the final
+   * pixels.show() in setup(), because the latch happens during the
+   * following LOW interval.
+   */
+  flush(cycle: number): void {
+    if (
+      !this.powered ||
+      this.lastLevel !== 0 ||
+      this.lastFallingCycle === null
+    ) {
+      return;
+    }
+
+    if (
+      Math.max(0, Math.floor(cycle)) -
+        this.lastFallingCycle >=
+      this.usToCycles(RESET_MIN_US)
+    ) {
+      this.latchReceivedFrame();
+    }
+  }
+
+  /**
    * Return and clear the most recently latched raw frame.
    * Used by the simulation engine to distribute data through a DOUT->DIN
    * NeoPixel chain.
