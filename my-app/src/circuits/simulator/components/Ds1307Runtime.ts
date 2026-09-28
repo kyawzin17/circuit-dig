@@ -301,6 +301,30 @@ export class Ds1307Runtime {
     };
   }
 
+  getState(cycle?: number): {
+    powered: boolean;
+    year: number;
+    month: number;
+    day: number;
+    hour: number;
+    minute: number;
+    second: number;
+    dayOfWeek: number;
+    sqwMode: Ds1307SqwMode;
+    sqwLevel: PinLevel;
+  } {
+    const parts = this.getDateParts(cycle);
+
+    return {
+      powered: this.powered,
+      ...parts,
+      sqwMode: this.getSqwMode(),
+      sqwLevel: this.getSqwLevel(
+        cycle ?? this.lastCycle,
+      ),
+    };
+  }
+
   private loadEpochIntoRegisters(epochMs: number): void {
     const date = new Date(epochMs);
 
