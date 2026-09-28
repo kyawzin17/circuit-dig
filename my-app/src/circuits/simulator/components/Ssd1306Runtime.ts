@@ -25,6 +25,7 @@ export class Ssd1306Runtime {
 
   private displayOn = false;
   private invert = false;
+  private forceAllOn = false;
   private contrast = 0x7f;
   private powered = false;
 
@@ -59,6 +60,7 @@ export class Ssd1306Runtime {
 
     this.displayOn = false;
     this.invert = false;
+    this.forceAllOn = false;
     this.contrast = 0x7f;
     this.powered = false;
 
@@ -235,19 +237,21 @@ export class Ssd1306Runtime {
         break;
 
       case 0xa4:
-        // Display follows GDDRAM.
+        this.forceAllOn = false;
         break;
 
       case 0xa5:
-        // Entire display ON is represented by renderPixels().
+        this.forceAllOn = true;
         break;
 
       case 0xa6:
         this.invert = false;
+        this.forceAllOn = false;
         break;
 
       case 0xa7:
         this.invert = true;
+        this.forceAllOn = false;
         break;
 
       case 0x20:
@@ -396,7 +400,7 @@ export class Ssd1306Runtime {
       return pixels;
     }
 
-    const allOn = false;
+    const allOn = this.forceAllOn;
 
     for (let page = 0; page < 8; page += 1) {
       for (let col = 0; col < 128; col += 1) {
@@ -491,6 +495,85 @@ export class Ssd1306I2cEventHandler
   writeByte(value: number): void {
     if (this.selected) {
       this.selected.processI2cByte(value);
+    }
+
+    this.twi.completeWrite(
+      this.selected !== null,
+    );
+  }
+
+  readByte(): void {
+    this.twi.completeRead(0);
+  }
+}
+
+
+export type I2cPeripheral =
+  | Lcd1602Runtime
+  | Ssd1306Runtime;
+
+export class I2cPeripheralEventHandler
+  implements TWIEventHandler {
+  private selected: I2cPeripheral | null = null;
+
+  constructor(
+    private readonly displays: () => I2cPeripheral[],
+    private readonly twi: AVRTWI,
+    private readonly canConnect?: (
+      display: I2cPeripheral,
+    ) => boolean,
+  ) {}
+
+  start(): void {
+    this.selected = null;
+    this.twi.completeStart();
+
+    for (const display of this.displays()) {
+      if (display instanceof Ssd1306Runtime) {
+        display.beginI2cTransaction();
+      }
+    }
+  }
+
+  stop(): void {
+    if (this.selected instanceof Ssd1306Runtime) {
+      this.selected.endI2cTransaction();
+    } else if (this.selected instanceof Lcd1602Runtime) {
+      // LCD keeps its own transaction state inside the existing model.
+    }
+
+    this.selected = null;
+    this.twi.completeStop();
+  }
+
+  connectToSlave(
+    addr: number,
+    write: boolean,
+  ): void {
+    const display = this.displays().find(
+      (item) =>
+        (
+          item instanceof Ssd1306Runtime
+            ? item.acceptsI2cAddress(addr)
+            : item.acceptsI2cAddress(addr)
+        ) &&
+        (this.canConnect
+          ? this.canConnect(item)
+          : true),
+    );
+
+    this.selected = display ?? null;
+
+    this.twi.completeConnect(
+      Boolean(this.selected && write),
+    );
+  }
+
+  writeByte(value: number): void {
+    if (this.selected instanceof Ssd1306Runtime) {
+      this.selected.processI2cByte(value);
+    } else if (this.selected instanceof Lcd1602Runtime) {
+      this.selected.processI2cExpanderByte(value);
     }
 
     this.twi.completeWrite(
