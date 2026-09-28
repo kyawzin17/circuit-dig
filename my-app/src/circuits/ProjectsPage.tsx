@@ -56,7 +56,7 @@ export default function ProjectsPage() {
   };
 
   return (
-    <main className="min-h-screen bg-[#070b12] text-slate-100">
+    <main className="h-screen bg-[#070b12] text-slate-100 overflow-auto border-2 border-red-400">
       <header className="sticky top-0 z-20 border-b border-slate-800/80 bg-[#070b12]/95 px-5 py-4 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-3">
           <div className="flex items-center gap-3">
