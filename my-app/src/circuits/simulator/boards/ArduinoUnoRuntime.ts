@@ -12,6 +12,7 @@ import type {
   ServoRuntimeState,
   Lcd1602RuntimeState,
   Ssd1306RuntimeState,
+  NeoPixelRuntimeState,
   PirRuntimeState,
 } from "../types/simulator.types";
 import { ARDUINO_UNO_PIN_MAP } from "../mapping/ArduinoUnoPinMap";
@@ -146,6 +147,7 @@ export class ArduinoUnoRuntime {
       pirStates: {} as Record<string, PirRuntimeState>,
       lcdStates: {} as Record<string, Lcd1602RuntimeState>,
       ssd1306States: {} as Record<string, Ssd1306RuntimeState>,
+      neopixelStates: {} as Record<string, NeoPixelRuntimeState>,
       wireStates: {},
       diagnostics: {
         simulatedCycles: 0,
