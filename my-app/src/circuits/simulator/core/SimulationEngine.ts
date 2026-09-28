@@ -1003,6 +1003,10 @@ export class SimulationEngine {
       this.arduino,
     );
 
+    this.avr.setSerialByteHandler((value) => {
+      this.arduino.appendSerialOutput(value);
+    });
+
     for (const lcd of this.lcdRuntimes.values()) {
       lcd.reset(
         lcd.getState().mode,
