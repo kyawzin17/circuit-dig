@@ -419,7 +419,7 @@ export class SimulationEngine {
     const refs = this.netlist.netToPins.get(netId) ?? [];
 
     for (const ref of refs) {
-      if (!/^(?:D|A)\\d+$/i.test(ref.pinId)) continue;
+      if (!/^(?:D|A)\d+$/i.test(ref.pinId)) continue;
 
       const node = this.circuitNodes.find(
         (candidate) => candidate.id === ref.nodeId,
@@ -1070,7 +1070,7 @@ export class SimulationEngine {
          */
         for (const [netId, level] of sensorDigitalOutputs) {
           for (const pin of this.netlist.netToPins.get(netId) ?? []) {
-            if (!/^(?:D|A)\\d+$/i.test(pin.pinId)) {
+            if (!/^(?:D|A)\d+$/i.test(pin.pinId)) {
               continue;
             }
 
