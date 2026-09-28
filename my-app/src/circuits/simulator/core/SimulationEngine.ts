@@ -1266,6 +1266,9 @@ export class SimulationEngine {
       this.applySevenSegmentStates();
       this.applyLcdStates();
       this.applySsd1306States();
+      this.flushNeoPixelLatches(
+        this.simulatedCycles,
+      );
       this.applyNeoPixelStates();
       this.applyBuzzerStates();
       this.applyUltrasonicStates();
@@ -1610,6 +1613,24 @@ export class SimulationEngine {
 
     for (const [id, runtime] of this.ssd1306Runtimes) {
       runtimeState[id] = runtime.getState();
+    }
+  }
+
+  private flushNeoPixelLatches(
+    cycle: number,
+  ): void {
+    for (const runtime of this.neoPixelRuntimes.values()) {
+      runtime.flush(cycle);
+
+      const frame =
+        runtime.consumeLatchedBits();
+
+      if (frame) {
+        this.distributeNeoPixelFrame(
+          runtime.getState().id,
+          frame,
+        );
+      }
     }
   }
 
