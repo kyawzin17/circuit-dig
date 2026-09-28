@@ -131,6 +131,17 @@ export interface ServoRuntimeState {
   powered: boolean;
 }
 
+export interface PirRuntimeState {
+  id: string;
+  motion: boolean;
+  outputHigh: boolean;
+  powered: boolean;
+  delayTimeSec: number;
+  inhibitTimeSec: number;
+  retrigger: boolean;
+  lastTriggerId: number;
+}
+
 export interface Lcd1602RuntimeState {
   id: string;
   text: string;
@@ -264,6 +275,8 @@ export interface ArduinoUnoRuntimeState {
   ultrasonicStates: Record<string, UltrasonicRuntimeState>;
 
   servoStates: Record<string, ServoRuntimeState>;
+
+  pirStates: Record<string, PirRuntimeState>;
 
   lcdStates: Record<string, Lcd1602RuntimeState>;
 
