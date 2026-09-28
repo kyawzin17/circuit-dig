@@ -311,6 +311,9 @@ export interface ArduinoUnoRuntimeState {
 
   neopixelStates: Record<string, NeoPixelRuntimeState>;
 
+  /** Bytes emitted by the AVR UART TX path, decoded as Serial Monitor text. */
+  serialOutput: string;
+
   wireStates: Record<string, WireRuntimeState>;
 
   diagnostics: SimulationDiagnostics;
