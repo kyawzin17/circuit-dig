@@ -554,6 +554,26 @@ export class SimulationEngine {
 
       runtime.advanceToCycle(cycle);
     }
+
+    const runtimeState =
+      this.arduino.getState().ds1307States;
+
+    for (const [id, runtime] of this.ds1307Runtimes) {
+      const state = runtime.getState(cycle);
+      runtimeState[id] = {
+        id,
+        powered: state.powered,
+        year: state.year,
+        month: state.month,
+        day: state.day,
+        hour: state.hour,
+        minute: state.minute,
+        second: state.second,
+        dayOfWeek: state.dayOfWeek,
+        sqwMode: state.sqwMode,
+        sqwLevel: state.sqwLevel,
+      };
+    }
   }
 
   private resolveDs1307SqwOutputs(
