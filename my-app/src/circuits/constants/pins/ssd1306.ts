@@ -1,7 +1,7 @@
 import { digital } from "./pin";
 
 // =====================================================
-// OLED SSD1306 DISPLAY (128x64 8-PIN I2C BREAKOUT)
+// OLED SSD1306 DISPLAY (128x64 8-PIN SPI BREAKOUT)
 // =====================================================
 //
 // Pin layout:
@@ -22,7 +22,7 @@ export const OLED_SSD1306_8PIN_PIN = [
     y: 12,
     dir: "top",
     signals: [
-      { type: "protocol", signal: "I2C_SDA" },
+      { type: "protocol", signal: "SPI_MOSI" },
     ],
   },
 
@@ -32,7 +32,7 @@ export const OLED_SSD1306_8PIN_PIN = [
     y: 12,
     dir: "top",
     signals: [
-      { type: "protocol", signal: "I2C_SCL" },
+      { type: "protocol", signal: "SPI_SCK" },
     ],
   },
 
