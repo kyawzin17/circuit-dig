@@ -142,6 +142,19 @@ export interface PirRuntimeState {
   lastTriggerId: number;
 }
 
+export interface Ssd1306RuntimeState {
+  id: string;
+  width: 128;
+  height: 64;
+  pixels: number[];
+  displayOn: boolean;
+  invert: boolean;
+  contrast: number;
+  i2cAddress: number;
+  powered: boolean;
+  frame: number;
+}
+
 export interface Lcd1602RuntimeState {
   id: string;
   text: string;
@@ -279,6 +292,8 @@ export interface ArduinoUnoRuntimeState {
   pirStates: Record<string, PirRuntimeState>;
 
   lcdStates: Record<string, Lcd1602RuntimeState>;
+
+  ssd1306States: Record<string, Ssd1306RuntimeState>;
 
   wireStates: Record<string, WireRuntimeState>;
 
