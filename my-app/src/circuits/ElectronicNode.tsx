@@ -1352,10 +1352,11 @@ const ElectronicNode = ({
             width={128}
             height={64}
             aria-label="SSD1306 OLED display"
-            className="pointer-events-none absolute left-1/2 top-[18%] z-20 w-[62%] -translate-x-1/2 rounded-[2px] border border-slate-700 bg-black shadow-inner"
+            className="pointer-events-none absolute left-1/2 top-[22%] z-20 w-[86%] p-1 -translate-x-1/2 bg-black shadow-inner"
             style={{
               aspectRatio: "2 / 1",
               imageRendering: "pixelated",
+              transform: "rotateY(180deg)",
               opacity:
                 simulation?.ssd1306?.powered === false
                   ? 0.35
