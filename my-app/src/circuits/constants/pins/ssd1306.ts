@@ -1,4 +1,4 @@
-import { digital } from "./pin";
+import { digital, spi } from "./pin";
 
 // =====================================================
 // OLED SSD1306 DISPLAY (128x64 8-PIN SPI BREAKOUT)
@@ -22,7 +22,7 @@ export const OLED_SSD1306_8PIN_PIN = [
     y: 12,
     dir: "top",
     signals: [
-      { type: "protocol", signal: "SPI_MOSI" },
+      spi("MOSI"),
     ],
   },
 
@@ -32,7 +32,7 @@ export const OLED_SSD1306_8PIN_PIN = [
     y: 12,
     dir: "top",
     signals: [
-      { type: "protocol", signal: "SPI_SCK" },
+      spi("SCK"),
     ],
   },
 
