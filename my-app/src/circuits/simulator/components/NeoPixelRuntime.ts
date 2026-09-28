@@ -115,10 +115,10 @@ export class NeoPixelRuntime {
         currentCycle - this.highStartCycle;
 
       const zeroMaxCycles =
-        this.usToCycles(0.55);
+        this.usToCycles(0.60);
 
       const oneMinCycles =
-        this.usToCycles(0.55);
+        this.usToCycles(0.70);
 
       if (
         highCycles >= 1 &&
@@ -240,7 +240,7 @@ export class NeoPixelRuntime {
     highCycles: number,
   ): 0 | 1 {
     const midpoint =
-      this.usToCycles(0.55);
+      this.usToCycles(0.70);
 
     return highCycles >= midpoint ? 1 : 0;
   }
