@@ -504,7 +504,7 @@ export class I2cPeripheralEventHandler implements TWIEventHandler {
     private readonly canConnect?: (
       display: Lcd1602Runtime,
     ) => boolean,
-    private readonly rtc?: Ds1307Runtime,
+    private readonly ds1307s: () => Ds1307Runtime[] = () => [],
     private readonly canConnectRtc?: (
       rtc: Ds1307Runtime,
     ) => boolean,
@@ -529,16 +529,18 @@ export class I2cPeripheralEventHandler implements TWIEventHandler {
     this.selected = null;
     this.ds1307FirstWriteByte = false;
 
-    if (
-      this.rtc &&
-      this.rtc.acceptsI2cAddress(addr) &&
-      (this.canConnectRtc
-        ? this.canConnectRtc(this.rtc)
-        : this.rtc.isPowered())
-    ) {
+    const rtc = this.ds1307s().find(
+      (candidate) =>
+        candidate.acceptsI2cAddress(addr) &&
+        (this.canConnectRtc
+          ? this.canConnectRtc(candidate)
+          : candidate.isPowered()),
+    );
+
+    if (rtc) {
       this.selected = {
         kind: "ds1307",
-        device: this.rtc,
+        device: rtc,
       };
       this.ds1307FirstWriteByte = write;
     } else {
