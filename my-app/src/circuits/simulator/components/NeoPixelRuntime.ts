@@ -27,6 +27,7 @@ export class NeoPixelRuntime {
 
   private bits: number[] = [];
   private latchedBits: number[] = [];
+  private lastFrameBitCount = 0;
 
   private red = 0;
   private green = 0;
@@ -49,6 +50,7 @@ export class NeoPixelRuntime {
     this.lastFallingCycle = null;
     this.bits = [];
     this.latchedBits = [];
+    this.lastFrameBitCount = 0;
     this.red = 0;
     this.green = 0;
     this.blue = 0;
@@ -116,17 +118,12 @@ export class NeoPixelRuntime {
 
       /*
        * The simulator's AVR-compatible NeoPixel driver emits the waveform
-       * with direct PORT writes. The GPIO edge itself includes the AVR
-       * instruction overhead around the delay_cycles() call, so the
-       * observed pulse is longer than the raw delay value. Keep the
-       * classification centered on the WS2812B T0H/T1H boundary while
-       * allowing that deterministic AVR overhead.
+       * with direct PORT writes. The GPIO edge includes deterministic AVR
+       * instruction overhead, so decode using the observed pulse boundary.
        *
        * Nominal WS2812B values are roughly:
        *   T0H ~= 0.35 us
        *   T1H ~= 0.70 us
-       *
-       * A 0.60 us boundary cleanly separates the two in our AVR trace.
        */
       const zeroMaxCycles =
         this.usToCycles(0.55);
@@ -147,10 +144,6 @@ export class NeoPixelRuntime {
                   highCycles,
                 );
 
-        /*
-         * Keep a bounded shift buffer. A very long malformed stream must
-         * never make the simulator allocate indefinitely.
-         */
         if (this.bits.length < 24 * 1024) {
           this.bits.push(bit);
         }
@@ -164,9 +157,7 @@ export class NeoPixelRuntime {
 
   /**
    * Flush a WS2812B reset/latch interval even when the firmware does not
-   * produce another rising edge. This is required for the final
-   * pixels.show() in setup(), because the latch happens during the
-   * following LOW interval.
+   * produce another rising edge.
    */
   flush(cycle: number): void {
     if (
@@ -250,15 +241,18 @@ export class NeoPixelRuntime {
       powered: this.powered,
       latched: this.latched,
       frame: this.frame,
-      dataBits: this.bits.length,
+      dataBits: this.lastFrameBitCount,
       interfaceType: "ws2812b",
     };
   }
 
   private latchReceivedFrame(): void {
     if (this.bits.length >= 24) {
+      this.lastFrameBitCount = this.bits.length;
       this.latchedBits = this.bits.slice();
       this.applyFrameBits(this.bits);
+    } else {
+      this.lastFrameBitCount = this.bits.length;
     }
 
     this.bits = [];
@@ -272,6 +266,7 @@ export class NeoPixelRuntime {
     this.lastFallingCycle = null;
     this.bits = [];
     this.latchedBits = [];
+    this.lastFrameBitCount = 0;
   }
 
   private classifyBorderlinePulse(
