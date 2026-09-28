@@ -666,6 +666,28 @@ const CircuitEditor = () => {
             }
 
             if (
+              componentType === "ds1307" ||
+              componentType === "rtc-ds1307" ||
+              componentType === "rtc"
+            ) {
+              return {
+                ...node,
+                data: {
+                  ...node.data,
+                  simulation: {
+                    ...(node.data?.simulation ?? {}),
+                    ds1307States:
+                      state.ds1307States,
+                    traceActive:
+                      state.diagnostics.trace?.componentIds.includes(
+                        node.id,
+                      ) === true,
+                  },
+                },
+              };
+            }
+
+            if (
               componentType === "7segment" ||
               componentType === "sevensegment" ||
               componentType === "seven-segment"
