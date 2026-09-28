@@ -1,6 +1,5 @@
 import { AVRTWI, type TWIEventHandler } from "avr8js";
 import { Lcd1602Runtime } from "./Lcd1602Runtime";
-import { Ds1307Runtime } from "./Ds1307Runtime";
 
 export interface Ssd1306RuntimeState {
   id: string;
@@ -491,12 +490,7 @@ export class Ssd1306SoftwareSpiDecoder {
  * SSD1306 8-pin is deliberately NOT included here; it is SPI-only.
  */
 export class I2cPeripheralEventHandler implements TWIEventHandler {
-  private selected:
-    | { kind: "lcd"; device: Lcd1602Runtime }
-    | { kind: "ds1307"; device: Ds1307Runtime }
-    | null = null;
-
-  private ds1307FirstWriteByte = false;
+  private selected: Lcd1602Runtime | null = null;
 
   constructor(
     private readonly displays: () => Lcd1602Runtime[],
@@ -504,21 +498,15 @@ export class I2cPeripheralEventHandler implements TWIEventHandler {
     private readonly canConnect?: (
       display: Lcd1602Runtime,
     ) => boolean,
-    private readonly ds1307s: () => Ds1307Runtime[] = () => [],
-    private readonly canConnectRtc?: (
-      rtc: Ds1307Runtime,
-    ) => boolean,
   ) {}
 
   start(): void {
     this.selected = null;
-    this.ds1307FirstWriteByte = false;
     this.twi.completeStart();
   }
 
   stop(): void {
     this.selected = null;
-    this.ds1307FirstWriteByte = false;
     this.twi.completeStop();
   }
 
@@ -526,81 +514,32 @@ export class I2cPeripheralEventHandler implements TWIEventHandler {
     addr: number,
     write: boolean,
   ): void {
-    this.selected = null;
-    this.ds1307FirstWriteByte = false;
-
-    const rtc = this.ds1307s().find(
-      (candidate) =>
-        candidate.acceptsI2cAddress(addr) &&
-        (this.canConnectRtc
-          ? this.canConnectRtc(candidate)
-          : candidate.isPowered()),
+    const display = this.displays().find(
+      (item) =>
+        item.acceptsI2cAddress(addr) &&
+        (this.canConnect
+          ? this.canConnect(item)
+          : true),
     );
 
-    if (rtc) {
-      this.selected = {
-        kind: "ds1307",
-        device: rtc,
-      };
-      this.ds1307FirstWriteByte = write;
-    } else {
-      const display = this.displays().find(
-        (item) =>
-          item.acceptsI2cAddress(addr) &&
-          (this.canConnect
-            ? this.canConnect(item)
-            : true),
-      );
+    this.selected = display ?? null;
 
-      if (display) {
-        this.selected = {
-          kind: "lcd",
-          device: display,
-        };
-      }
-    }
-
-    // ACK both write and read address phases when a peripheral is selected.
-    // The previous `&& write` logic ACKed SLA+W but NACKed SLA+R, so
-    // DS1307 `Wire.requestFrom()` could never receive its register bytes.
     this.twi.completeConnect(
-      Boolean(this.selected),
+      Boolean(this.selected && write),
     );
   }
 
   writeByte(value: number): void {
-    if (!this.selected) {
-      this.twi.completeWrite(false);
-      return;
+    if (this.selected) {
+      this.selected.processI2cExpanderByte(value);
     }
 
-    if (this.selected.kind === "lcd") {
-      this.selected.device.processI2cExpanderByte(value);
-    } else if (this.ds1307FirstWriteByte) {
-      /*
-       * DS1307's first byte after SLA+W is the register pointer.
-       * A repeated-start SLA+R follows without another pointer byte.
-       */
-      this.selected.device.setRegisterPointer(value);
-      this.ds1307FirstWriteByte = false;
-    } else {
-      this.selected.device.writeByte(value);
-    }
-
-    this.twi.completeWrite(true);
+    this.twi.completeWrite(
+      this.selected !== null,
+    );
   }
 
   readByte(): void {
-    if (
-      this.selected &&
-      this.selected.kind === "ds1307"
-    ) {
-      this.twi.completeRead(
-        this.selected.device.readByte(),
-      );
-      return;
-    }
-
     this.twi.completeRead(0);
   }
 }
