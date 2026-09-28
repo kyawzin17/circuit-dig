@@ -64,6 +64,14 @@ type SimulationState = {
     signalPin?: string;
     powered?: boolean;
   };
+  pir?: {
+    motion?: boolean;
+    outputHigh?: boolean;
+    powered?: boolean;
+    delayTimeSec?: number;
+    inhibitTimeSec?: number;
+    retrigger?: boolean;
+  };
 };
 
 const ElectronicNode = ({
@@ -214,6 +222,11 @@ const ElectronicNode = ({
   const isUltrasonic =
     componentType === "hc-sr04" ||
     componentType === "ultrasonic";
+
+  const isPir =
+    componentType === "pir" ||
+    componentType === "pir-motion-sensor" ||
+    componentType === "pir-motion";
 
   const isServo =
     componentType === "servo" ||
@@ -649,6 +662,77 @@ const ElectronicNode = ({
     ldrRl10,
     ldrGamma,
   ]);
+
+  // =========================================================
+  // PIR MOTION SENSOR
+  // =========================================================
+  //
+  // Wokwi Elements provides the visual part. The simulator owns the
+  // electrical behavior, so clicking this control emits a motion event
+  // into SimulationEngine via a monotonically increasing trigger id.
+  // =========================================================
+
+  const pirPowered =
+    simulation?.pir?.powered === true;
+
+  const pirMotion =
+    simulation?.pir?.motion === true;
+
+  const pirDelayTimeSec =
+    typeof data.pirDelayTime === "number"
+      ? Math.max(0, Math.min(60, data.pirDelayTime))
+      : 5;
+
+  const pirInhibitTimeSec =
+    typeof data.pirInhibitTime === "number"
+      ? Math.max(0, Math.min(60, data.pirInhibitTime))
+      : 1.2;
+
+  const pirRetrigger =
+    data.pirRetrigger !== false;
+
+  const triggerPirMotion = () => {
+    if (!isPir) return;
+
+    setNodes((currentNodes) =>
+      currentNodes.map((node) =>
+        node.id === id
+          ? {
+              ...node,
+              data: {
+                ...node.data,
+                pirMotionTrigger:
+                  (Number(node.data?.pirMotionTrigger) || 0) + 1,
+              },
+            }
+          : node,
+      ),
+    );
+  };
+
+  useEffect(() => {
+    if (!isPir) return;
+
+    const element =
+      componentRef.current as
+        | (HTMLElement & {
+            motion?: boolean;
+          })
+        | null;
+
+    if (!element) return;
+
+    /*
+     * Some versions of the visual element expose a motion property.
+     * Setting it is harmless when unsupported and keeps the visual
+     * element synchronized when the property exists.
+     */
+    element.motion = pirMotion;
+    element.setAttribute(
+      "data-motion",
+      String(pirMotion),
+    );
+  }, [isPir, pirMotion]);
 
   // =========================================================
   // BUZZER -> BROWSER AUDIO
@@ -1161,6 +1245,7 @@ const ElectronicNode = ({
                 isLcd ||
                 isBuzzer ||
                 isUltrasonic ||
+                isPir ||
                 isServo
                   ? componentRef
                   : undefined,
@@ -1235,6 +1320,48 @@ const ElectronicNode = ({
               <span>Near</span>
               <span>Echo {simulation?.ultrasonic?.echoHigh ? "HIGH" : "LOW"}</span>
               <span>Far</span>
+            </div>
+          </div>
+        )}
+
+        {isPir && (
+          <div
+            className="absolute left-1/2 top-full z-40 mt-2 w-44 -translate-x-1/2 rounded-lg border border-slate-300 bg-white/95 px-2 py-2 shadow-lg backdrop-blur"
+            onPointerDown={(event) => event.stopPropagation()}
+            onPointerMove={(event) => event.stopPropagation()}
+            onPointerUp={(event) => event.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={triggerPirMotion}
+              disabled={!pirPowered || pirMotion}
+              className="w-full rounded-md bg-cyan-500 px-2 py-1.5 text-[9px] font-semibold text-white transition hover:bg-cyan-600 disabled:cursor-not-allowed disabled:opacity-45"
+              title={
+                !pirPowered
+                  ? "Connect VCC and GND to simulate motion"
+                  : pirMotion
+                    ? "Motion is currently active"
+                    : "Trigger PIR motion"
+              }
+            >
+              {pirMotion ? "Motion Detected" : "Simulate Motion"}
+            </button>
+
+            <div className="mt-1.5 flex items-center justify-between text-[8px] text-slate-500">
+              <span>OUT</span>
+              <span className="font-semibold text-slate-700">
+                {simulation?.pir?.outputHigh ? "HIGH" : "LOW"}
+              </span>
+              <span>
+                {pirPowered ? "Powered" : "No Power"}
+              </span>
+            </div>
+
+            <div className="mt-1 flex items-center justify-between text-[8px] text-slate-400">
+              <span>{pirDelayTimeSec.toFixed(1)}s HIGH</span>
+              <span>
+                {pirRetrigger ? "Retrigger ON" : "Retrigger OFF"}
+              </span>
             </div>
           </div>
         )}
