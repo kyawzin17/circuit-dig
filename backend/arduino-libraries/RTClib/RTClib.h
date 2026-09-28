@@ -362,9 +362,10 @@ private:
   }
 
   Civil civil() const {
+    // The civil conversion algorithm is based on Unix epoch
+    // (1970-01-01), so keep the timestamp in Unix seconds here.
     int64_t z =
-      static_cast<int64_t>(_unixtime) -
-      946684800LL;
+      static_cast<int64_t>(_unixtime);
 
     int64_t days = z / 86400LL;
     int64_t rem = z % 86400LL;
