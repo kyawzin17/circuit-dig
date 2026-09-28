@@ -133,6 +133,9 @@ public:
       digitalWrite(_clkPin, LOW);
     }
 
+    // SPI command/data bytes are accepted only while CS is LOW.
+    digitalWrite(_csPin, LOW);
+
     clearDisplay();
 
     // Minimal controller initialization matching the SSD1306 SPI protocol.
@@ -159,6 +162,8 @@ public:
     command(SSD1306_NORMALDISPLAY);
     command(SSD1306_DEACTIVATE_SCROLL);
     command(SSD1306_DISPLAYON);
+
+    digitalWrite(_csPin, HIGH);
 
     if (_hardwareSpi) {
       _spi->endTransaction();
