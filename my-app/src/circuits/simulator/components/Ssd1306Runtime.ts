@@ -255,8 +255,12 @@ export class Ssd1306Runtime {
         break;
 
       case 0x20:
+        const mode =
+          (args[0] ?? 2) & 0x03;
         this.memoryMode =
-          (args[0] ?? 2) & 0x03 as 0 | 1 | 2;
+          mode === 0 || mode === 1 || mode === 2
+            ? mode
+            : 2;
         if (this.memoryMode > 2) {
           this.memoryMode = 2;
         }
@@ -305,12 +309,10 @@ export class Ssd1306Runtime {
       case 0x8d:
         break;
 
-      case 0x40:
-        this.startLine = cmd & 0x3f;
-        break;
-
       default:
-        if (cmd >= 0xb0 && cmd <= 0xb7) {
+        if (cmd >= 0x40 && cmd <= 0x7f) {
+          this.startLine = cmd & 0x3f;
+        } else if (cmd >= 0xb0 && cmd <= 0xb7) {
           this.page = cmd & 0x07;
         } else if (cmd >= 0x00 && cmd <= 0x0f) {
           this.column =
@@ -335,9 +337,6 @@ export class Ssd1306Runtime {
         break;
     }
 
-    if (cmd === 0x40) {
-      this.startLine = cmd & 0x3f;
-    }
   }
 
   private writeDisplayData(value: number): void {
