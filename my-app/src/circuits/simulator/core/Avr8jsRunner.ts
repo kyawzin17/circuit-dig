@@ -8,6 +8,8 @@ import {
   AVRTWI,
   twiConfig,
   type TWIEventHandler,
+  AVRSPI,
+  spiConfig,
 } from "avr8js";
 
 import type { ArduinoUnoRuntime } from "../boards/ArduinoUnoRuntime";
@@ -99,6 +101,7 @@ export class Avr8jsRunner {
   private timer1: AVRTimer | null = null;
   private timer2: AVRTimer | null = null;
   private twi: AVRTWI | null = null;
+  private spi: AVRSPI | null = null;
 
   loadProgram(
     program: Uint16Array,
@@ -152,6 +155,10 @@ export class Avr8jsRunner {
 
   getTwi(): AVRTWI | null {
     return this.twi;
+  }
+
+  getSpi(): AVRSPI | null {
+    return this.spi;
   }
 
   /**
@@ -904,5 +911,6 @@ export class Avr8jsRunner {
     this.timer1 = null;
     this.timer2 = null;
     this.twi = null;
+    this.spi = null;
   }
 }
