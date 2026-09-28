@@ -26,6 +26,9 @@ const PIND = 0x29;
 const DDRD = 0x2a;
 const PORTD = 0x2b;
 
+// ATmega328P USART0 data register (UART TX/RX data).
+const UDR0 = 0xc6;
+
 // ATmega328P ADC registers.
 const ADCL = 0x78;
 const ADCH = 0x79;
@@ -102,6 +105,7 @@ export class Avr8jsRunner {
   private timer2: AVRTimer | null = null;
   private twi: AVRTWI | null = null;
   private spi: AVRSPI | null = null;
+  private serialByteHandler?: (value: number, cycle: number) => void;
 
   loadProgram(
     program: Uint16Array,
@@ -125,6 +129,7 @@ export class Avr8jsRunner {
     };
 
     this.installGpioWriteHooks();
+    this.installSerialWriteHook();
 
     // Arduino UNO's Timer0 drives millis()/micros()/delay().
     this.timer0 = new AVRTimer(this.cpu, timer0Config);
@@ -147,6 +152,15 @@ export class Avr8jsRunner {
 
   getCPU(): CPU | null {
     return this.cpu;
+  }
+
+  setSerialByteHandler(
+    handler: ((value: number, cycle: number) => void) | null,
+  ): void {
+    this.serialByteHandler = handler ?? undefined;
+    if (this.cpu) {
+      this.installSerialWriteHook();
+    }
   }
 
   setTwiEventHandler(
@@ -464,6 +478,23 @@ export class Avr8jsRunner {
 
     this.cpu.writeHooks[DDRD] = () => {
       this.gpioDirty.D = true;
+      return false;
+    };
+  }
+
+  /**
+   * Capture the real AVR USART TX byte. Arduino Serial.print()/println()
+   * eventually writes each transmitted byte to UDR0, so this hook observes
+   * firmware UART traffic without replacing Serial with a JavaScript mock.
+   */
+  private installSerialWriteHook(): void {
+    if (!this.cpu) return;
+
+    this.cpu.writeHooks[UDR0] = (value) => {
+      this.serialByteHandler?.(
+        value & 0xff,
+        this.cpu?.cycles ?? 0,
+      );
       return false;
     };
   }
@@ -918,5 +949,6 @@ export class Avr8jsRunner {
     this.timer2 = null;
     this.twi = null;
     this.spi = null;
+    this.serialByteHandler = undefined;
   }
 }
