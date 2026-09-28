@@ -386,10 +386,20 @@ export class Ssd1306SpiBridge {
 
   transfer(value: number): number {
     for (const display of this.displays()) {
+      const dataPin = this.getConnectedPin(display, "DATA");
+      const clockPin = this.getConnectedPin(display, "CLK");
       const csPin = this.getConnectedPin(display, "CS");
       const dcPin = this.getConnectedPin(display, "DC");
 
-      if (!csPin || !dcPin) continue;
+      // AVRSPI represents the UNO's hardware SPI peripheral. On an
+      // ATmega328P the physical MOSI/SCK pins are D11/D13.
+      if (
+        dataPin !== "D11" ||
+        clockPin !== "D13" ||
+        !csPin ||
+        !dcPin
+      ) continue;
+
       if (this.getPinLevel(csPin) !== 0) continue;
 
       const powered = display.getState().powered;
