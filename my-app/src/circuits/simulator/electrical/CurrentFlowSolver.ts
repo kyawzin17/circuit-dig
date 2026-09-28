@@ -352,22 +352,31 @@ function buildComponentEdges(
 
     if (type === "neopixel") {
       const vdd = component.terminals.VDD;
-      const gnd = component.terminals.GND;
-      if (vdd && gnd) {
+      const vss = component.terminals.VSS;
+
+      /*
+       * WS2812B integrates its RGB constant-current drivers, so the
+       * simulator does not invent an external resistor. A full-white
+       * pixel is modeled as a conservative ~48mA load (3 x 16mA)
+       * using an equivalent resistance at 5V.
+       */
+      if (vdd && vss) {
+        const equivalentResistanceOhm = 5 / 0.048;
+
         edges.push({
           componentId: node.id,
           componentType: "neopixel",
           fromNet: vdd,
-          toNet: gnd,
-          resistanceOhm: 150,
+          toNet: vss,
+          resistanceOhm: equivalentResistanceOhm,
           voltageDrop: 0,
         });
         edges.push({
           componentId: node.id,
           componentType: "neopixel",
-          fromNet: gnd,
+          fromNet: vss,
           toNet: vdd,
-          resistanceOhm: 150,
+          resistanceOhm: equivalentResistanceOhm,
           voltageDrop: 0,
         });
       }
