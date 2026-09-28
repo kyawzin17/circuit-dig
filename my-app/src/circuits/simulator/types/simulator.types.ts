@@ -169,6 +169,20 @@ export interface NeoPixelRuntimeState {
   interfaceType: "ws2812b";
 }
 
+export interface Ds1307RuntimeState {
+  id: string;
+  powered: boolean;
+  year: number;
+  month: number;
+  day: number;
+  hour: number;
+  minute: number;
+  second: number;
+  dayOfWeek: number;
+  sqwMode: number;
+  sqwLevel: 0 | 1;
+}
+
 export interface Lcd1602RuntimeState {
   id: string;
   text: string;
@@ -310,6 +324,8 @@ export interface ArduinoUnoRuntimeState {
   ssd1306States: Record<string, Ssd1306RuntimeState>;
 
   neopixelStates: Record<string, NeoPixelRuntimeState>;
+
+  ds1307States: Record<string, Ds1307RuntimeState>;
 
   /** Bytes emitted by the AVR UART TX path, decoded as Serial Monitor text. */
   serialOutput: string;
