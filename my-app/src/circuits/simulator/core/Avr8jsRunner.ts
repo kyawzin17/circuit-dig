@@ -136,6 +136,12 @@ export class Avr8jsRunner {
       16_000_000,
     );
 
+    this.spi = new AVRSPI(
+      this.cpu,
+      spiConfig,
+      16_000_000,
+    );
+
     this.syncGpioToRuntime();
   }
 
