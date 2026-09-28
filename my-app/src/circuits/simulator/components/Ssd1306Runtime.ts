@@ -1,5 +1,3 @@
-import { AVRTWI, type TWIEventHandler } from "avr8js";
-
 export interface Ssd1306RuntimeState {
   id: string;
   width: 128;
@@ -8,17 +6,23 @@ export interface Ssd1306RuntimeState {
   displayOn: boolean;
   invert: boolean;
   contrast: number;
-  i2cAddress: number;
+  interfaceType: "spi";
   powered: boolean;
   frame: number;
 }
 
 /**
- * Functional SSD1306 128x64 monochrome controller.
+ * Functional SSD1306 128x64 controller for the simulator's 8-pin SPI
+ * breakout. The AVR firmware is the source of truth: hardware SPI bytes
+ * arrive through AVRSPI and software-SPI bytes are decoded from real GPIO
+ * edges by SimulationEngine.
  *
- * The Wokwi element is presentation-only. This runtime models the
- * controller's I2C protocol and GDDRAM so real Arduino Wire/Adafruit
- * SSD1306 firmware drives the display.
+ * SPI mode 0:
+ *   DATA = MOSI / D1
+ *   CLK  = SCK  / D0
+ *   DC   = 0 command, 1 data
+ *   CS   = active low
+ *   RST  = active low
  */
 export class Ssd1306Runtime {
   private readonly framebuffer = new Uint8Array(128 * 8);
@@ -28,8 +32,9 @@ export class Ssd1306Runtime {
   private forceAllOn = false;
   private contrast = 0x7f;
   private powered = false;
+  private resetActive = true;
 
-  private memoryMode: 0 | 1 | 2 = 2; // horizontal / vertical / page
+  private memoryMode: 0 | 1 | 2 = 2;
   private column = 0;
   private page = 0;
   private columnStart = 0;
@@ -40,29 +45,22 @@ export class Ssd1306Runtime {
   private segmentRemap = false;
   private comScanReverse = false;
 
-  private controlPending = true;
-  private dataMode = false;
-
   private pendingCommand: number | null = null;
   private pendingArgs: number[] = [];
-
   private frame = 0;
 
-  constructor(
-    public readonly id: string,
-    private readonly i2cAddress = 0x3c,
-  ) {
+  constructor(public readonly id: string) {
     this.reset();
   }
 
   reset(): void {
     this.framebuffer.fill(0);
-
     this.displayOn = false;
     this.invert = false;
     this.forceAllOn = false;
     this.contrast = 0x7f;
     this.powered = false;
+    this.resetActive = true;
 
     this.memoryMode = 2;
     this.column = 0;
@@ -75,8 +73,6 @@ export class Ssd1306Runtime {
     this.segmentRemap = false;
     this.comScanReverse = false;
 
-    this.controlPending = true;
-    this.dataMode = false;
     this.pendingCommand = null;
     this.pendingArgs = [];
     this.frame = 0;
@@ -90,8 +86,36 @@ export class Ssd1306Runtime {
     }
   }
 
-  acceptsI2cAddress(address: number): boolean {
-    return (address & 0x7f) === (this.i2cAddress & 0x7f);
+  setReset(level: 0 | 1): void {
+    if (level === 0) {
+      if (!this.resetActive) {
+        this.resetController();
+      } else {
+        this.displayOn = false;
+      }
+      this.resetActive = true;
+      return;
+    }
+
+    if (this.resetActive) {
+      this.resetActive = false;
+      this.displayOn = false;
+    }
+  }
+
+  processSpiByte(value: number, dataMode: boolean): void {
+    if (!this.powered || this.resetActive) {
+      return;
+    }
+
+    const byte = value & 0xff;
+
+    if (dataMode) {
+      this.writeDisplayData(byte);
+      return;
+    }
+
+    this.writeCommand(byte);
   }
 
   getState(): Ssd1306RuntimeState {
@@ -103,49 +127,31 @@ export class Ssd1306Runtime {
       displayOn: this.displayOn,
       invert: this.invert,
       contrast: this.contrast,
-      i2cAddress: this.i2cAddress,
+      interfaceType: "spi",
       powered: this.powered,
       frame: this.frame,
     };
   }
 
-  beginI2cTransaction(): void {
-    this.controlPending = true;
-    this.dataMode = false;
+  private resetController(): void {
+    this.framebuffer.fill(0);
+    this.displayOn = false;
+    this.invert = false;
+    this.forceAllOn = false;
+    this.contrast = 0x7f;
+    this.memoryMode = 2;
+    this.column = 0;
+    this.page = 0;
+    this.columnStart = 0;
+    this.columnEnd = 127;
+    this.pageStart = 0;
+    this.pageEnd = 7;
+    this.startLine = 0;
+    this.segmentRemap = false;
+    this.comScanReverse = false;
     this.pendingCommand = null;
     this.pendingArgs = [];
-  }
-
-  processI2cByte(value: number): void {
-    const byte = value & 0xff;
-
-    if (this.controlPending) {
-      /*
-       * SSD1306 I2C control byte:
-       *   0x00 / 0x80 -> command
-       *   0x40 / 0xC0 -> data
-       *
-       * The Co bit is not required for the common Arduino libraries;
-       * the D/C# bit is the important part for this device model.
-       */
-      this.dataMode = (byte & 0x40) !== 0;
-      this.controlPending = false;
-      return;
-    }
-
-    if (this.dataMode) {
-      this.writeDisplayData(byte);
-      return;
-    }
-
-    this.writeCommand(byte);
-  }
-
-  endI2cTransaction(): void {
-    this.controlPending = true;
-    this.dataMode = false;
-    this.pendingCommand = null;
-    this.pendingArgs = [];
+    this.frame += 1;
   }
 
   private writeCommand(command: number): void {
@@ -154,15 +160,8 @@ export class Ssd1306Runtime {
     if (this.pendingCommand !== null) {
       this.pendingArgs.push(cmd);
 
-      if (
-        this.pendingArgs.length >=
-        this.commandArgumentCount(this.pendingCommand)
-      ) {
-        this.applyCommand(
-          this.pendingCommand,
-          this.pendingArgs,
-        );
-
+      if (this.pendingArgs.length >= this.commandArgumentCount(this.pendingCommand)) {
+        this.applyCommand(this.pendingCommand, this.pendingArgs);
         this.pendingCommand = null;
         this.pendingArgs = [];
       }
@@ -207,24 +206,18 @@ export class Ssd1306Runtime {
       case 0x21:
       case 0x22:
         return 2;
-
       case 0x26:
       case 0x27:
         return 6;
-
       case 0x29:
       case 0x2a:
         return 5;
-
       default:
         return 1;
     }
   }
 
-  private applyCommand(
-    command: number,
-    args: number[],
-  ): void {
+  private applyCommand(command: number, args: number[]): void {
     const cmd = command & 0xff;
 
     switch (cmd) {
@@ -233,7 +226,7 @@ export class Ssd1306Runtime {
         break;
 
       case 0xaf:
-        this.displayOn = this.powered;
+        this.displayOn = this.powered && !this.resetActive;
         break;
 
       case 0xa4:
@@ -254,54 +247,30 @@ export class Ssd1306Runtime {
         this.forceAllOn = false;
         break;
 
-      case 0x20:
-        const mode =
-          (args[0] ?? 2) & 0x03;
-        this.memoryMode =
-          mode === 0 || mode === 1 || mode === 2
-            ? mode
-            : 2;
-        if (this.memoryMode > 2) {
-          this.memoryMode = 2;
-        }
+      case 0x20: {
+        const mode = (args[0] ?? 2) & 0x03;
+        this.memoryMode = mode === 0 || mode === 1 || mode === 2 ? mode : 2;
         break;
+      }
 
       case 0x21:
-        this.columnStart =
-          Math.max(0, Math.min(127, args[0] ?? 0));
-        this.columnEnd =
-          Math.max(
-            this.columnStart,
-            Math.min(127, args[1] ?? 127),
-          );
+        this.columnStart = Math.max(0, Math.min(127, args[0] ?? 0));
+        this.columnEnd = Math.max(this.columnStart, Math.min(127, args[1] ?? 127));
         this.column = this.columnStart;
         break;
 
       case 0x22:
-        this.pageStart =
-          Math.max(0, Math.min(7, args[0] ?? 0));
-        this.pageEnd =
-          Math.max(
-            this.pageStart,
-            Math.min(7, args[1] ?? 7),
-          );
+        this.pageStart = Math.max(0, Math.min(7, args[0] ?? 0));
+        this.pageEnd = Math.max(this.pageStart, Math.min(7, args[1] ?? 7));
         this.page = this.pageStart;
         break;
 
       case 0x81:
-        this.contrast =
-          Math.max(0, Math.min(255, args[0] ?? 0x7f));
+        this.contrast = Math.max(0, Math.min(255, args[0] ?? 0x7f));
         break;
 
       case 0xa8:
-        // MUX ratio is relevant to hardware scan timing, not GDDRAM.
-        break;
-
       case 0xd3:
-        // Display offset affects scan timing; framebuffer coordinates
-        // remain controller-relative.
-        break;
-
       case 0xd5:
       case 0xd9:
       case 0xda:
@@ -314,13 +283,10 @@ export class Ssd1306Runtime {
           this.startLine = cmd & 0x3f;
         } else if (cmd >= 0xb0 && cmd <= 0xb7) {
           this.page = cmd & 0x07;
-        } else if (cmd >= 0x00 && cmd <= 0x0f) {
-          this.column =
-            (this.column & 0xf0) | (cmd & 0x0f);
+        } else if (cmd <= 0x0f) {
+          this.column = (this.column & 0xf0) | (cmd & 0x0f);
         } else if (cmd >= 0x10 && cmd <= 0x1f) {
-          this.column =
-            ((cmd & 0x0f) << 4) |
-            (this.column & 0x0f);
+          this.column = ((cmd & 0x0f) << 4) | (this.column & 0x0f);
         } else if (cmd === 0xa0) {
           this.segmentRemap = false;
         } else if (cmd === 0xa1) {
@@ -329,26 +295,16 @@ export class Ssd1306Runtime {
           this.comScanReverse = false;
         } else if (cmd === 0xc8) {
           this.comScanReverse = true;
-        } else if (cmd === 0x2e) {
-          // Stop scrolling.
-        } else if (cmd === 0x2f) {
-          // Start scrolling is a display effect, not a RAM mutation.
         }
         break;
     }
-
   }
 
   private writeDisplayData(value: number): void {
-    if (!this.powered) {
-      return;
-    }
-
     const page = Math.max(0, Math.min(7, this.page));
     const column = Math.max(0, Math.min(127, this.column));
 
     this.framebuffer[page * 128 + column] = value & 0xff;
-
     this.advanceAddress();
     this.frame += 1;
   }
@@ -357,37 +313,25 @@ export class Ssd1306Runtime {
     switch (this.memoryMode) {
       case 0:
         this.column += 1;
-
         if (this.column > this.columnEnd) {
           this.column = this.columnStart;
           this.page += 1;
-
-          if (this.page > this.pageEnd) {
-            this.page = this.pageStart;
-          }
+          if (this.page > this.pageEnd) this.page = this.pageStart;
         }
         break;
 
       case 1:
         this.page += 1;
-
         if (this.page > this.pageEnd) {
           this.page = this.pageStart;
           this.column += 1;
-
-          if (this.column > this.columnEnd) {
-            this.column = this.columnStart;
-          }
+          if (this.column > this.columnEnd) this.column = this.columnStart;
         }
         break;
 
-      case 2:
       default:
         this.column += 1;
-
-        if (this.column > this.columnEnd) {
-          this.column = this.columnStart;
-        }
+        if (this.column > this.columnEnd) this.column = this.columnStart;
         break;
     }
   }
@@ -399,42 +343,19 @@ export class Ssd1306Runtime {
       return pixels;
     }
 
-    const allOn = this.forceAllOn;
-
     for (let page = 0; page < 8; page += 1) {
       for (let col = 0; col < 128; col += 1) {
-        const byte =
-          allOn
-            ? 0xff
-            : this.framebuffer[page * 128 + col];
+        const byte = this.forceAllOn ? 0xff : this.framebuffer[page * 128 + col];
 
         for (let bit = 0; bit < 8; bit += 1) {
-          const sourceX =
-            this.segmentRemap
-              ? 127 - col
-              : col;
+          const sourceX = this.segmentRemap ? 127 - col : col;
+          const sourceY = this.comScanReverse
+            ? 63 - (page * 8 + bit)
+            : page * 8 + bit;
+          const y = (sourceY + this.startLine) & 0x3f;
 
-          let sourceY =
-            page * 8 + bit;
-
-          sourceY =
-            this.comScanReverse
-              ? 63 - sourceY
-              : sourceY;
-
-          const y =
-            (sourceY + this.startLine) & 0x3f;
-
-          if (sourceX < 0 || sourceX >= 128) {
-            continue;
-          }
-
-          let on =
-            ((byte >> bit) & 1) !== 0;
-
-          if (this.invert) {
-            on = !on;
-          }
+          let on = ((byte >> bit) & 1) !== 0;
+          if (this.invert) on = !on;
 
           pixels[y * 128 + sourceX] = on ? 1 : 0;
         }
@@ -445,142 +366,107 @@ export class Ssd1306Runtime {
   }
 }
 
-export class Ssd1306I2cEventHandler
-  implements TWIEventHandler {
-  private selected: Ssd1306Runtime | null = null;
-
+/**
+ * Hardware-SPI bridge. AVRSPI calls onByte() whenever firmware writes SPDR.
+ * The engine supplies the current Arduino GPIO levels so CS/DC remain
+ * ordinary, firmware-controlled pins exactly like the physical breakout.
+ */
+export class Ssd1306SpiBridge {
   constructor(
     private readonly displays: () => Ssd1306Runtime[],
-    private readonly twi: AVRTWI,
-    private readonly canConnect?: (
+    private readonly getPinLevel: (pin: string) => 0 | 1,
+    private readonly getConnectedPin: (
       display: Ssd1306Runtime,
-    ) => boolean,
+      terminal: string,
+    ) => string | null,
   ) {}
 
-  start(): void {
-    this.selected = null;
-    this.twi.completeStart();
-
+  transfer(value: number): number {
     for (const display of this.displays()) {
-      display.beginI2cTransaction();
-    }
-  }
+      const csPin = this.getConnectedPin(display, "CS");
+      const dcPin = this.getConnectedPin(display, "DC");
 
-  stop(): void {
-    this.selected?.endI2cTransaction();
-    this.selected = null;
-    this.twi.completeStop();
-  }
+      if (!csPin || !dcPin) continue;
+      if (this.getPinLevel(csPin) !== 0) continue;
 
-  connectToSlave(
-    addr: number,
-    write: boolean,
-  ): void {
-    const display = this.displays().find(
-      (item) =>
-        item.acceptsI2cAddress(addr) &&
-        (this.canConnect
-          ? this.canConnect(item)
-          : true),
-    );
+      const powered = display.getState().powered;
+      if (!powered) continue;
 
-    this.selected = display ?? null;
-
-    this.twi.completeConnect(
-      Boolean(this.selected && write),
-    );
-  }
-
-  writeByte(value: number): void {
-    if (this.selected) {
-      this.selected.processI2cByte(value);
+      display.processSpiByte(
+        value,
+        this.getPinLevel(dcPin) === 1,
+      );
     }
 
-    this.twi.completeWrite(
-      this.selected !== null,
-    );
-  }
-
-  readByte(): void {
-    this.twi.completeRead(0);
+    // SSD1306 is write-only for this simulator model.
+    return 0;
   }
 }
 
-
-export type I2cPeripheral =
-  | Lcd1602Runtime
-  | Ssd1306Runtime;
-
-export class I2cPeripheralEventHandler
-  implements TWIEventHandler {
-  private selected: I2cPeripheral | null = null;
+/**
+ * Software-SPI decoder for the same 8-pin breakout.
+ * Adafruit's bit-banged constructor uses SPI mode 0: sample MOSI on the
+ * rising edge of SCK, MSB first, while CS is LOW.
+ */
+export class Ssd1306SoftwareSpiDecoder {
+  private readonly state = new Map<string, {
+    bits: number;
+    value: number;
+    lastClock: 0 | 1;
+  }>();
 
   constructor(
-    private readonly displays: () => I2cPeripheral[],
-    private readonly twi: AVRTWI,
-    private readonly canConnect?: (
-      display: I2cPeripheral,
-    ) => boolean,
+    private readonly displays: () => Ssd1306Runtime[],
+    private readonly getPinLevel: (pin: string) => 0 | 1,
+    private readonly getConnectedPin: (
+      display: Ssd1306Runtime,
+      terminal: string,
+    ) => string | null,
   ) {}
 
-  start(): void {
-    this.selected = null;
-    this.twi.completeStart();
+  reset(): void {
+    this.state.clear();
+  }
+
+  handleGpioChange(
+    changedPin: string,
+    level: 0 | 1,
+  ): void {
+    const pin = changedPin.toUpperCase();
 
     for (const display of this.displays()) {
-      if (display instanceof Ssd1306Runtime) {
-        display.beginI2cTransaction();
+      const csPin = this.getConnectedPin(display, "CS");
+      const dcPin = this.getConnectedPin(display, "DC");
+      const dataPin = this.getConnectedPin(display, "DATA");
+      const clockPin = this.getConnectedPin(display, "CLK");
+
+      if (!csPin || !dcPin || !dataPin || !clockPin) continue;
+      if (pin !== clockPin.toUpperCase()) continue;
+
+      const state = this.state.get(display.id) ?? {
+        bits: 0,
+        value: 0,
+        lastClock: 0 as 0 | 1,
+      };
+
+      if (level === 1 && state.lastClock === 0) {
+        if (this.getPinLevel(csPin) === 0 && display.getState().powered) {
+          state.value = ((state.value << 1) | this.getPinLevel(dataPin)) & 0xff;
+          state.bits += 1;
+
+          if (state.bits === 8) {
+            display.processSpiByte(
+              state.value,
+              this.getPinLevel(dcPin) === 1,
+            );
+            state.bits = 0;
+            state.value = 0;
+          }
+        }
       }
+
+      state.lastClock = level;
+      this.state.set(display.id, state);
     }
-  }
-
-  stop(): void {
-    if (this.selected instanceof Ssd1306Runtime) {
-      this.selected.endI2cTransaction();
-    } else if (this.selected instanceof Lcd1602Runtime) {
-      // LCD keeps its own transaction state inside the existing model.
-    }
-
-    this.selected = null;
-    this.twi.completeStop();
-  }
-
-  connectToSlave(
-    addr: number,
-    write: boolean,
-  ): void {
-    const display = this.displays().find(
-      (item) =>
-        (
-          item instanceof Ssd1306Runtime
-            ? item.acceptsI2cAddress(addr)
-            : item.acceptsI2cAddress(addr)
-        ) &&
-        (this.canConnect
-          ? this.canConnect(item)
-          : true),
-    );
-
-    this.selected = display ?? null;
-
-    this.twi.completeConnect(
-      Boolean(this.selected && write),
-    );
-  }
-
-  writeByte(value: number): void {
-    if (this.selected instanceof Ssd1306Runtime) {
-      this.selected.processI2cByte(value);
-    } else if (this.selected instanceof Lcd1602Runtime) {
-      this.selected.processI2cExpanderByte(value);
-    }
-
-    this.twi.completeWrite(
-      this.selected !== null,
-    );
-  }
-
-  readByte(): void {
-    this.twi.completeRead(0);
   }
 }
