@@ -6,9 +6,9 @@ import type { CircuitPin } from "../types/pin.types";
 
 export const neopixelPins: CircuitPin[] = [
   {
-    id: "pin_vcc",
-    label: "VCC",
-    alias: "Power Supply (+5V)",
+    id: "pin_vdd",
+    label: "VDD",
+    alias: "Power Supply (5V)",
     type: "power",
     direction: "passive",
     description: "Power supply pin for NeoPixel (Typically +5V DC).",
@@ -22,9 +22,9 @@ export const neopixelPins: CircuitPin[] = [
     description: "Digital data input pin from microcontroller or previous NeoPixel.",
   },
   {
-    id: "pin_gnd",
-    label: "GND",
-    alias: "Ground",
+    id: "pin_vss",
+    label: "VSS",
+    alias: "Ground (VSS)",
     type: "ground",
     direction: "passive",
     description: "Ground connection pin.",
