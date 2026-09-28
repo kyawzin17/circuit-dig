@@ -240,8 +240,12 @@ private:
       (y >= 0 ? y : y - 399) / 400;
     const uint32_t yoe =
       static_cast<uint32_t>(y - era * 400);
+    const int32_t monthMarchBased =
+      static_cast<int32_t>(m) +
+      (m > 2 ? -3 : 9);
+
     const uint32_t doy =
-      (153 * (m + (m > 2 ? -3 : 9)) + 2) / 5 +
+      (153 * static_cast<uint32_t>(monthMarchBased) + 2) / 5 +
       d - 1;
     const uint32_t doe =
       yoe * 365 +
@@ -358,9 +362,10 @@ private:
   }
 
   Civil civil() const {
+    // The civil conversion algorithm is based on Unix epoch
+    // (1970-01-01), so keep the timestamp in Unix seconds here.
     int64_t z =
-      static_cast<int64_t>(_unixtime) -
-      946684800LL;
+      static_cast<int64_t>(_unixtime);
 
     int64_t days = z / 86400LL;
     int64_t rem = z % 86400LL;
@@ -370,12 +375,16 @@ private:
       --days;
     }
 
-    // Inverse of daysFromCivil(), using the proleptic Gregorian calendar.
+    // Inverse of daysFromCivil(). The forward conversion is
+    // anchored to the Unix epoch (1970-01-01), while the civil-date
+    // algorithm itself uses the Gregorian epoch offset of 719468 days.
+    int64_t civilDays = days + 719468LL;
+
     int64_t era =
-      (days >= 0 ? days : days - 146096) / 146097;
+      (civilDays >= 0 ? civilDays : civilDays - 146096) / 146097;
     uint32_t doe =
       static_cast<uint32_t>(
-        days - era * 146097
+        civilDays - era * 146097
       );
     uint32_t yoe =
       static_cast<uint32_t>(
@@ -398,10 +407,12 @@ private:
       static_cast<uint8_t>(
         doy - (153 * mp + 2) / 5 + 1
       );
+    const int32_t monthValue =
+      static_cast<int32_t>(mp) +
+      (mp < 10 ? 3 : -9);
+
     uint8_t m =
-      static_cast<uint8_t>(
-        mp + (mp < 10 ? 3 : -9)
-      );
+      static_cast<uint8_t>(monthValue);
 
     if (m <= 2) {
       ++y;
