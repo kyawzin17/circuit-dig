@@ -307,7 +307,7 @@ class Adafruit_NeoPixel {
       if (one) {
         __builtin_avr_delay_cycles(8);
       } else {
-        __builtin_avr_delay_cycles(2);
+        __builtin_avr_delay_cycles(0);
       }
 
       *port &= static_cast<uint8_t>(~mask);
