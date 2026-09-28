@@ -5,6 +5,9 @@
 #include <Wire.h>
 #include <stdint.h>
 
+// Forward declaration: DateTime exposes operators taking TimeSpan below.
+class TimeSpan;
+
 /*
  * Simulator-compatible subset of Adafruit RTClib.
  *
