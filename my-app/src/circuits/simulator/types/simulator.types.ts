@@ -150,7 +150,7 @@ export interface Ssd1306RuntimeState {
   displayOn: boolean;
   invert: boolean;
   contrast: number;
-  i2cAddress: number;
+  interfaceType: "spi";
   powered: boolean;
   frame: number;
 }
