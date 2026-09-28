@@ -72,6 +72,17 @@ type SimulationState = {
     inhibitTimeSec?: number;
     retrigger?: boolean;
   };
+  ssd1306?: {
+    width?: number;
+    height?: number;
+    pixels?: number[];
+    displayOn?: boolean;
+    invert?: boolean;
+    contrast?: number;
+    i2cAddress?: number;
+    powered?: boolean;
+    frame?: number;
+  };
 };
 
 const ElectronicNode = ({
@@ -109,6 +120,9 @@ const ElectronicNode = ({
 
   const componentRef =
     useRef<HTMLElement | null>(null);
+
+  const ssd1306CanvasRef =
+    useRef<HTMLCanvasElement | null>(null);
 
   const buzzerAudioRef =
     useRef<{
@@ -232,6 +246,9 @@ const ElectronicNode = ({
     componentType === "servo" ||
     componentType === "servo-motor" ||
     componentType === "servomotor";
+
+  const isSsd1306 =
+    componentType === "ssd1306";
 
   const buzzerActive =
     simulation?.buzzer?.active === true;
@@ -430,6 +447,82 @@ const ElectronicNode = ({
     simulation?.servo?.angle,
     simulation?.servo?.pulseWidthUs,
     simulation?.servo?.powered,
+  ]);
+
+  // =========================================================
+  // SSD1306 OLED -> CIRCUIT STATE
+  // =========================================================
+  //
+  // The Wokwi element supplies the board/chassis visual. The functional
+  // framebuffer comes from the real I2C SSD1306 runtime and is painted
+  // into this canvas so the pixels shown here are firmware-driven.
+  // =========================================================
+  useEffect(() => {
+    if (!isSsd1306) {
+      return;
+    }
+
+    const canvas = ssd1306CanvasRef.current;
+    const oled = simulation?.ssd1306;
+
+    if (!canvas || !oled) {
+      return;
+    }
+
+    const width = 128;
+    const height = 64;
+
+    canvas.width = width;
+    canvas.height = height;
+
+    const context = canvas.getContext("2d");
+
+    if (!context) {
+      return;
+    }
+
+    const image = context.createImageData(width, height);
+    const pixels = Array.isArray(oled.pixels)
+      ? oled.pixels
+      : [];
+
+    for (let index = 0; index < width * height; index += 1) {
+      const on = pixels[index] === 1;
+
+      /*
+       * Keep the OLED visually black when it is unpowered or OFF.
+       * Contrast is represented as brightness, while preserving the
+       * monochrome nature of the real SSD1306 controller.
+       */
+      const brightness = on
+        ? Math.max(
+            40,
+            Math.min(
+              255,
+              Math.round(
+                40 +
+                ((oled.contrast ?? 0x7f) / 255) * 215,
+              ),
+            ),
+          )
+        : 0;
+
+      const offset = index * 4;
+      image.data[offset] = brightness;
+      image.data[offset + 1] = brightness;
+      image.data[offset + 2] = brightness;
+      image.data[offset + 3] = 255;
+    }
+
+    context.putImageData(image, 0, 0);
+  }, [
+    isSsd1306,
+    simulation?.ssd1306?.pixels,
+    simulation?.ssd1306?.displayOn,
+    simulation?.ssd1306?.invert,
+    simulation?.ssd1306?.contrast,
+    simulation?.ssd1306?.powered,
+    simulation?.ssd1306?.frame,
   ]);
 
   // =========================================================
@@ -1246,11 +1339,30 @@ const ElectronicNode = ({
                 isBuzzer ||
                 isUltrasonic ||
                 isPir ||
-                isServo
+                isServo ||
+                isSsd1306
                   ? componentRef
                   : undefined,
             }
           )}
+
+        {isSsd1306 && (
+          <canvas
+            ref={ssd1306CanvasRef}
+            width={128}
+            height={64}
+            aria-label="SSD1306 OLED display"
+            className="pointer-events-none absolute left-1/2 top-[18%] z-20 w-[62%] -translate-x-1/2 rounded-[2px] border border-slate-700 bg-black shadow-inner"
+            style={{
+              aspectRatio: "2 / 1",
+              imageRendering: "pixelated",
+              opacity:
+                simulation?.ssd1306?.powered === false
+                  ? 0.35
+                  : 1,
+            }}
+          />
+        )}
 
         {isLdr && (
           <div
