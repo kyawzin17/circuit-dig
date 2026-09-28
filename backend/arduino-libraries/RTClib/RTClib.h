@@ -16,7 +16,7 @@
 class DateTime {
 public:
   DateTime()
-      : _unixtime(0) {}
+      : _unixtime(946684800UL) {}
 
   DateTime(uint32_t t)
       : _unixtime(t) {}
@@ -43,6 +43,110 @@ public:
           fromCompileDateTime(
             date,
             time)) {}
+
+  DateTime(
+      const __FlashStringHelper *date,
+      const __FlashStringHelper *time)
+      : _unixtime(946684800UL) {
+    char dateBuffer[12] = {0};
+    char timeBuffer[9] = {0};
+
+    if (date) {
+      memcpy_P(dateBuffer, date, 11);
+    }
+
+    if (time) {
+      memcpy_P(timeBuffer, time, 8);
+    }
+
+    _unixtime =
+      fromCompileDateTime(
+        dateBuffer,
+        timeBuffer);
+  }
+
+  explicit DateTime(
+      const char *iso8601)
+      : _unixtime(946684800UL) {
+    if (!iso8601) {
+      return;
+    }
+
+    const uint16_t year =
+      static_cast<uint16_t>(
+        (iso8601[0] - '0') * 1000 +
+        (iso8601[1] - '0') * 100 +
+        (iso8601[2] - '0') * 10 +
+        (iso8601[3] - '0')
+      );
+
+    const uint8_t month =
+      static_cast<uint8_t>(
+        (iso8601[5] - '0') * 10 +
+        (iso8601[6] - '0')
+      );
+
+    const uint8_t day =
+      static_cast<uint8_t>(
+        (iso8601[8] - '0') * 10 +
+        (iso8601[9] - '0')
+      );
+
+    const uint8_t hour =
+      static_cast<uint8_t>(
+        (iso8601[11] - '0') * 10 +
+        (iso8601[12] - '0')
+      );
+
+    const uint8_t minute =
+      static_cast<uint8_t>(
+        (iso8601[14] - '0') * 10 +
+        (iso8601[15] - '0')
+      );
+
+    const uint8_t second =
+      static_cast<uint8_t>(
+        (iso8601[17] - '0') * 10 +
+        (iso8601[18] - '0')
+      );
+
+    _unixtime =
+      fromCivil(
+        year,
+        month,
+        day,
+        hour,
+        minute,
+        second);
+  }
+
+  bool isValid() const {
+    const Civil value = civil();
+
+    return value.year >= 2000 &&
+           value.year <= 2099 &&
+           value.month >= 1 &&
+           value.month <= 12 &&
+           value.day >= 1 &&
+           value.day <= 31 &&
+           value.hour <= 23 &&
+           value.minute <= 59 &&
+           value.second <= 59;
+  }
+
+  uint8_t twelveHour() const {
+    const uint8_t h = hour();
+
+    if (h == 0 || h == 12) {
+      return 12;
+    }
+
+    return h > 12 ? h - 12 : h;
+  }
+
+  uint8_t isPM() const {
+    return hour() >= 12 ? 1 : 0;
+  }
 
   uint16_t year() const {
     return civil().year;
@@ -95,6 +199,18 @@ public:
 
   bool operator==(const DateTime &other) const {
     return _unixtime == other._unixtime;
+  }
+
+  bool operator!=(const DateTime &other) const {
+    return _unixtime != other._unixtime;
+  }
+
+  bool operator<=(const DateTime &other) const {
+    return _unixtime <= other._unixtime;
+  }
+
+  bool operator>=(const DateTime &other) const {
+    return _unixtime >= other._unixtime;
   }
 
   DateTime operator+(const TimeSpan &span) const;
