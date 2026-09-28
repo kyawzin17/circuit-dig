@@ -249,7 +249,7 @@ protected:
 private:
   static const uint8_t *glyph(char c) {
     // Compact 5x7 font for ASCII digits, letters and common punctuation.
-    static const uint8_t font[37][5] = {
+    static const uint8_t font[38][5] = {
       {0,0,0,0,0},       // space
       {0x3E,0x51,0x49,0x45,0x3E}, // 0
       {0x00,0x42,0x7F,0x40,0x00}, // 1
@@ -296,7 +296,7 @@ private:
     if (c >= '0' && c <= '9') return font[1 + (c - '0')];
     if (c >= 'a' && c <= 'z') c = char(c - 'a' + 'A');
     if (c >= 'A' && c <= 'Z') return font[11 + (c - 'A')];
-    if (c == ':') return font[36];
+    if (c == ':') return font[37];
 
     if (c == '.') { unknown[0]=0; unknown[1]=0x60; unknown[2]=0x60; unknown[3]=0; unknown[4]=0; return unknown; }
     if (c == '-') { unknown[0]=0x08; unknown[1]=0x08; unknown[2]=0x08; unknown[3]=0x08; unknown[4]=0x08; return unknown; }
