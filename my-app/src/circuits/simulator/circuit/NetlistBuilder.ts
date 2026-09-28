@@ -148,7 +148,7 @@ function getTerminalIds(node: CircuitNode): string[] {
   }
 
   if (type === "neopixel") {
-    return ["VDD", "GND", "DIN", "DOUT"];
+    return ["VDD", "VSS", "DIN", "DOUT"];
   }
 
   if (
