@@ -240,8 +240,12 @@ private:
       (y >= 0 ? y : y - 399) / 400;
     const uint32_t yoe =
       static_cast<uint32_t>(y - era * 400);
+    const int32_t monthMarchBased =
+      static_cast<int32_t>(m) +
+      (m > 2 ? -3 : 9);
+
     const uint32_t doy =
-      (153 * (m + (m > 2 ? -3 : 9)) + 2) / 5 +
+      (153 * static_cast<uint32_t>(monthMarchBased) + 2) / 5 +
       d - 1;
     const uint32_t doe =
       yoe * 365 +
@@ -398,10 +402,12 @@ private:
       static_cast<uint8_t>(
         doy - (153 * mp + 2) / 5 + 1
       );
+    const int32_t monthValue =
+      static_cast<int32_t>(mp) +
+      (mp < 10 ? 3 : -9);
+
     uint8_t m =
-      static_cast<uint8_t>(
-        mp + (mp < 10 ? 3 : -9)
-      );
+      static_cast<uint8_t>(monthValue);
 
     if (m <= 2) {
       ++y;
