@@ -69,6 +69,10 @@ export interface CircuitSimulationEngineOptions
    ENGINE
 ========================================================= */
 
+function createPinKeyForSimulation(nodeId: string, pinId: string): string {
+  return nodeId + ":" + pinId;
+}
+
 export class SimulationEngine {
   private status: SimulationStatus = "idle";
 
@@ -949,6 +953,11 @@ export class SimulationEngine {
             const pinNumber = /^A/i.test(pin.pinId)
               ? 14 + channel
               : channel;
+
+            this.digitalInputState.pinLevels.set(
+              createPinKeyForSimulation(node.id, pin.pinId),
+              level,
+            );
 
             this.arduino.setInputLevel(
               pinNumber,
