@@ -54,8 +54,13 @@ import {
 } from "../components/Lcd1602Runtime";
 import {
   I2cPeripheralEventHandler,
-  Ssd1306Runtime,
 } from "../components/Ssd1306Runtime";
+import {
+  Ssd1306Runtime,
+  Ssd1306SpiBridge,
+  Ssd1306SoftwareSpiDecoder,
+} from "../components/Ssd1306Runtime";
+import { AVRSPI } from "avr8js";
 
 /* =========================================================
    ENGINE OPTIONS
@@ -256,6 +261,12 @@ export class SimulationEngine {
   private lcdI2cHandler:
     I2cPeripheralEventHandler | null = null;
 
+  private ssd1306SpiBridge:
+    Ssd1306SpiBridge | null = null;
+
+  private ssd1306SoftwareSpi:
+    Ssd1306SoftwareSpiDecoder | null = null;
+
   constructor(
     options: SimulationEngineOptions = {},
   ) {
@@ -393,60 +404,66 @@ export class SimulationEngine {
     );
   }
 
-  private isSsd1306I2cConnected(
+  private getConnectedArduinoGpioPin(
+    componentId: string,
+    terminal: string,
+  ): string | null {
+    if (!this.netlist) return null;
+
+    const component = this.netlist.components.find(
+      (item) => item.id === componentId,
+    );
+    const netId = component?.terminals[terminal];
+
+    if (!netId) return null;
+
+    const refs = this.netlist.netToPins.get(netId) ?? [];
+
+    for (const ref of refs) {
+      if (!/^(?:D|A)\\d+$/i.test(ref.pinId)) continue;
+
+      const node = this.circuitNodes.find(
+        (candidate) => candidate.id === ref.nodeId,
+      );
+
+      const type = String(
+        node?.data?.componentType ??
+          node?.type ??
+          "",
+      ).toLowerCase();
+
+      if (
+        type === "arduino-uno" ||
+        type === "arduino"
+      ) {
+        return ref.pinId.toUpperCase();
+      }
+    }
+
+    return null;
+  }
+
+  private isSsd1306SpiConnected(
     componentId: string,
   ): boolean {
-    if (!this.netlist) {
+    const component = this.netlist?.components.find(
+      (item) => item.id === componentId,
+    );
+
+    if (!component) return false;
+
+    const required = ["DATA", "CLK", "DC", "RST", "CS", "VIN", "GND"];
+
+    if (required.some((terminal) => !component.terminals[terminal])) {
       return false;
     }
-
-    const component =
-      this.netlist.components.find(
-        (item) => item.id === componentId,
-      );
-
-    if (!component) {
-      return false;
-    }
-
-    const netHasArduinoPin = (
-      netId: string | null | undefined,
-      pinName: string,
-    ): boolean => {
-      if (!netId) {
-        return false;
-      }
-
-      return (
-        this.netlist!.netToPins
-          .get(netId)
-          ?.some(
-            (pin) =>
-              pin.pinId.toUpperCase() ===
-              pinName.toUpperCase(),
-          ) ?? false
-      );
-    };
-
-    const vin = component.terminals.VIN;
-    const gnd = component.terminals.GND;
-
-    const powered =
-      typeof vin === "string" &&
-      typeof gnd === "string" &&
-      (
-        this.powerState.sourceNets.has(vin) ||
-        (this.powerState.netVoltages[vin] ?? 0) >= 2.5
-      ) &&
-      (
-        this.powerState.groundNets.has(gnd) ||
-        Math.abs(this.powerState.netVoltages[gnd] ?? 999) < 0.05
-      );
 
     return (
-      powered &&
-      netHasArduinoPin(component.terminals.DATA, "A4") &&
-      netHasArduinoPin(component.terminals.CLK, "A5")
+      Boolean(this.getConnectedArduinoGpioPin(componentId, "DATA")) &&
+      Boolean(this.getConnectedArduinoGpioPin(componentId, "CLK")) &&
+      Boolean(this.getConnectedArduinoGpioPin(componentId, "DC")) &&
+      Boolean(this.getConnectedArduinoGpioPin(componentId, "RST")) &&
+      Boolean(this.getConnectedArduinoGpioPin(componentId, "CS"))
     );
   }
 
@@ -737,6 +754,8 @@ export class SimulationEngine {
     this.pirRuntime.clear();
     this.parallelLcdGpioLevels.clear();
     this.lcdI2cHandler = null;
+    this.ssd1306SpiBridge = null;
+    this.ssd1306SoftwareSpi = null;
 
     for (const node of nodes) {
       const type = String(
@@ -805,12 +824,7 @@ export class SimulationEngine {
 
         this.ssd1306Runtimes.set(
           node.id,
-          new Ssd1306Runtime(
-            node.id,
-            Number.isFinite(parsedAddress)
-              ? parsedAddress
-              : 0x3c,
-          ),
+          new Ssd1306Runtime(node.id),
         );
       }
     }
@@ -867,24 +881,58 @@ export class SimulationEngine {
       oled.reset();
     }
 
-    const i2cPeripherals = () => [
-      ...Array.from(this.lcdRuntimes.values()),
-      ...Array.from(this.ssd1306Runtimes.values()),
-    ];
+    const lcdI2cPeripherals = () =>
+      Array.from(this.lcdRuntimes.values());
 
     this.lcdI2cHandler =
       new I2cPeripheralEventHandler(
-        i2cPeripherals,
+        lcdI2cPeripherals,
         this.avr.getTwi()!,
         (display) =>
-          display instanceof Ssd1306Runtime
-            ? this.isSsd1306I2cConnected(display.id)
-            : this.isLcdI2cConnected(display.id),
+          this.isLcdI2cConnected(display.id),
       );
 
     this.avr.setTwiEventHandler(
       this.lcdI2cHandler,
     );
+
+    this.ssd1306SpiBridge =
+      new Ssd1306SpiBridge(
+        () => Array.from(this.ssd1306Runtimes.values()),
+        (pin) => this.avr.getGpioLevel(pin),
+        (display, terminal) =>
+          this.getConnectedArduinoGpioPin(
+            display.id,
+            terminal,
+          ),
+      );
+
+    this.ssd1306SoftwareSpi =
+      new Ssd1306SoftwareSpiDecoder(
+        () => Array.from(this.ssd1306Runtimes.values()),
+        (pin) => this.avr.getGpioLevel(pin),
+        (display, terminal) =>
+          this.getConnectedArduinoGpioPin(
+            display.id,
+            terminal,
+          ),
+      );
+
+    const spi = this.avr.getSpi();
+
+    if (spi) {
+      spi.onByte = (value) => {
+        this.ssd1306SpiBridge?.transfer(value);
+
+        const cpu = this.avr.getCPU();
+        if (cpu) {
+          cpu.addClockEvent(
+            () => spi.completeTransfer(0),
+            spi.transferCycles,
+          );
+        }
+      };
+    }
 
     this.digitalState = {
       pinLevels: new Map(),
@@ -1365,6 +1413,12 @@ export class SimulationEngine {
       level,
     );
 
+    this.processSsd1306ResetGpioChange(pin, level);
+    this.ssd1306SoftwareSpi?.handleGpioChange(
+      pin,
+      level,
+    );
+
     /*
      * LCD parallel bus transactions are latched on E's falling edge.
      * The AVR runner calls this from the real PORT register transitions,
@@ -1575,6 +1629,27 @@ export class SimulationEngine {
 
     for (const [id, runtime] of this.lcdRuntimes) {
       runtimeState[id] = runtime.getState();
+    }
+  }
+
+  private processSsd1306ResetGpioChange(
+    pin: string,
+    level: 0 | 1,
+  ): void {
+    for (const display of this.ssd1306Runtimes.values()) {
+      const resetPin =
+        this.getConnectedArduinoGpioPin(
+          display.id,
+          "RST",
+        );
+
+      if (
+        resetPin &&
+        resetPin.toUpperCase() ===
+          pin.toUpperCase()
+      ) {
+        display.setReset(level);
+      }
     }
   }
 
