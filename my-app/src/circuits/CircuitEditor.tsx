@@ -753,6 +753,24 @@ const CircuitEditor = () => {
               };
             }
 
+            if (componentType === "neopixel") {
+              return {
+                ...node,
+                data: {
+                  ...node.data,
+                  simulation: {
+                    ...(node.data?.simulation ?? {}),
+                    neopixel:
+                      state.neopixelStates?.[node.id],
+                    traceActive:
+                      state.diagnostics.trace?.componentIds.includes(
+                        node.id,
+                      ) === true,
+                  },
+                },
+              };
+            }
+
             if (!componentType.includes("led")) {
               return node;
             }
