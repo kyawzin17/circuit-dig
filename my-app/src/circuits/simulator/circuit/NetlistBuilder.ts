@@ -318,6 +318,13 @@ export class NetlistBuilder {
         K: ["K", "pin_k"],
         SDA: ["SDA", "pin_sda"],
         SCL: ["SCL", "pin_scl"],
+        DATA: ["DATA", "Data", "pin_data", "MOSI"],
+        CLK: ["CLK", "Clk", "pin_clk", "SCK"],
+        DC: ["DC", "pin_dc"],
+        RST: ["RST", "Rst", "RES", "pin_rst", "pin_res"],
+        CS: ["CS", "pin_cs"],
+        "3VO": ["3VO", "3Vo", "3V0", "pin_3vo"],
+        VIN: ["VIN", "pin_vin"],
         VCC: ["VCC", "pin_vcc"],
         GND: ["GND", "pin_gnd"],
 
