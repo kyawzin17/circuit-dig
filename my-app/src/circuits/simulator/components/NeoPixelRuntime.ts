@@ -114,11 +114,25 @@ export class NeoPixelRuntime {
       const highCycles =
         currentCycle - this.highStartCycle;
 
+      /*
+       * The simulator's AVR-compatible NeoPixel driver emits the waveform
+       * with direct PORT writes. The GPIO edge itself includes the AVR
+       * instruction overhead around the delay_cycles() call, so the
+       * observed pulse is longer than the raw delay value. Keep the
+       * classification centered on the WS2812B T0H/T1H boundary while
+       * allowing that deterministic AVR overhead.
+       *
+       * Nominal WS2812B values are roughly:
+       *   T0H ~= 0.35 us
+       *   T1H ~= 0.70 us
+       *
+       * A 0.60 us boundary cleanly separates the two in our AVR trace.
+       */
       const zeroMaxCycles =
-        this.usToCycles(0.60);
+        this.usToCycles(0.55);
 
       const oneMinCycles =
-        this.usToCycles(0.70);
+        this.usToCycles(0.60);
 
       if (
         highCycles >= 1 &&
@@ -264,7 +278,7 @@ export class NeoPixelRuntime {
     highCycles: number,
   ): 0 | 1 {
     const midpoint =
-      this.usToCycles(0.70);
+      this.usToCycles(0.60);
 
     return highCycles >= midpoint ? 1 : 0;
   }
