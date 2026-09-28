@@ -671,6 +671,28 @@ const CircuitEditor = () => {
             }
 
             if (
+              componentType === "pir" ||
+              componentType === "pir-motion-sensor" ||
+              componentType === "pir-motion"
+            ) {
+              return {
+                ...node,
+                data: {
+                  ...node.data,
+                  simulation: {
+                    ...(node.data?.simulation ?? {}),
+                    pir:
+                      state.pirStates?.[node.id],
+                    traceActive:
+                      state.diagnostics.trace?.componentIds.includes(
+                        node.id,
+                      ) === true,
+                  },
+                },
+              };
+            }
+
+            if (
               componentType === "servo" ||
               componentType === "servo-motor" ||
               componentType === "servomotor"
