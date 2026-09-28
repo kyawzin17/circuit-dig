@@ -54,7 +54,7 @@ import {
 } from "../components/Lcd1602Runtime";
 import {
   I2cPeripheralEventHandler,
-} from "../components/Ssd1306Runtime";
+} from "../components/I2cPeripheralEventHandler";
 import {
   Ssd1306Runtime,
   Ssd1306SpiBridge,
