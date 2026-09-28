@@ -148,6 +148,7 @@ export class ArduinoUnoRuntime {
       lcdStates: {} as Record<string, Lcd1602RuntimeState>,
       ssd1306States: {} as Record<string, Ssd1306RuntimeState>,
       neopixelStates: {} as Record<string, NeoPixelRuntimeState>,
+      serialOutput: "",
       wireStates: {},
       diagnostics: {
         simulatedCycles: 0,
@@ -163,6 +164,20 @@ export class ArduinoUnoRuntime {
 
   getState(): ArduinoUnoRuntimeState {
     return this.state;
+  }
+
+  /** Append bytes received from the emulated ATmega328P UART TX register. */
+  appendSerialOutput(value: number): void {
+    const byte = value & 0xff;
+    if (byte === 0) return;
+
+    this.state.serialOutput = (
+      this.state.serialOutput + String.fromCharCode(byte)
+    ).slice(-50000);
+  }
+
+  clearSerialOutput(): void {
+    this.state.serialOutput = "";
   }
 
   setAnalogInput(
