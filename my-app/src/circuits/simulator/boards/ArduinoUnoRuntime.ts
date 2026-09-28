@@ -14,6 +14,7 @@ import type {
   Ssd1306RuntimeState,
   NeoPixelRuntimeState,
   PirRuntimeState,
+  Ds1307RuntimeState,
 } from "../types/simulator.types";
 import { ARDUINO_UNO_PIN_MAP } from "../mapping/ArduinoUnoPinMap";
 
