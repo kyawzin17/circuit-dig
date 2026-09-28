@@ -23,6 +23,7 @@ const CodeSection = ({
   const status = useSimulationStore((state) => state.status);
   const error = useSimulationStore((state) => state.error);
   const logs = useSimulationStore((state) => state.logs);
+  const serialOutput = useSimulationStore((state) => state.serialOutput);
 
   const isCompiling = status === "compiling";
   const isRunning = status === "running";
@@ -130,6 +131,15 @@ const CodeSection = ({
             {logs}
           </pre>
         )}
+
+        <div className="mt-2 rounded border border-slate-800 bg-black/40 p-2">
+          <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+            Serial Monitor
+          </div>
+          <pre className="max-h-28 min-h-8 overflow-auto whitespace-pre-wrap font-mono text-xs text-emerald-300">
+            {serialOutput || "No serial output yet."}
+          </pre>
+        </div>
       </div>
     </div>
   );
