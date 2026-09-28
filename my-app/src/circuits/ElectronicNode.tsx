@@ -72,6 +72,18 @@ type SimulationState = {
     inhibitTimeSec?: number;
     retrigger?: boolean;
   };
+  neopixel?: {
+    red?: number;
+    green?: number;
+    blue?: number;
+    color?: string;
+    brightness?: number;
+    powered?: boolean;
+    latched?: boolean;
+    frame?: number;
+    dataBits?: number;
+    interfaceType?: "ws2812b";
+  };
   ssd1306?: {
     width?: number;
     height?: number;
@@ -249,6 +261,9 @@ const ElectronicNode = ({
 
   const isSsd1306 =
     componentType === "ssd1306";
+
+  const isNeoPixel =
+    componentType === "neopixel";
 
   const buzzerActive =
     simulation?.buzzer?.active === true;
@@ -1340,11 +1355,34 @@ const ElectronicNode = ({
                 isUltrasonic ||
                 isPir ||
                 isServo ||
-                isSsd1306
+                isSsd1306 ||
+                isNeoPixel
                   ? componentRef
                   : undefined,
             }
           )}
+
+        {isNeoPixel && (
+          <div
+            aria-label="WS2812B NeoPixel output"
+            className="pointer-events-none absolute left-1/2 top-1/2 z-20 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full"
+            style={{
+              backgroundColor:
+                simulation?.neopixel?.powered === false
+                  ? "#111827"
+                  : simulation?.neopixel?.color ?? "#000000",
+              opacity:
+                simulation?.neopixel?.powered === false
+                  ? 0.45
+                  : 1,
+              boxShadow:
+                simulation?.neopixel?.powered &&
+                (simulation?.neopixel?.brightness ?? 0) > 0
+                  ? `0 0 ${6 + (simulation.neopixel.brightness ?? 0) * 10}px ${simulation.neopixel.color ?? "#ffffff"}`
+                  : "none",
+            }}
+          />
+        )}
 
         {isSsd1306 && (
           <canvas
