@@ -308,6 +308,41 @@ const Sidebar = () => {
   const allComponents: ComponentItem[] = [
 
     // =========================
+    // MICROCONTROLLER
+    // =========================
+
+    {
+      type: "arduino-uno",
+      name: "Arduino Uno",
+      tag: "wokwi-arduino-uno",
+      props: {},
+      scale: 0.2,
+      yOffset: "-15px",
+      category: "microcontroller",
+    },
+
+    {
+      type: "arduino-mega",
+      name: "Arduino Mega",
+      tag: "wokwi-arduino-mega",
+      props: {},
+      scale: 0.2,
+      yOffset: "-10px",
+      category: "microcontroller",
+    },
+
+    {
+      type: "arduino-nano",
+      name: "Arduino Nano",
+      tag: "wokwi-arduino-nano",
+      props: {},
+      scale: 0.3,
+      yOffset: "0px",
+      category: "microcontroller",
+    },
+
+
+    // =========================
     // BASIC
     // =========================
 
@@ -481,41 +516,6 @@ const Sidebar = () => {
       category: "basic",
     },
 
-
-    // =========================
-    // MICROCONTROLLER
-    // =========================
-
-    {
-      type: "arduino-uno",
-      name: "Arduino Uno",
-      tag: "wokwi-arduino-uno",
-      props: {},
-      scale: 0.2,
-      yOffset: "-15px",
-      category: "microcontroller",
-    },
-
-    {
-      type: "arduino-mega",
-      name: "Arduino Mega",
-      tag: "wokwi-arduino-mega",
-      props: {},
-      scale: 0.2,
-      yOffset: "-10px",
-      category: "microcontroller",
-    },
-
-    {
-      type: "arduino-nano",
-      name: "Arduino Nano",
-      tag: "wokwi-arduino-nano",
-      props: {},
-      scale: 0.3,
-      yOffset: "0px",
-      category: "microcontroller",
-    },
-
     // {
     //   type: "respberry-pico",
     //   name: "Raspberry Pi Pico",
@@ -526,15 +526,15 @@ const Sidebar = () => {
     //   category: "microcontroller",
     // },
 
-    {
-      type: "esp32",
-      name: "ESP32 DevKit",
-      tag: "wokwi-esp32-devkit-v1",
-      props: {},
-      scale: 0.18,
-      yOffset: "0px",
-      category: "microcontroller",
-    },
+    // {
+    //   type: "esp32",
+    //   name: "ESP32 DevKit",
+    //   tag: "wokwi-esp32-devkit-v1",
+    //   props: {},
+    //   scale: 0.18,
+    //   yOffset: "0px",
+    //   category: "microcontroller",
+    // },
 
 
     // =========================
@@ -591,25 +591,25 @@ const Sidebar = () => {
       category: "sensors",
     },
 
-    {
-      type: "joystick",
-      name: "Joystick",
-      tag: "wokwi-analog-joystick",
-      props: {},
-      scale: 0.35,
-      yOffset: "0px",
-      category: "sensors",
-    },
+    // {
+    //   type: "joystick",
+    //   name: "Joystick",
+    //   tag: "wokwi-analog-joystick",
+    //   props: {},
+    //   scale: 0.35,
+    //   yOffset: "0px",
+    //   category: "sensors",
+    // },
 
-    {
-      type: "rgb-led",
-      name: "RGB LED",
-      tag: "wokwi-rgb-led",
-      props: {},
-      scale: 0.6,
-      yOffset: "0px",
-      category: "basic",
-    },
+    // {
+    //   type: "rgb-led",
+    //   name: "RGB LED",
+    //   tag: "wokwi-rgb-led",
+    //   props: {},
+    //   scale: 0.6,
+    //   yOffset: "0px",
+    //   category: "basic",
+    // },
 
     {
       type: "servo",
@@ -621,15 +621,15 @@ const Sidebar = () => {
       category: "basic",
     },
 
-    {
-      type: "stepper-motor",
-      name: "Stepper Motor",
-      tag: "wokwi-stepper-motor",
-      props: {},
-      scale: 0.25,
-      yOffset: "0px",
-      category: "basic",
-    },
+    // {
+    //   type: "stepper-motor",
+    //   name: "Stepper Motor",
+    //   tag: "wokwi-stepper-motor",
+    //   props: {},
+    //   scale: 0.25,
+    //   yOffset: "0px",
+    //   category: "basic",
+    // },
 
     {
       type: "membrane-keypad",
