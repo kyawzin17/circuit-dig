@@ -60,6 +60,7 @@ import {
   Ssd1306SpiBridge,
   Ssd1306SoftwareSpiDecoder,
 } from "../components/Ssd1306Runtime";
+import { NeoPixelRuntime } from "../components/NeoPixelRuntime";
 
 /* =========================================================
    ENGINE OPTIONS
@@ -78,6 +79,12 @@ export interface CircuitSimulationEngineOptions
 
 function createPinKeyForSimulation(nodeId: string, pinId: string): string {
   return nodeId + ":" + pinId;
+}
+
+function optionsFrequency(
+  options: SimulationEngineOptions,
+): number {
+  return options.config?.frequency ?? 16_000_000;
 }
 
 export class SimulationEngine {
@@ -230,6 +237,9 @@ export class SimulationEngine {
 
   private readonly ssd1306Runtimes =
     new Map<string, Ssd1306Runtime>();
+
+  private readonly neoPixelRuntimes =
+    new Map<string, NeoPixelRuntime>();
 
   /**
    * PIR timing is kept in simulated AVR cycles so the sensor follows
@@ -726,6 +736,7 @@ export class SimulationEngine {
     this.servoPulseStarts.clear();
     this.lcdRuntimes.clear();
     this.ssd1306Runtimes.clear();
+    this.neoPixelRuntimes.clear();
     this.pirRuntime.clear();
     this.parallelLcdGpioLevels.clear();
     this.lcdI2cHandler = null;
@@ -785,6 +796,14 @@ export class SimulationEngine {
           node.id,
           new Ssd1306Runtime(node.id),
         );
+      } else if (type === "neopixel") {
+        this.neoPixelRuntimes.set(
+          node.id,
+          new NeoPixelRuntime(
+            node.id,
+            optionsFrequency(this.options),
+          ),
+        );
       }
     }
 
@@ -792,6 +811,7 @@ export class SimulationEngine {
     this.arduino.getState().ultrasonicStates = {};
     this.arduino.getState().lcdStates = {};
     this.arduino.getState().ssd1306States = {};
+    this.arduino.getState().neopixelStates = {};
     this.arduino.getState().sevenSegmentStates = {};
   }
 
@@ -838,6 +858,10 @@ export class SimulationEngine {
 
     for (const oled of this.ssd1306Runtimes.values()) {
       oled.reset();
+    }
+
+    for (const pixel of this.neoPixelRuntimes.values()) {
+      pixel.reset();
     }
 
     const lcdI2cPeripherals = () =>
@@ -995,6 +1019,7 @@ export class SimulationEngine {
           );
 
         this.updateSsd1306PowerStates();
+        this.updateNeoPixelPowerStates();
 
         /*
          * Resolve analog voltages before AVR execution.
@@ -1241,6 +1266,7 @@ export class SimulationEngine {
       this.applySevenSegmentStates();
       this.applyLcdStates();
       this.applySsd1306States();
+      this.applyNeoPixelStates();
       this.applyBuzzerStates();
       this.applyUltrasonicStates();
       this.refreshDiagnostics();
@@ -1376,6 +1402,11 @@ export class SimulationEngine {
     this.ssd1306SoftwareSpi?.handleGpioChange(
       pin,
       level,
+    );
+    this.processNeoPixelGpioChange(
+      pin,
+      level,
+      cycle,
     );
 
     /*
@@ -1582,6 +1613,15 @@ export class SimulationEngine {
     }
   }
 
+  private applyNeoPixelStates(): void {
+    const runtimeState =
+      this.arduino.getState().neopixelStates;
+
+    for (const [id, runtime] of this.neoPixelRuntimes) {
+      runtimeState[id] = runtime.getState();
+    }
+  }
+
   private applyLcdStates(): void {
     const runtimeState =
       this.arduino.getState().lcdStates;
@@ -1718,6 +1758,148 @@ export class SimulationEngine {
         enable: readLevel(ePin),
         data,
       });
+    }
+  }
+
+  private updateNeoPixelPowerStates(): void {
+    if (!this.netlist) {
+      return;
+    }
+
+    for (const component of this.netlist.components) {
+      const runtime =
+        this.neoPixelRuntimes.get(component.id);
+
+      if (!runtime) {
+        continue;
+      }
+
+      const vdd =
+        component.terminals.VDD ??
+        component.terminals.VCC;
+      const gnd =
+        component.terminals.VSS ??
+        component.terminals.GND;
+
+      const powered =
+        typeof vdd === "string" &&
+        typeof gnd === "string" &&
+        (
+          this.powerState.sourceNets.has(vdd) ||
+          (this.powerState.netVoltages[vdd] ?? 0) >= 4.0
+        ) &&
+        (
+          this.powerState.groundNets.has(gnd) ||
+          Math.abs(
+            this.powerState.netVoltages[gnd] ?? 999,
+          ) < 0.05
+        );
+
+      runtime.setPowered(powered);
+    }
+  }
+
+  private processNeoPixelGpioChange(
+    pin: string,
+    level: 0 | 1,
+    cycle: number,
+  ): void {
+    if (!this.netlist) {
+      return;
+    }
+
+    for (const runtime of this.neoPixelRuntimes.values()) {
+      const dataPin =
+        this.getConnectedArduinoGpioPin(
+          runtime.getState().id,
+          "DIN",
+        );
+
+      if (
+        dataPin &&
+        dataPin.toUpperCase() ===
+          pin.toUpperCase()
+      ) {
+        runtime.handleGpioChange(
+          level,
+          cycle,
+        );
+
+        const frame =
+          runtime.consumeLatchedBits();
+
+        if (frame) {
+          this.distributeNeoPixelFrame(
+            runtime.getState().id,
+            frame,
+          );
+        }
+      }
+    }
+  }
+
+  private distributeNeoPixelFrame(
+    rootId: string,
+    frame: number[],
+  ): void {
+    if (!this.netlist) {
+      return;
+    }
+
+    const chain: string[] = [];
+    const visited = new Set<string>();
+    let currentId: string | null = rootId;
+
+    while (currentId && !visited.has(currentId)) {
+      visited.add(currentId);
+      chain.push(currentId);
+
+      const current =
+        this.netlist.components.find(
+          (component) =>
+            component.id === currentId,
+        );
+
+      const dout =
+        current?.terminals.DOUT ??
+        current?.terminals.DO;
+
+      if (!dout) {
+        break;
+      }
+
+      const next =
+        this.netlist.components.find(
+          (component) =>
+            this.neoPixelRuntimes.has(component.id) &&
+            component.id !== currentId &&
+            (
+              component.terminals.DIN === dout ||
+              component.terminals.DI === dout
+            ),
+        );
+
+      currentId = next?.id ?? null;
+    }
+
+    for (
+      let index = 0;
+      index < chain.length;
+      index += 1
+    ) {
+      const pixel =
+        this.neoPixelRuntimes.get(
+          chain[index],
+        );
+
+      if (!pixel) {
+        continue;
+      }
+
+      const start = index * 24;
+      pixel.applyFrameBits(
+        frame.slice(start, start + 24),
+      );
     }
   }
 
