@@ -19,9 +19,11 @@ type SimulationStore = {
   hex: string | null;
   fqbn: string;
   logs: string;
+  serialOutput: string;
   error: string | null;
 
   compile: () => Promise<boolean>;
+  setSerialOutput: (output: string) => void;
   setRunning: () => void;
   stop: () => void;
   reset: () => void;
@@ -55,6 +57,7 @@ export const useSimulationStore =
     hex: null,
     fqbn: "arduino:avr:uno",
     logs: "",
+    serialOutput: "",
     error: null,
 
     compile: async () => {
@@ -113,10 +116,15 @@ export const useSimulationStore =
       }
     },
 
+    setSerialOutput: (output) => {
+      set({ serialOutput: output });
+    },
+
     setRunning: () => {
       set({
         status: "running",
         error: null,
+        serialOutput: "",
       });
     },
 
@@ -131,6 +139,7 @@ export const useSimulationStore =
         status: "idle",
         hex: null,
         logs: "",
+        serialOutput: "",
         error: null,
       });
     },
