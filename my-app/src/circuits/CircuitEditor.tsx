@@ -606,6 +606,9 @@ const CircuitEditor = () => {
     new SimulationEngine({
       onStateChange: (state) => {
         setDiagnostics(state.diagnostics);
+        useSimulationStore.getState().setSerialOutput(
+          state.serialOutput,
+        );
         /*
          * Component visualization:
          * AVR -> GPIO -> digital solver -> LED state
