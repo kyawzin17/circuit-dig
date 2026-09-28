@@ -95,6 +95,18 @@ type SimulationState = {
     powered?: boolean;
     frame?: number;
   };
+  ds1307States?: Record<string, {
+    powered?: boolean;
+    year?: number;
+    month?: number;
+    day?: number;
+    hour?: number;
+    minute?: number;
+    second?: number;
+    dayOfWeek?: number;
+    sqwMode?: number;
+    sqwLevel?: 0 | 1;
+  }>;
 };
 
 const ElectronicNode = ({
