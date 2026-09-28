@@ -558,8 +558,11 @@ export class I2cPeripheralEventHandler implements TWIEventHandler {
       }
     }
 
+    // ACK both write and read address phases when a peripheral is selected.
+    // The previous `&& write` logic ACKed SLA+W but NACKed SLA+R, so
+    // DS1307 `Wire.requestFrom()` could never receive its register bytes.
     this.twi.completeConnect(
-      Boolean(this.selected && write),
+      Boolean(this.selected),
     );
   }
 
