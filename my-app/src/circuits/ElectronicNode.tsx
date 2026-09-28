@@ -1157,79 +1157,99 @@ const ElectronicNode = ({
       return;
     }
 
-    const element =
-      componentRef.current as
-        | (HTMLElement & {
-            r?: number;
-            g?: number;
-            b?: number;
-          })
-        | null;
+    const applyColor = () => {
+      const element =
+        componentRef.current as
+          | (HTMLElement & {
+              r?: number;
+              g?: number;
+              b?: number;
+            })
+          | null;
 
-    if (!element) {
-      return;
-    }
+      if (!element) {
+        return;
+      }
+
+      /*
+       * @wokwi/elements already renders the NeoPixel itself.
+       * The simulator owns the WS2812B state; the Wokwi element
+       * remains the visual renderer. Never draw a second LED overlay.
+       */
+      const powered =
+        simulation?.neopixel?.powered === true;
+
+      const red = powered
+        ? Math.max(
+            0,
+            Math.min(
+              255,
+              Math.round(
+                simulation?.neopixel?.red ?? 0,
+              ),
+            ),
+          )
+        : 0;
+
+      const green = powered
+        ? Math.max(
+            0,
+            Math.min(
+              255,
+              Math.round(
+                simulation?.neopixel?.green ?? 0,
+              ),
+            ),
+          )
+        : 0;
+
+      const blue = powered
+        ? Math.max(
+            0,
+            Math.min(
+              255,
+              Math.round(
+                simulation?.neopixel?.blue ?? 0,
+              ),
+            ),
+          )
+        : 0;
+
+      /*
+       * Set both LitElement properties and attributes. The explicit
+       * property assignment is the important part for the Wokwi
+       * custom element; attributes are kept in sync for inspection
+       * and custom-element upgrade timing.
+       */
+      element.r = red;
+      element.g = green;
+      element.b = blue;
+
+      element.setAttribute("r", String(red));
+      element.setAttribute("g", String(green));
+      element.setAttribute("b", String(blue));
+      element.setAttribute(
+        "data-simulation-powered",
+        String(powered),
+      );
+    };
+
+    applyColor();
 
     /*
-     * @wokwi/elements already knows how to render a NeoPixel.
-     * Do not draw a second HTML overlay on top of it.
-     *
-     * The simulator owns the electrical/WS2812B state, while the
-     * Wokwi element remains the visual renderer. Its public NeoPixel
-     * color properties are r/g/b (0..255).
+     * React can render a custom element before its definition is
+     * upgraded. Re-apply after the element is defined so the Wokwi
+     * renderer receives the color through its real public properties.
      */
-    const powered =
-      simulation?.neopixel?.powered === true;
-
-    const red = powered
-      ? Math.max(
-          0,
-          Math.min(
-            255,
-            Math.round(
-              simulation?.neopixel?.red ?? 0,
-            ),
-          ),
-        )
-      : 0;
-
-    const green = powered
-      ? Math.max(
-          0,
-          Math.min(
-            255,
-            Math.round(
-              simulation?.neopixel?.green ?? 0,
-            ),
-          ),
-        )
-      : 0;
-
-    const blue = powered
-      ? Math.max(
-          0,
-          Math.min(
-            255,
-            Math.round(
-              simulation?.neopixel?.blue ?? 0,
-            ),
-          ),
-        )
-      : 0;
-
-    element.r = red;
-    element.g = green;
-    element.b = blue;
-
-    // Keep DOM attributes synchronized as well. This is useful for
-    // upgraded/custom-element implementations and DevTools inspection.
-    element.setAttribute("r", String(red));
-    element.setAttribute("g", String(green));
-    element.setAttribute("b", String(blue));
-    element.setAttribute(
-      "data-simulation-powered",
-      String(powered),
-    );
+    if (
+      typeof customElements !== "undefined" &&
+      customElements.get("wokwi-neopixel") === undefined
+    ) {
+      void customElements
+        .whenDefined("wokwi-neopixel")
+        .then(applyColor)
+        .catch(() => undefined);
+    }
   }, [
     isNeoPixel,
     simulation?.neopixel?.red,
