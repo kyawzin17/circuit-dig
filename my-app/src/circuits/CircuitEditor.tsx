@@ -25,7 +25,7 @@ import { resistorPins } from "./pins/resistorPins.ts";
 import { ledPins } from "./pins/ledPins.ts";
 import { buzzerPins } from "./pins/buzzerPins.ts";
 import { hcsr04Pins } from "./pins/hcsr04Pins.ts";
-import { servoPins } from "./Pins/servoMotorPins.ts";
+import { servoPins } from "./pins/servoMotorPins.ts";
 import { lcd1602I2cPins } from "./pins/lcd1602_i2cPins.ts";
 import { lcd1602Pins } from "./pins/lcd1602Pins.ts";
 import { miniBreadboardPins } from "./pins/miniBreadBoardPins.ts";
@@ -43,7 +43,7 @@ import { esp32Pins } from "./pins/esp32Pins.ts";
 import { ldrModulePins } from "./pins/ldrSensorPins.ts";
 import { pirPins } from "./pins/pirMotionSensorPins.ts";
 import { ds1307Pins } from "./pins/ds1307Pins.ts";
-import { oledSsd1306SpiPins } from "./pins/ssd1306Pins.ts";
+import { oledSsd13068PinPins } from "./pins/ssd1306Pins.ts";
 import { batteryPins } from "./pins/battery9VPins.ts";
 
 // * ----------> Icons <----------
@@ -1554,7 +1554,7 @@ const stop =
           label: "SSD1306 OLED",
           tag: "wokwi-ssd1306",
           props: {},
-          pins: oledSsd1306SpiPins,
+          pins: oledSsd13068PinPins,
         },
 
         pushbutton: {
