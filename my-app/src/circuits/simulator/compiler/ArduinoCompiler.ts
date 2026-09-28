@@ -52,6 +52,8 @@ export async function compileArduinoSketch(
   try {
     result =
       (await response.json()) as ArduinoCompileResult;
+
+      // ! console.log(" This is the result:", result);
   } catch {
     return {
       success: false,

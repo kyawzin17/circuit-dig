@@ -284,7 +284,6 @@ const ElectronicNode = ({
     componentType === "ds1307" ||
     componentType === "rtc-ds1307" ||
     componentType === "rtc";
-
   const buzzerActive =
     simulation?.buzzer?.active === true;
 
@@ -1295,6 +1294,8 @@ const ElectronicNode = ({
             sqwMode?: number;
           })
         | null;
+
+      console.log("element:", element);
 
     if (!element) {
       return;
