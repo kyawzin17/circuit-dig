@@ -375,12 +375,16 @@ private:
       --days;
     }
 
-    // Inverse of daysFromCivil(), using the proleptic Gregorian calendar.
+    // Inverse of daysFromCivil(). The forward conversion is
+    // anchored to the Unix epoch (1970-01-01), while the civil-date
+    // algorithm itself uses the Gregorian epoch offset of 719468 days.
+    int64_t civilDays = days + 719468LL;
+
     int64_t era =
-      (days >= 0 ? days : days - 146096) / 146097;
+      (civilDays >= 0 ? civilDays : civilDays - 146096) / 146097;
     uint32_t doe =
       static_cast<uint32_t>(
-        days - era * 146097
+        civilDays - era * 146097
       );
     uint32_t yoe =
       static_cast<uint32_t>(
