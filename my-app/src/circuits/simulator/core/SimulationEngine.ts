@@ -524,13 +524,25 @@ export class SimulationEngine {
       (typeof gndVoltage === "number" &&
         Math.abs(gndVoltage) < 0.05);
 
-    return (
-      hasPositiveSource &&
-      hasGroundReference &&
-      vccVoltage !== undefined &&
-      gndVoltage !== undefined &&
-      vccVoltage - gndVoltage >= 3
-    );
+    if (!hasPositiveSource || !hasGroundReference) {
+      return false;
+    }
+
+    /*
+     * PowerRailSolver may know a rail is sourced/grounded without
+     * materializing a numeric voltage for every net. Do not reject a
+     * physically valid DS1307 connection just because one voltage entry
+     * is absent. When both voltages are available, still enforce the real
+     * minimum supply differential.
+     */
+    if (
+      typeof vccVoltage === "number" &&
+      typeof gndVoltage === "number"
+    ) {
+      return vccVoltage - gndVoltage >= 3;
+    }
+
+    return true;
   }
 
   private updateDs1307PowerStates(
