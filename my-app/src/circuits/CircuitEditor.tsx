@@ -644,6 +644,24 @@ const CircuitEditor = () => {
               };
             }
 
+            if (componentType === "ssd1306") {
+              return {
+                ...node,
+                data: {
+                  ...node.data,
+                  simulation: {
+                    ...(node.data?.simulation ?? {}),
+                    ssd1306:
+                      state.ssd1306States?.[node.id],
+                    traceActive:
+                      state.diagnostics.trace?.componentIds.includes(
+                        node.id,
+                      ) === true,
+                  },
+                },
+              };
+            }
+
             if (
               componentType === "7segment" ||
               componentType === "sevensegment" ||
