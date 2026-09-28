@@ -77,6 +77,24 @@ export class Avr8jsRunner {
   private scheduledDigitalPulses: ScheduledDigitalPulse[] = [];
   private toggleCounts: Record<string, number> = {};
 
+  /*
+   * GPIO output tracking is write-driven rather than instruction-driven.
+   * The previous implementation compared PORT/DDR registers after every
+   * AVR instruction, which added a large amount of JavaScript work to the
+   * 16 MHz emulation loop.
+   */
+  private gpioDirty = {
+    B: false,
+    C: false,
+    D: false,
+  };
+
+  private lastOutput = {
+    B: 0,
+    C: 0,
+    D: 0,
+  };
+
   private timer0: AVRTimer | null = null;
   private timer1: AVRTimer | null = null;
   private timer2: AVRTimer | null = null;
@@ -92,6 +110,18 @@ export class Avr8jsRunner {
     this.externalDigitalInputs = {};
     this.scheduledDigitalPulses = [];
     this.toggleCounts = {};
+    this.gpioDirty = {
+      B: false,
+      C: false,
+      D: false,
+    };
+    this.lastOutput = {
+      B: 0,
+      C: 0,
+      D: 0,
+    };
+
+    this.installGpioWriteHooks();
 
     // Arduino UNO's Timer0 drives millis()/micros()/delay().
     this.timer0 = new AVRTimer(this.cpu, timer0Config);
@@ -313,16 +343,6 @@ export class Avr8jsRunner {
     this.toggleCounts = {};
 
     while (this.cpu.cycles < targetCycles) {
-      const beforeB =
-        (this.cpu.data[PORTB] ?? 0) &
-        (this.cpu.data[DDRB] ?? 0);
-      const beforeC =
-        (this.cpu.data[PORTC] ?? 0) &
-        (this.cpu.data[DDRC] ?? 0);
-      const beforeD =
-        (this.cpu.data[PORTD] ?? 0) &
-        (this.cpu.data[DDRD] ?? 0);
-
       avrInstruction(this.cpu);
       this.cpu.tick();
 
@@ -338,34 +358,58 @@ export class Avr8jsRunner {
        */
       this.serviceAdc();
 
-      const afterB =
-        (this.cpu.data[PORTB] ?? 0) &
-        (this.cpu.data[DDRB] ?? 0);
-      const afterC =
-        (this.cpu.data[PORTC] ?? 0) &
-        (this.cpu.data[DDRC] ?? 0);
-      const afterD =
-        (this.cpu.data[PORTD] ?? 0) &
-        (this.cpu.data[DDRD] ?? 0);
+      /*
+       * Only inspect GPIO ports when the AVR actually wrote to PORTx
+       * or DDRx. This preserves cycle-accurate GPIO transitions while
+       * removing six register reads/comparisons from every instruction.
+       */
+      if (this.gpioDirty.B) {
+        const output =
+          (this.cpu.data[PORTB] ?? 0) &
+          (this.cpu.data[DDRB] ?? 0);
 
-      this.recordPortChanges(
-        "B",
-        beforeB ^ afterB,
-        afterB,
-        onGpioChange,
-      );
-      this.recordPortChanges(
-        "C",
-        beforeC ^ afterC,
-        afterC,
-        onGpioChange,
-      );
-      this.recordPortChanges(
-        "D",
-        beforeD ^ afterD,
-        afterD,
-        onGpioChange,
-      );
+        this.recordPortChanges(
+          "B",
+          this.lastOutput.B ^ output,
+          output,
+          onGpioChange,
+        );
+
+        this.lastOutput.B = output;
+        this.gpioDirty.B = false;
+      }
+
+      if (this.gpioDirty.C) {
+        const output =
+          (this.cpu.data[PORTC] ?? 0) &
+          (this.cpu.data[DDRC] ?? 0);
+
+        this.recordPortChanges(
+          "C",
+          this.lastOutput.C ^ output,
+          output,
+          onGpioChange,
+        );
+
+        this.lastOutput.C = output;
+        this.gpioDirty.C = false;
+      }
+
+      if (this.gpioDirty.D) {
+        const output =
+          (this.cpu.data[PORTD] ?? 0) &
+          (this.cpu.data[DDRD] ?? 0);
+
+        this.recordPortChanges(
+          "D",
+          this.lastOutput.D ^ output,
+          output,
+          onGpioChange,
+        );
+
+        this.lastOutput.D = output;
+        this.gpioDirty.D = false;
+      }
 
       if (this.scheduledDigitalPulses.length > 0) {
         this.applyScheduledDigitalPulses();
@@ -373,6 +417,42 @@ export class Avr8jsRunner {
     }
 
     this.syncGpioToRuntime();
+  }
+
+  private installGpioWriteHooks(): void {
+    if (!this.cpu) {
+      return;
+    }
+
+    this.cpu.writeHooks[PORTB] = () => {
+      this.gpioDirty.B = true;
+      return false;
+    };
+
+    this.cpu.writeHooks[DDRB] = () => {
+      this.gpioDirty.B = true;
+      return false;
+    };
+
+    this.cpu.writeHooks[PORTC] = () => {
+      this.gpioDirty.C = true;
+      return false;
+    };
+
+    this.cpu.writeHooks[DDRC] = () => {
+      this.gpioDirty.C = true;
+      return false;
+    };
+
+    this.cpu.writeHooks[PORTD] = () => {
+      this.gpioDirty.D = true;
+      return false;
+    };
+
+    this.cpu.writeHooks[DDRD] = () => {
+      this.gpioDirty.D = true;
+      return false;
+    };
   }
 
   private serviceAdc(): void {
@@ -810,6 +890,16 @@ export class Avr8jsRunner {
     this.cpu = null;
     this.program = null;
     this.arduino = null;
+    this.gpioDirty = {
+      B: false,
+      C: false,
+      D: false,
+    };
+    this.lastOutput = {
+      B: 0,
+      C: 0,
+      D: 0,
+    };
     this.timer0 = null;
     this.timer1 = null;
     this.timer2 = null;
