@@ -367,7 +367,9 @@ export class Avr8jsRunner {
         onGpioChange,
       );
 
-      this.applyScheduledDigitalPulses();
+      if (this.scheduledDigitalPulses.length > 0) {
+        this.applyScheduledDigitalPulses();
+      }
     }
 
     this.syncGpioToRuntime();
@@ -530,39 +532,52 @@ export class Avr8jsRunner {
   }
 
   private applyScheduledDigitalPulses(): void {
-    if (!this.cpu) {
+    if (!this.cpu || this.scheduledDigitalPulses.length === 0) {
       return;
     }
 
     const cycle = this.cpu.cycles;
 
-    for (const pin of Object.keys(this.externalDigitalInputs)) {
-      this.writeExternalDigitalInput(
-        pin,
-        this.externalDigitalInputs[pin],
-      );
-    }
-
-    const active: ScheduledDigitalPulse[] = [];
+    /*
+     * External digital inputs are already written to PINx when
+     * setExternalDigitalInputs() is called. Do NOT rebuild all input
+     * registers on every AVR instruction; that turns a 16 MHz simulation
+     * into a large JavaScript allocation/iteration loop.
+     *
+     * Only scheduled time-based peripherals need to be checked while
+     * the pulse queue is non-empty.
+     */
+    const remaining: ScheduledDigitalPulse[] = [];
+    const activePins = new Set<string>();
 
     for (const pulse of this.scheduledDigitalPulses) {
       if (cycle >= pulse.startCycle && cycle < pulse.endCycle) {
+        activePins.add(pulse.pin);
+        this.writeExternalDigitalInput(pulse.pin, 1);
+        remaining.push(pulse);
+      } else if (cycle < pulse.startCycle) {
+        remaining.push(pulse);
+      } else {
+        /*
+         * Pulse expired. Restore the normal external input level for
+         * this pin instead of leaving it HIGH.
+         */
         this.writeExternalDigitalInput(
           pulse.pin,
-          1,
+          this.externalDigitalInputs[pulse.pin] ?? 0,
         );
-        active.push(pulse);
       }
     }
 
-    this.scheduledDigitalPulses =
-      this.scheduledDigitalPulses.filter(
-        (pulse) => pulse.endCycle > cycle,
-      );
+    this.scheduledDigitalPulses = remaining;
 
-    // If multiple pulses overlap, any active pulse keeps the input HIGH.
-    // Baseline LOW is restored automatically on the next instruction.
-    void active;
+    /*
+     * If overlapping pulses exist, keep the pin HIGH. If a pin has no
+     * active pulse, its baseline external level has already been restored.
+     */
+    for (const pin of activePins) {
+      this.writeExternalDigitalInput(pin, 1);
+    }
   }
 
   private composeInputRegister(
