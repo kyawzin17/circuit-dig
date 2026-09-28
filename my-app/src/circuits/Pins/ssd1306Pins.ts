@@ -1,51 +1,60 @@
 import type { CircuitPin } from "../types/pin.types";
 
 // =====================================================
-// OLED SSD1306 DISPLAY (8-PIN BREAKOUT) PIN DEFINITIONS
+// OLED SSD1306 DISPLAY (8-PIN SPI BREAKOUT) PIN DEFINITIONS
+// =====================================================
+// This component is the 8-pin SPI breakout:
+// DATA = MOSI/D1, CLK = SCK/D0, DC = data/command,
+// RST = reset, CS = chip-select, 3Vo = regulator output,
+// VIN = supply input, GND = ground.
+//
+// IMPORTANT: DATA/CLK are NOT I2C SDA/SCL on this component.
 // =====================================================
 
 export const oledSsd13068PinPins: CircuitPin[] = [
   {
     id: "pin_data",
     label: "Data",
-    alias: "I2C SDA",
+    alias: "SPI MOSI / D1",
     type: "terminal",
-    direction: "bidirectional",
-    protocols: ["i2c"],
-    description: "I2C serial data line. Connect to Arduino UNO A4/SDA.",
+    direction: "input",
+    protocols: ["spi"],
+    description: "SPI serial data input (MOSI/D1). Connect to Arduino UNO D11 for hardware SPI.",
   },
   {
     id: "pin_clk",
     label: "Clk",
-    alias: "I2C SCL",
+    alias: "SPI SCK / D0",
     type: "terminal",
     direction: "input",
-    protocols: ["i2c"],
-    description: "I2C serial clock line. Connect to Arduino UNO A5/SCL.",
+    protocols: ["spi"],
+    description: "SPI serial clock (SCK/D0). Connect to Arduino UNO D13 for hardware SPI.",
   },
   {
     id: "pin_dc",
     label: "DC",
     alias: "Data / Command Control",
     type: "terminal",
-    direction: "passive",
-    description: "Data/Command control pin (HIGH for Data, LOW for Command).",
+    direction: "input",
+    protocols: ["spi"],
+    description: "Data/Command control. HIGH = display data, LOW = command.",
   },
   {
     id: "pin_rst",
     label: "Rst",
     alias: "Reset",
     type: "terminal",
-    direction: "passive",
-    description: "Hardware reset pin. Bring LOW to reset the display controller.",
+    direction: "input",
+    description: "Hardware reset input. LOW resets the SSD1306 controller.",
   },
   {
     id: "pin_cs",
     label: "CS",
-    alias: "Chip Select",
+    alias: "SPI Chip Select",
     type: "terminal",
-    direction: "passive",
-    description: "Active-low chip select pin to enable SPI communication.",
+    direction: "input",
+    protocols: ["spi"],
+    description: "Active-low SPI chip select. LOW enables this OLED.",
   },
   {
     id: "pin_3vo",
@@ -59,7 +68,7 @@ export const oledSsd13068PinPins: CircuitPin[] = [
       nominal: 3.3,
       unit: "V",
     },
-    description: "3.3V output from the onboard voltage regulator."
+    description: "3.3V output from the onboard regulator. Leave unconnected when VIN is supplied.",
   },
   {
     id: "pin_vin",
@@ -73,7 +82,7 @@ export const oledSsd13068PinPins: CircuitPin[] = [
       nominal: 5,
       unit: "V",
     },
-    description: "Main power supply input (3V to 5V DC)."
+    description: "Main display supply input. Connect to Arduino UNO 5V or a valid 3-5V rail.",
   },
   {
     id: "pin_gnd",
@@ -81,7 +90,7 @@ export const oledSsd13068PinPins: CircuitPin[] = [
     alias: "Ground",
     type: "ground",
     direction: "input",
-    description: "Ground connection pin.",
+    description: "Ground connection.",
   },
 ];
 
@@ -90,5 +99,5 @@ export const oledSsd13068PinPins: CircuitPin[] = [
 // =====================================================
 
 export const oledSsd13068PinPinsById = Object.fromEntries(
-  oledSsd13068PinPins.map((pin) => [pin.id, pin])
+  oledSsd13068PinPins.map((pin) => [pin.id, pin]),
 ) as Record<string, CircuitPin>;
