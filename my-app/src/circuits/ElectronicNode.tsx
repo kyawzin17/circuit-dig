@@ -1268,6 +1268,80 @@ const ElectronicNode = ({
   ]);
 
   // =========================================================
+  // DS1307 RTC -> WOKWI ELEMENT / NODE STATE
+  // =========================================================
+  useEffect(() => {
+    if (!isDs1307) {
+      return;
+    }
+
+    const element =
+      componentRef.current as
+        | (HTMLElement & {
+            powered?: boolean;
+            sqwLevel?: number;
+            sqwMode?: number;
+          })
+        | null;
+
+    if (!element) {
+      return;
+    }
+
+    const rtcState =
+      simulation?.ds1307States?.[id];
+
+    const powered =
+      rtcState?.powered === true;
+
+    /*
+     * DS1307 is an I2C peripheral, so the actual clock/register
+     * behavior stays inside Ds1307Runtime. This effect is only the
+     * ElectronicNode bridge: it receives the runtime state and keeps
+     * the real Wokwi element synchronized with the simulator.
+     */
+    element.setAttribute(
+      "data-simulation-powered",
+      String(powered),
+    );
+    element.setAttribute(
+      "data-simulation-sqw-level",
+      String(rtcState?.sqwLevel ?? 0),
+    );
+    element.setAttribute(
+      "data-simulation-sqw-mode",
+      String(rtcState?.sqwMode ?? 0),
+    );
+
+    if ("powered" in element) {
+      element.powered = powered;
+    }
+
+    if ("sqwLevel" in element) {
+      element.sqwLevel =
+        rtcState?.sqwLevel ?? 0;
+    }
+
+    if ("sqwMode" in element) {
+      element.sqwMode =
+        rtcState?.sqwMode ?? 0;
+    }
+  }, [
+    id,
+    isDs1307,
+    simulation?.ds1307States,
+    simulation?.ds1307States?.[id]?.powered,
+    simulation?.ds1307States?.[id]?.sqwLevel,
+    simulation?.ds1307States?.[id]?.sqwMode,
+    simulation?.ds1307States?.[id]?.year,
+    simulation?.ds1307States?.[id]?.month,
+    simulation?.ds1307States?.[id]?.day,
+    simulation?.ds1307States?.[id]?.hour,
+    simulation?.ds1307States?.[id]?.minute,
+    simulation?.ds1307States?.[id]?.second,
+  ]);
+
+  // =========================================================
   // SLIDE SWITCH -> CIRCUIT STATE
   // =========================================================
   useEffect(() => {
