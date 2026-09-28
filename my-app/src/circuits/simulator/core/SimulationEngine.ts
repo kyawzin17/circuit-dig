@@ -51,8 +51,11 @@ import {
 import { intelHexToProgram } from "./IntelHex";
 import {
   Lcd1602Runtime,
-  Lcd1602I2cEventHandler,
 } from "../components/Lcd1602Runtime";
+import {
+  I2cPeripheralEventHandler,
+  Ssd1306Runtime,
+} from "../components/Ssd1306Runtime";
 
 /* =========================================================
    ENGINE OPTIONS
@@ -221,6 +224,9 @@ export class SimulationEngine {
   private readonly lcdRuntimes =
     new Map<string, Lcd1602Runtime>();
 
+  private readonly ssd1306Runtimes =
+    new Map<string, Ssd1306Runtime>();
+
   /**
    * PIR timing is kept in simulated AVR cycles so the sensor follows
    * the same clock as delay()/millis()/micros() and remains deterministic.
@@ -248,7 +254,7 @@ export class SimulationEngine {
     new Map<string, 0 | 1>();
 
   private lcdI2cHandler:
-    Lcd1602I2cEventHandler | null = null;
+    I2cPeripheralEventHandler | null = null;
 
   constructor(
     options: SimulationEngineOptions = {},
@@ -386,6 +392,96 @@ export class SimulationEngine {
       this.isLcdPowered(component)
     );
   }
+
+  private isSsd1306I2cConnected(
+    componentId: string,
+  ): boolean {
+    if (!this.netlist) {
+      return false;
+    }
+
+    const component =
+      this.netlist.components.find(
+        (item) => item.id === componentId,
+      );
+
+    if (!component) {
+      return false;
+    }
+
+    const netHasArduinoPin = (
+      netId: string | null | undefined,
+      pinName: string,
+    ): boolean => {
+      if (!netId) {
+        return false;
+      }
+
+      return (
+        this.netlist!.netToPins
+          .get(netId)
+          ?.some(
+            (pin) =>
+              pin.pinId.toUpperCase() ===
+              pinName.toUpperCase(),
+          ) ?? false
+      );
+    };
+
+    const vin = component.terminals.VIN;
+    const gnd = component.terminals.GND;
+
+    const powered =
+      typeof vin === "string" &&
+      typeof gnd === "string" &&
+      (
+        this.powerState.sourceNets.has(vin) ||
+        (this.powerState.netVoltages[vin] ?? 0) >= 2.5
+      ) &&
+      (
+        this.powerState.groundNets.has(gnd) ||
+        Math.abs(this.powerState.netVoltages[gnd] ?? 999) < 0.05
+      );
+
+    return (
+      powered &&
+      netHasArduinoPin(component.terminals.DATA, "A4") &&
+      netHasArduinoPin(component.terminals.CLK, "A5")
+    );
+  }
+
+  private updateSsd1306PowerStates(): void {
+    if (!this.netlist) {
+      return;
+    }
+
+    for (const component of this.netlist.components) {
+      const runtime =
+        this.ssd1306Runtimes.get(component.id);
+
+      if (!runtime) {
+        continue;
+      }
+
+      const vin = component.terminals.VIN;
+      const gnd = component.terminals.GND;
+
+      const powered =
+        typeof vin === "string" &&
+        typeof gnd === "string" &&
+        (
+          this.powerState.sourceNets.has(vin) ||
+          (this.powerState.netVoltages[vin] ?? 0) >= 2.5
+        ) &&
+        (
+          this.powerState.groundNets.has(gnd) ||
+          Math.abs(this.powerState.netVoltages[gnd] ?? 999) < 0.05
+        );
+
+      runtime.setPowered(powered);
+    }
+  }
+
 
   /**
    * Resolve a PIR sensor's electrical output.
@@ -637,6 +733,7 @@ export class SimulationEngine {
     this.ultrasonicTriggerLevels.clear();
     this.servoPulseStarts.clear();
     this.lcdRuntimes.clear();
+    this.ssd1306Runtimes.clear();
     this.pirRuntime.clear();
     this.parallelLcdGpioLevels.clear();
     this.lcdI2cHandler = null;
@@ -689,12 +786,39 @@ export class SimulationEngine {
               : undefined,
           ),
         );
+      } else if (type === "ssd1306") {
+        const props =
+          node.data?.props &&
+          typeof node.data.props === "object"
+            ? (node.data.props as Record<string, unknown>)
+            : {};
+
+        const configuredAddress =
+          props.i2cAddress ??
+          props.address ??
+          node.data?.i2cAddress;
+
+        const parsedAddress =
+          configuredAddress === undefined
+            ? 0x3c
+            : Number(configuredAddress);
+
+        this.ssd1306Runtimes.set(
+          node.id,
+          new Ssd1306Runtime(
+            node.id,
+            Number.isFinite(parsedAddress)
+              ? parsedAddress
+              : 0x3c,
+          ),
+        );
       }
     }
 
     this.arduino.getState().buzzerStates = {};
     this.arduino.getState().ultrasonicStates = {};
     this.arduino.getState().lcdStates = {};
+    this.arduino.getState().ssd1306States = {};
     this.arduino.getState().sevenSegmentStates = {};
   }
 
@@ -739,12 +863,23 @@ export class SimulationEngine {
       );
     }
 
+    for (const oled of this.ssd1306Runtimes.values()) {
+      oled.reset();
+    }
+
+    const i2cPeripherals = () => [
+      ...Array.from(this.lcdRuntimes.values()),
+      ...Array.from(this.ssd1306Runtimes.values()),
+    ];
+
     this.lcdI2cHandler =
-      new Lcd1602I2cEventHandler(
-        () => Array.from(this.lcdRuntimes.values()),
+      new I2cPeripheralEventHandler(
+        i2cPeripherals,
         this.avr.getTwi()!,
         (display) =>
-          this.isLcdI2cConnected(display.id),
+          display instanceof Ssd1306Runtime
+            ? this.isSsd1306I2cConnected(display.id)
+            : this.isLcdI2cConnected(display.id),
       );
 
     this.avr.setTwiEventHandler(
@@ -851,6 +986,8 @@ export class SimulationEngine {
             preRunDrivers,
             this.circuitNodes,
           );
+
+        this.updateSsd1306PowerStates();
 
         /*
          * Resolve analog voltages before AVR execution.
@@ -1096,6 +1233,7 @@ export class SimulationEngine {
       this.applyLedStates();
       this.applySevenSegmentStates();
       this.applyLcdStates();
+      this.applySsd1306States();
       this.applyBuzzerStates();
       this.applyUltrasonicStates();
       this.refreshDiagnostics();
@@ -1419,6 +1557,15 @@ export class SimulationEngine {
       };
 
       this.servoPulseStarts.delete(component.id);
+    }
+  }
+
+  private applySsd1306States(): void {
+    const runtimeState =
+      this.arduino.getState().ssd1306States;
+
+    for (const [id, runtime] of this.ssd1306Runtimes) {
+      runtimeState[id] = runtime.getState();
     }
   }
 
