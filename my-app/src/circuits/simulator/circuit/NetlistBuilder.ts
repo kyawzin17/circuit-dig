@@ -171,6 +171,19 @@ function getTerminalIds(node: CircuitNode): string[] {
     return ["GND", "VCC", "SDA", "SCL"];
   }
 
+  if (type === "ssd1306") {
+    return [
+      "DATA",
+      "CLK",
+      "DC",
+      "RST",
+      "CS",
+      "3VO",
+      "VIN",
+      "GND",
+    ];
+  }
+
   if (
     type === "pushbutton" ||
     type === "button"
