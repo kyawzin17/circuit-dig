@@ -11,6 +11,7 @@ import type {
   UltrasonicRuntimeState,
   ServoRuntimeState,
   Lcd1602RuntimeState,
+  PirRuntimeState,
 } from "../types/simulator.types";
 import { ARDUINO_UNO_PIN_MAP } from "../mapping/ArduinoUnoPinMap";
 
@@ -141,6 +142,7 @@ export class ArduinoUnoRuntime {
       buzzerStates: {} as Record<string, BuzzerRuntimeState>,
       ultrasonicStates: {} as Record<string, UltrasonicRuntimeState>,
       servoStates: {} as Record<string, ServoRuntimeState>,
+      pirStates: {} as Record<string, PirRuntimeState>,
       lcdStates: {} as Record<string, Lcd1602RuntimeState>,
       wireStates: {},
       diagnostics: {
