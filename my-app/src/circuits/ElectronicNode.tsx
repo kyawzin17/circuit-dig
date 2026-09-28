@@ -1568,6 +1568,66 @@ const ElectronicNode = ({
             }
           )}
 
+        {isDs1307 && (
+          <div
+            className="pointer-events-none absolute left-1/2 top-full z-30 mt-1 w-42.5 -translate-x-1/2 rounded-md border border-slate-700 bg-slate-950/95 px-2 py-1.5 font-mono text-[10px] shadow-lg"
+            aria-label="DS1307 RTC simulation state"
+          >
+            <div className="flex items-center justify-between text-[9px] uppercase tracking-wider text-slate-500">
+              <span>DS1307 RTC</span>
+              <span
+                className={
+                  simulation?.ds1307States?.[id]?.powered
+                    ? "text-emerald-400"
+                    : "text-red-400"
+                }
+              >
+                {simulation?.ds1307States?.[id]?.powered ? "POWER" : "OFF"}
+              </span>
+            </div>
+            <div className="mt-1 text-center text-sm font-semibold tabular-nums text-emerald-300">
+              {(() => {
+                const rtc = simulation?.ds1307States?.[id];
+                if (!rtc) return "--:--:--";
+                const pad = (value: number | undefined) =>
+                  String(value ?? 0).padStart(2, "0");
+                return (
+                  pad(rtc.hour) +
+                  ":" +
+                  pad(rtc.minute) +
+                  ":" +
+                  pad(rtc.second)
+                );
+              })()}
+            </div>
+            <div className="text-center text-[9px] tabular-nums text-slate-400">
+              {(() => {
+                const rtc = simulation?.ds1307States?.[id];
+                if (!rtc) return "----/--/--";
+                return (
+                  String(rtc.year ?? 0) +
+                  "-" +
+                  String(rtc.month ?? 0).padStart(2, "0") +
+                  "-" +
+                  String(rtc.day ?? 0).padStart(2, "0")
+                );
+              })()}
+            </div>
+            <div className="mt-1 flex items-center justify-center gap-1 text-[8px] text-slate-500">
+              <span
+                className={
+                  simulation?.ds1307States?.[id]?.sqwLevel
+                    ? "text-cyan-300"
+                    : "text-slate-600"
+                }
+              >
+                SQW
+              </span>
+              <span>{simulation?.ds1307States?.[id]?.sqwMode ?? 0}</span>
+            </div>
+          </div>
+        )}
+
         {isSsd1306 && (
           <canvas
             ref={ssd1306CanvasRef}
