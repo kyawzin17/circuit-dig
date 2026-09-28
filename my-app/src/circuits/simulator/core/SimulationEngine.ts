@@ -986,6 +986,7 @@ export class SimulationEngine {
     this.arduino.getState().lcdStates = {};
     this.arduino.getState().ssd1306States = {};
     this.arduino.getState().neopixelStates = {};
+    this.arduino.getState().ds1307States = {};
     this.arduino.getState().sevenSegmentStates = {};
   }
 
