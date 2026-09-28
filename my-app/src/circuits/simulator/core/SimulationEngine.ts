@@ -914,6 +914,49 @@ export class SimulationEngine {
             sensorDigitalOutputs,
           );
 
+        /*
+         * Sensor outputs are active circuit sources. Keep their resolved
+         * level authoritative at the Arduino input boundary as well.
+         * This is especially important for PIR OUT: INPUT_PULLUP or other
+         * board-side defaults must never mask the physical sensor level.
+         */
+        for (const [netId, level] of sensorDigitalOutputs) {
+          for (const pin of this.netlist.netToPins.get(netId) ?? []) {
+            if (!/^(?:D|A)\\d+$/i.test(pin.pinId)) {
+              continue;
+            }
+
+            const node = this.circuitNodes.find(
+              (candidate) => candidate.id === pin.nodeId,
+            );
+
+            if (!node) {
+              continue;
+            }
+
+            const type = String(
+              node.data?.componentType ?? node.type ?? "",
+            ).toLowerCase();
+
+            if (
+              type !== "arduino-uno" &&
+              type !== "arduino"
+            ) {
+              continue;
+            }
+
+            const channel = Number(pin.pinId.slice(1));
+            const pinNumber = /^A/i.test(pin.pinId)
+              ? 14 + channel
+              : channel;
+
+            this.arduino.setInputLevel(
+              pinNumber,
+              level,
+            );
+          }
+        }
+
         for (const [
           pinKey,
           level,
