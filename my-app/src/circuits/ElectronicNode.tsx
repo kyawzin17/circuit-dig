@@ -1150,6 +1150,96 @@ const ElectronicNode = ({
   ]);
 
   // =========================================================
+  // WS2812B NEOPIXEL -> WOKWI ELEMENT
+  // =========================================================
+  useEffect(() => {
+    if (!isNeoPixel) {
+      return;
+    }
+
+    const element =
+      componentRef.current as
+        | (HTMLElement & {
+            r?: number;
+            g?: number;
+            b?: number;
+          })
+        | null;
+
+    if (!element) {
+      return;
+    }
+
+    /*
+     * @wokwi/elements already knows how to render a NeoPixel.
+     * Do not draw a second HTML overlay on top of it.
+     *
+     * The simulator owns the electrical/WS2812B state, while the
+     * Wokwi element remains the visual renderer. Its public NeoPixel
+     * color properties are r/g/b (0..255).
+     */
+    const powered =
+      simulation?.neopixel?.powered === true;
+
+    const red = powered
+      ? Math.max(
+          0,
+          Math.min(
+            255,
+            Math.round(
+              simulation?.neopixel?.red ?? 0,
+            ),
+          ),
+        )
+      : 0;
+
+    const green = powered
+      ? Math.max(
+          0,
+          Math.min(
+            255,
+            Math.round(
+              simulation?.neopixel?.green ?? 0,
+            ),
+          ),
+        )
+      : 0;
+
+    const blue = powered
+      ? Math.max(
+          0,
+          Math.min(
+            255,
+            Math.round(
+              simulation?.neopixel?.blue ?? 0,
+            ),
+          ),
+        )
+      : 0;
+
+    element.r = red;
+    element.g = green;
+    element.b = blue;
+
+    // Keep DOM attributes synchronized as well. This is useful for
+    // upgraded/custom-element implementations and DevTools inspection.
+    element.setAttribute("r", String(red));
+    element.setAttribute("g", String(green));
+    element.setAttribute("b", String(blue));
+    element.setAttribute(
+      "data-simulation-powered",
+      String(powered),
+    );
+  }, [
+    isNeoPixel,
+    simulation?.neopixel?.red,
+    simulation?.neopixel?.green,
+    simulation?.neopixel?.blue,
+    simulation?.neopixel?.powered,
+    simulation?.neopixel?.frame,
+  ]);
+
+  // =========================================================
   // SLIDE SWITCH -> CIRCUIT STATE
   // =========================================================
   useEffect(() => {
@@ -1361,28 +1451,6 @@ const ElectronicNode = ({
                   : undefined,
             }
           )}
-
-        {isNeoPixel && (
-          <div
-            aria-label="WS2812B NeoPixel output"
-            className="pointer-events-none absolute left-1/2 top-1/2 z-20 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full"
-            style={{
-              backgroundColor:
-                simulation?.neopixel?.powered === false
-                  ? "#111827"
-                  : simulation?.neopixel?.color ?? "#000000",
-              opacity:
-                simulation?.neopixel?.powered === false
-                  ? 0.45
-                  : 1,
-              boxShadow:
-                simulation?.neopixel?.powered &&
-                (simulation?.neopixel?.brightness ?? 0) > 0
-                  ? `0 0 ${6 + (simulation.neopixel.brightness ?? 0) * 10}px ${simulation.neopixel.color ?? "#ffffff"}`
-                  : "none",
-            }}
-          />
-        )}
 
         {isSsd1306 && (
           <canvas
