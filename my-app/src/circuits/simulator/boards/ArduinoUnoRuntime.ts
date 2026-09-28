@@ -149,6 +149,7 @@ export class ArduinoUnoRuntime {
       lcdStates: {} as Record<string, Lcd1602RuntimeState>,
       ssd1306States: {} as Record<string, Ssd1306RuntimeState>,
       neopixelStates: {} as Record<string, NeoPixelRuntimeState>,
+      ds1307States: {} as Record<string, Ds1307RuntimeState>,
       serialOutput: "",
       wireStates: {},
       diagnostics: {
