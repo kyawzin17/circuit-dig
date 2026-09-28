@@ -217,6 +217,20 @@ export class SimulationEngine {
   private readonly lcdRuntimes =
     new Map<string, Lcd1602Runtime>();
 
+  /**
+   * PIR timing is kept in simulated AVR cycles so the sensor follows
+   * the same clock as delay()/millis()/micros() and remains deterministic.
+   */
+  private readonly pirRuntime =
+    new Map<
+      string,
+      {
+        lastTriggerId: number;
+        highUntilCycle: number;
+        inhibitUntilCycle: number;
+      }
+    >();
+
   /*
    * Cache the last firmware-driven GPIO level for parallel LCD pins.
    *
@@ -369,6 +383,216 @@ export class SimulationEngine {
     );
   }
 
+  /**
+   * Resolve a PIR sensor's electrical output.
+   *
+   * The Wokwi element is presentation-only; the simulator owns the
+   * functional model. OUT becomes a real digital source on the sensor's
+   * net, so Arduino digitalRead() receives the same level as it would
+   * from a physical HC-SR501.
+   */
+  private resolvePirOutputs(): Map<string, 0 | 1> {
+    const outputs = new Map<string, 0 | 1>();
+    const runtimeState = this.arduino.getState().pirStates;
+    const frequency =
+      this.options.config?.frequency ?? 16_000_000;
+    const now = this.simulatedCycles;
+
+    for (const component of this.netlist?.components ?? []) {
+      const node = this.circuitNodes.find(
+        (candidate) => candidate.id === component.id,
+      );
+
+      if (!node) {
+        continue;
+      }
+
+      const type = String(
+        node.data?.componentType ?? node.type ?? "",
+      ).toLowerCase();
+
+      if (
+        type !== "pir" &&
+        type !== "pir-motion-sensor" &&
+        type !== "pir-motion"
+      ) {
+        continue;
+      }
+
+      const vccNet =
+        component.terminals.VCC ??
+        component.terminals.vcc;
+
+      const gndNet =
+        component.terminals.GND ??
+        component.terminals.gnd;
+
+      const outNet =
+        component.terminals.OUT ??
+        component.terminals.out;
+
+      const powered =
+        typeof vccNet === "string" &&
+        typeof gndNet === "string" &&
+        (
+          this.powerState.sourceNets.has(vccNet) ||
+          (this.powerState.netVoltages[vccNet] ?? 0) >= 2.5
+        ) &&
+        (
+          this.powerState.groundNets.has(gndNet) ||
+          Math.abs(this.powerState.netVoltages[gndNet] ?? 999) < 0.05
+        );
+
+      const props =
+        node.data?.props &&
+        typeof node.data.props === "object"
+          ? (node.data.props as Record<string, unknown>)
+          : {};
+
+      const readPositiveNumber = (
+        value: unknown,
+        fallback: number,
+      ): number => {
+        const number = Number(value);
+        return Number.isFinite(number) && number >= 0
+          ? number
+          : fallback;
+      };
+
+      const delayTimeSec = Math.max(
+        0,
+        Math.min(
+          60,
+          readPositiveNumber(
+            node.data?.pirDelayTime ??
+              props.delayTime,
+            5,
+          ),
+        ),
+      );
+
+      const inhibitTimeSec = Math.max(
+        0,
+        Math.min(
+          60,
+          readPositiveNumber(
+            node.data?.pirInhibitTime ??
+              props.inhibitTime,
+            1.2,
+          ),
+        ),
+      );
+
+      const retrigger =
+        !(
+          String(
+            node.data?.pirRetrigger ??
+              props.retrigger ??
+              "",
+          ).toLowerCase() === "0" ||
+          String(
+            node.data?.pirRetrigger ??
+              props.retrigger ??
+              "",
+          ).toLowerCase() === "false"
+        );
+
+      const delayCycles = Math.max(
+        1,
+        Math.round(delayTimeSec * frequency),
+      );
+
+      const inhibitCycles = Math.max(
+        0,
+        Math.round(inhibitTimeSec * frequency),
+      );
+
+      const triggerId = Number(
+        node.data?.pirMotionTrigger ?? 0,
+      ) || 0;
+
+      const state =
+        this.pirRuntime.get(node.id) ?? {
+          lastTriggerId: triggerId,
+          highUntilCycle: 0,
+          inhibitUntilCycle: 0,
+        };
+
+      /*
+       * A trigger is an edge/event, not a persistent boolean. The UI
+       * increments pirMotionTrigger each time "Simulate Motion" is clicked.
+       */
+      if (
+        triggerId !== state.lastTriggerId &&
+        triggerId > 0 &&
+        powered
+      ) {
+        if (now >= state.inhibitUntilCycle) {
+          const nextHighUntil =
+            now + delayCycles;
+
+          if (
+            now < state.highUntilCycle &&
+            retrigger
+          ) {
+            state.highUntilCycle = Math.max(
+              state.highUntilCycle,
+              nextHighUntil,
+            );
+          } else {
+            state.highUntilCycle = nextHighUntil;
+          }
+
+          /*
+           * Inhibit starts when OUT returns LOW, matching the documented
+           * HC-SR501 behavior rather than blocking motion while OUT is HIGH.
+           */
+          state.inhibitUntilCycle = 0;
+        }
+
+        state.lastTriggerId = triggerId;
+      } else if (triggerId !== state.lastTriggerId) {
+        state.lastTriggerId = triggerId;
+      }
+
+      const outputHigh =
+        powered &&
+        now < state.highUntilCycle;
+
+      if (
+        powered &&
+        !outputHigh &&
+        state.highUntilCycle > 0 &&
+        state.inhibitUntilCycle === 0 &&
+        now >= state.highUntilCycle
+      ) {
+        state.inhibitUntilCycle =
+          state.highUntilCycle + inhibitCycles;
+      }
+
+      const motion = outputHigh;
+
+      if (typeof outNet === "string") {
+        outputs.set(outNet, outputHigh ? 1 : 0);
+      }
+
+      runtimeState[node.id] = {
+        id: node.id,
+        motion,
+        outputHigh,
+        powered,
+        delayTimeSec,
+        inhibitTimeSec,
+        retrigger,
+        lastTriggerId: state.lastTriggerId,
+      };
+
+      this.pirRuntime.set(node.id, state);
+    }
+
+    return outputs;
+  }
+
   private emit(): void {
     this.options.onStateChange?.(
       this.arduino.getState(),
@@ -407,6 +631,7 @@ export class SimulationEngine {
     this.ultrasonicTriggerLevels.clear();
     this.servoPulseStarts.clear();
     this.lcdRuntimes.clear();
+    this.pirRuntime.clear();
     this.parallelLcdGpioLevels.clear();
     this.lcdI2cHandler = null;
 
@@ -663,6 +888,20 @@ export class SimulationEngine {
           );
         }
 
+        const sensorDigitalOutputs =
+          new Map<string, 0 | 1>(
+            this.analogState.digitalOutputs,
+          );
+
+        for (const [netId, level] of this.resolvePirOutputs()) {
+          sensorDigitalOutputs.set(netId, level);
+        }
+
+        this.arduino.getState().sensorDigitalOutputs =
+          Object.fromEntries(
+            sensorDigitalOutputs.entries(),
+          );
+
         this.digitalInputState =
           this.digitalInputSolver.solve(
             this.circuitNodes,
@@ -670,7 +909,7 @@ export class SimulationEngine {
             preRunDrivers,
             this.powerState,
             this.arduino.getDigitalInputModes(),
-            this.analogState.digitalOutputs,
+            sensorDigitalOutputs,
           );
 
         for (const [
@@ -1765,6 +2004,7 @@ export class SimulationEngine {
     this.clock.stop();
     this.arduino.reset();
     this.ultrasonicTriggerLevels.clear();
+    this.pirRuntime.clear();
     this.simulatedCycles = 0;
     this.frameCount = 0;
 
@@ -1815,6 +2055,7 @@ export class SimulationEngine {
     this.clock.stop();
     this.arduino.reset();
     this.ultrasonicTriggerLevels.clear();
+    this.pirRuntime.clear();
     this.simulatedCycles = 0;
     this.frameCount = 0;
     this.avr.reset();
