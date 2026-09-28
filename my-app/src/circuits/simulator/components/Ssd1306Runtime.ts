@@ -1,3 +1,6 @@
+import { AVRTWI, type TWIEventHandler } from "avr8js";
+import { Lcd1602Runtime } from "./Lcd1602Runtime";
+
 export interface Ssd1306RuntimeState {
   id: string;
   width: 128;
@@ -468,5 +471,65 @@ export class Ssd1306SoftwareSpiDecoder {
       state.lastClock = level;
       this.state.set(display.id, state);
     }
+  }
+}
+
+
+/*
+ * Shared I2C handler kept for the existing LCD1602 I2C component.
+ * SSD1306 8-pin is deliberately NOT included here; it is SPI-only.
+ */
+export class I2cPeripheralEventHandler implements TWIEventHandler {
+  private selected: Lcd1602Runtime | null = null;
+
+  constructor(
+    private readonly displays: () => Lcd1602Runtime[],
+    private readonly twi: AVRTWI,
+    private readonly canConnect?: (
+      display: Lcd1602Runtime,
+    ) => boolean,
+  ) {}
+
+  start(): void {
+    this.selected = null;
+    this.twi.completeStart();
+  }
+
+  stop(): void {
+    this.selected = null;
+    this.twi.completeStop();
+  }
+
+  connectToSlave(
+    addr: number,
+    write: boolean,
+  ): void {
+    const display = this.displays().find(
+      (item) =>
+        item.acceptsI2cAddress(addr) &&
+        (this.canConnect
+          ? this.canConnect(item)
+          : true),
+    );
+
+    this.selected = display ?? null;
+
+    this.twi.completeConnect(
+      Boolean(this.selected && write),
+    );
+  }
+
+  writeByte(value: number): void {
+    if (this.selected) {
+      this.selected.processI2cExpanderByte(value);
+    }
+
+    this.twi.completeWrite(
+      this.selected !== null,
+    );
+  }
+
+  readByte(): void {
+    this.twi.completeRead(0);
   }
 }
