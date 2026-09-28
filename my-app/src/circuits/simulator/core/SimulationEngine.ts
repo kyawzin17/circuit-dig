@@ -1035,7 +1035,8 @@ export class SimulationEngine {
         this.avr.getTwi()!,
         (display) =>
           this.isLcdI2cConnected(display.id),
-        this.ds1307Runtimes.values().next().value,
+        () =>
+          Array.from(this.ds1307Runtimes.values()),
         (rtc) =>
           this.isDs1307I2cConnected(rtc.id),
       );
