@@ -60,7 +60,6 @@ import {
   Ssd1306SpiBridge,
   Ssd1306SoftwareSpiDecoder,
 } from "../components/Ssd1306Runtime";
-import { AVRSPI } from "avr8js";
 
 /* =========================================================
    ENGINE OPTIONS
@@ -443,30 +442,6 @@ export class SimulationEngine {
     return null;
   }
 
-  private isSsd1306SpiConnected(
-    componentId: string,
-  ): boolean {
-    const component = this.netlist?.components.find(
-      (item) => item.id === componentId,
-    );
-
-    if (!component) return false;
-
-    const required = ["DATA", "CLK", "DC", "RST", "CS", "VIN", "GND"];
-
-    if (required.some((terminal) => !component.terminals[terminal])) {
-      return false;
-    }
-
-    return (
-      Boolean(this.getConnectedArduinoGpioPin(componentId, "DATA")) &&
-      Boolean(this.getConnectedArduinoGpioPin(componentId, "CLK")) &&
-      Boolean(this.getConnectedArduinoGpioPin(componentId, "DC")) &&
-      Boolean(this.getConnectedArduinoGpioPin(componentId, "RST")) &&
-      Boolean(this.getConnectedArduinoGpioPin(componentId, "CS"))
-    );
-  }
-
   private updateSsd1306PowerStates(): void {
     if (!this.netlist) {
       return;
@@ -806,22 +781,6 @@ export class SimulationEngine {
           ),
         );
       } else if (type === "ssd1306") {
-        const props =
-          node.data?.props &&
-          typeof node.data.props === "object"
-            ? (node.data.props as Record<string, unknown>)
-            : {};
-
-        const configuredAddress =
-          props.i2cAddress ??
-          props.address ??
-          node.data?.i2cAddress;
-
-        const parsedAddress =
-          configuredAddress === undefined
-            ? 0x3c
-            : Number(configuredAddress);
-
         this.ssd1306Runtimes.set(
           node.id,
           new Ssd1306Runtime(node.id),
