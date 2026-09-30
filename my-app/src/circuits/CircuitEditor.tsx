@@ -906,7 +906,7 @@ const CircuitEditor = () => {
 }, []);
 
 
-const handleRunSimulation = () => {
+const handleRunSimulation = async () => {
   const engine = simulationEngine.current;
   if (!engine) {
     return;
@@ -916,6 +916,28 @@ const handleRunSimulation = () => {
     useSimulationStore.getState().code;
 
   try {
+    /*
+     * Keep every Run entry point on the same path:
+     * Code panel -> Run and Canvas -> Run both compile the current
+     * sketch before loading it into AVR8JS.
+     *
+     * This also prevents stale HEX from being executed after the
+     * user edits the code.
+     */
+    const hasFirmware = currentCode.trim().length > 0;
+
+    if (hasFirmware) {
+      const success = await compile();
+
+      if (!success) {
+        /*
+         * compile() already stores the compiler error in the
+         * simulation store. Do not start the engine with stale HEX.
+         */
+        return;
+      }
+    }
+
     engine.stop();
 
     engine.setCircuit(
@@ -923,7 +945,7 @@ const handleRunSimulation = () => {
       edges as CircuitEdge[],
     );
 
-    if (currentCode.trim()) {
+    if (hasFirmware) {
       const hex =
         useSimulationStore.getState().hex;
 
@@ -931,13 +953,13 @@ const handleRunSimulation = () => {
         useSimulationStore.setState({
           status: "error",
           error:
-            "No compiled Arduino HEX is available.",
+            "Compilation succeeded but no Arduino HEX was produced.",
         });
         return;
       }
 
       /*
-       * Firmware exists: load the real Arduino HEX
+       * Firmware exists: load the freshly compiled Arduino HEX
        * and let AVR8JS drive the GPIO pins.
        */
       engine.loadHex(hex);
@@ -2280,7 +2302,6 @@ const stop =
       "compiling"
     ) {
       handleStopSimulation();
-      // handlePauseSimulation();
       return;
     }
 
@@ -2292,26 +2313,16 @@ const stop =
       return;
     }
 
-    const hasFirmware =
-      simulationCode.trim().length > 0;
-
-    const success =
-      hasFirmware
-        ? await compile()
-        : true;
-
-    if (success) {
-      /*
-       * With code: compile -> HEX -> AVR8JS.
-       * Without code: start the board power system only.
-       */
-      handleRunSimulation();
-    }
+    /*
+     * Use the exact same run pipeline as the Code panel.
+     * handleRunSimulation() compiles the current sketch before
+     * starting the engine, so both Run buttons behave identically.
+     */
+    await handleRunSimulation();
   },
   [
     simulationStatus,
-    simulationCode,
-    compile,
+    handleRunSimulation,
   ]
 );
 
