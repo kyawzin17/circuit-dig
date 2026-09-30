@@ -30,6 +30,42 @@ function isPushButton(type: string): boolean {
   return type === "pushbutton" || type === "button";
 }
 
+function isMembraneKeypad(type: string): boolean {
+  return (
+    type === "membrane-keypad" ||
+    type === "keypad" ||
+    type === "4x4-keypad"
+  );
+}
+
+const KEYPAD_MATRIX: Record<string, [string, string]> = {
+  "1": ["R1", "C1"],
+  "2": ["R1", "C2"],
+  "3": ["R1", "C3"],
+  "A": ["R1", "C4"],
+  "4": ["R2", "C1"],
+  "5": ["R2", "C2"],
+  "6": ["R2", "C3"],
+  "B": ["R2", "C4"],
+  "7": ["R3", "C1"],
+  "8": ["R3", "C2"],
+  "9": ["R3", "C3"],
+  "C": ["R3", "C4"],
+  "*": ["R4", "C1"],
+  "0": ["R4", "C2"],
+  "#": ["R4", "C3"],
+  "D": ["R4", "C4"],
+};
+
+function normalizeKeypadKey(value: unknown): string | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const key = value.trim().toUpperCase();
+  return KEYPAD_MATRIX[key] ? key : null;
+}
+
 function isClosedSwitch(node: Node): boolean {
   const type = typeOf(node);
 
@@ -165,6 +201,46 @@ export class DigitalInputSolver {
             value === 1 ? "3" : "2",
           ),
         );
+      }
+
+      if (isMembraneKeypad(type)) {
+        /*
+         * A membrane keypad is a passive row/column switch matrix.
+         * Pressing a key electrically shorts exactly one row and one
+         * column. The firmware still performs the real scan by driving
+         * columns and reading rows; this bridge only represents the
+         * physical contact closure.
+         *
+         * Support both one key and multiple simultaneous keys so the
+         * circuit graph can naturally expose matrix ghosting/conflicts
+         * when several contacts are held.
+         */
+        const rawPressed = Array.isArray(
+          node.data?.keypadPressedKeys,
+        )
+          ? node.data.keypadPressedKeys
+          : (
+              node.data?.keypadPressedKey !== undefined
+                ? [node.data.keypadPressedKey]
+                : []
+            );
+
+        const pressed = new Set<string>();
+
+        for (const rawKey of rawPressed) {
+          const key = normalizeKeypadKey(rawKey);
+          if (key) {
+            pressed.add(key);
+          }
+        }
+
+        for (const key of pressed) {
+          const [row, column] = KEYPAD_MATRIX[key];
+          connect(
+            createKey(node.id, row),
+            createKey(node.id, column),
+          );
+        }
       }
     }
 
