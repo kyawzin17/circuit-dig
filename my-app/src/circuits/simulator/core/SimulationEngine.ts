@@ -1598,6 +1598,86 @@ export class SimulationEngine {
   getDiagnostics(): SimulationDiagnostics {
     return this.arduino.getState().diagnostics;
   }
+  /**
+   * Re-resolve matrix-keypad inputs immediately after firmware changes a
+   * GPIO output during the real AVR scan loop.
+   *
+   * Keypad scanning is time-sensitive: Keypad.h drives one column LOW,
+   * reads the rows, then moves to the next column. A once-per-frame input
+   * snapshot is therefore not sufficient because the column can change
+   * several times inside a single avrInstruction() run.
+   *
+   * Keep the Wokwi membrane-keypad as the UI/physical contact source and
+   * let DigitalInputSolver resolve the actual row/column electrical path.
+   * No keypad shortcut is injected into digitalRead().
+   */
+  private refreshMatrixKeypadInputs(): void {
+    if (!this.netlist) {
+      return;
+    }
+
+    const hasKeypad = this.circuitNodes.some((node) => {
+      const type = String(
+        node.data?.componentType ?? node.type ?? "",
+      ).toLowerCase();
+
+      return (
+        type === "membrane-keypad" ||
+        type === "keypad" ||
+        type === "4x4-keypad"
+      );
+    });
+
+    if (!hasKeypad) {
+      return;
+    }
+
+    const sensorDigitalOutputs = new Map<string, 0 | 1>(
+      Object.entries(
+        this.arduino.getState().sensorDigitalOutputs ?? {},
+      ) as Array<[string, 0 | 1]>,
+    );
+
+    const state = this.digitalInputSolver.solve(
+      this.circuitNodes,
+      this.netlist,
+      this.arduino.getDigitalDrivers(),
+      this.powerState,
+      this.arduino.getDigitalInputModes(),
+      sensorDigitalOutputs,
+    );
+
+    this.digitalInputState = state;
+
+    const externalLevels: Record<string, 0 | 1> = {};
+
+    for (const [pinKey, inputLevel] of state.pinLevels) {
+      const separator = pinKey.lastIndexOf(":");
+      if (separator < 0) {
+        continue;
+      }
+
+      const pinId = pinKey.slice(separator + 1);
+      if (!/^(?:D|A)\\d+$/i.test(pinId)) {
+        continue;
+      }
+
+      externalLevels[pinId.toUpperCase()] = inputLevel;
+
+      const channel = Number(pinId.slice(1));
+      const pinNumber = /^A/i.test(pinId)
+        ? 14 + channel
+        : channel;
+
+      this.arduino.setInputLevel(
+        pinNumber,
+        inputLevel,
+      );
+    }
+
+    this.avr.setExternalDigitalInputs(externalLevels);
+  }
+
   private handleGpioChange(
     pin: string,
     level: 0 | 1,
@@ -1606,6 +1686,12 @@ export class SimulationEngine {
     if (!this.netlist) {
       return;
     }
+
+    // A matrix keypad is scanned inside the AVR instruction stream. Make
+    // the just-written PORT/DDR state visible to the electrical solver
+    // before resolving the keypad row inputs.
+    this.avr.syncGpioToRuntime();
+    this.refreshMatrixKeypadInputs();
 
     /*
      * Keep the firmware-generated GPIO state synchronized with the
