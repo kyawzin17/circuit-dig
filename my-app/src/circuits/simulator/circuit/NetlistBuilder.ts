@@ -353,8 +353,8 @@ export class NetlistBuilder {
         CS: ["CS", "pin_cs"],
         "3VO": ["3VO", "3Vo", "3V0", "pin_3vo"],
         VIN: ["VIN", "pin_vin"],
-        VCC: ["VCC", "pin_vcc"],
-        GND: ["GND", "pin_gnd"],
+        VCC: ["VCC", "9v-b-vcc", "pin_vcc"],
+        GND: ["GND", "9v-b-gnd", "pin_gnd"],
         SQW: ["SQW", "pin_sqw"],
 
         DO: ["DO", "D0", "pin_do", "pin_d0"],
