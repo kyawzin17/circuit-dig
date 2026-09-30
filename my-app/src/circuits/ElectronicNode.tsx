@@ -13,7 +13,10 @@ import {
 } from "reactflow";
 
 import { PIN_CONFIGS } from "./constants/pins";
-import { setKeypadContact } from "./simulator/electrical/KeypadInputState";
+import {
+  clearKeypadContacts,
+  setKeypadContact,
+} from "./simulator/electrical/KeypadInputState";
 
 type PinDefinition = {
   id: string;
@@ -204,6 +207,12 @@ const ElectronicNode = ({
         return Position.Top;
     }
   };
+
+  useEffect(() => {
+    return () => {
+      clearKeypadContacts(id);
+    };
+  }, [id]);
 
   // =========================================================
   // COMPONENT TYPE
