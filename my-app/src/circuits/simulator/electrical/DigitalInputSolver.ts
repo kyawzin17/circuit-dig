@@ -39,34 +39,6 @@ function isMembraneKeypad(type: string): boolean {
   );
 }
 
-const KEYPAD_MATRIX: Record<string, [string, string]> = {
-  "1": ["R1", "C1"],
-  "2": ["R1", "C2"],
-  "3": ["R1", "C3"],
-  "A": ["R1", "C4"],
-  "4": ["R2", "C1"],
-  "5": ["R2", "C2"],
-  "6": ["R2", "C3"],
-  "B": ["R2", "C4"],
-  "7": ["R3", "C1"],
-  "8": ["R3", "C2"],
-  "9": ["R3", "C3"],
-  "C": ["R3", "C4"],
-  "*": ["R4", "C1"],
-  "0": ["R4", "C2"],
-  "#": ["R4", "C3"],
-  "D": ["R4", "C4"],
-};
-
-function normalizeKeypadKey(value: unknown): string | null {
-  if (typeof value !== "string") {
-    return null;
-  }
-
-  const key = value.trim().toUpperCase();
-  return KEYPAD_MATRIX[key] ? key : null;
-}
-
 function isClosedSwitch(node: Node): boolean {
   const type = typeOf(node);
 
@@ -222,7 +194,6 @@ export class DigitalInputSolver {
           );
         }
       }
-}
     }
 
     const sourceLevels = new Map<PinKey, PinLevel>();
