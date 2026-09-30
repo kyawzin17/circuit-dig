@@ -12,10 +12,6 @@ function contactId(row: number, column: number): string {
   return String(row) + ":" + String(column);
 }
 
-function normalizeKey(key: string): string {
-  return key.trim().toUpperCase();
-}
-
 /**
  * Live UI -> simulator input bridge for Wokwi membrane keypads.
  *
@@ -78,55 +74,4 @@ export function clearKeypadContacts(
   }
 
   pressedContacts.delete(nodeId);
-}
-
-
-/**
- * Update a keypad contact using the key label as the identity.
- *
- * Wokwi emits row/column coordinates with both press and release events,
- * but the key label is the stable identity of the physical button. Using
- * it here prevents a transient UI event from leaving a stale row/column
- * contact behind and causing repeated firmware reads.
- */
-export function setKeypadKey(
-  nodeId: string,
-  key: string,
-  row: number,
-  column: number,
-  pressed: boolean,
-): void {
-  const normalized = normalizeKey(key);
-
-  if (!normalized) {
-    return;
-  }
-
-  const contacts = pressedContacts.get(nodeId);
-
-  if (!pressed) {
-    /*
-     * Remove the contact by its physical coordinates. If the Wokwi
-     * element supplied a different coordinate during release, remove
-     * every matching contact defensively so a key can never remain
-     * electrically stuck after release.
-     */
-    if (contacts) {
-      for (const [id, contact] of contacts) {
-        if (
-          contact.row === row &&
-          contact.column === column
-        ) {
-          contacts.delete(id);
-        }
-      }
-
-      if (contacts.size === 0) {
-        pressedContacts.delete(nodeId);
-      }
-    }
-    return;
-  }
-
-  setKeypadContact(nodeId, row, column, true);
 }
