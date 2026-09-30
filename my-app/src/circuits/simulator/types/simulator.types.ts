@@ -283,6 +283,14 @@ export interface SimulationDiagnostics {
   trace?: SimulationTrace;
 }
 
+export interface ArduinoBoardRuntimeState {
+  led13: boolean;
+  ledRX: boolean;
+  ledTX: boolean;
+  ledPower: boolean;
+  resetPressed: boolean;
+}
+
 export interface ArduinoUnoRuntimeState {
   digitalPins: Record<number, RuntimePin>;
 
@@ -306,6 +314,9 @@ export interface ArduinoUnoRuntimeState {
   sensorDigitalOutputs?: Record<string, 0 | 1>;
 
   ledStates: Record<string, LedRuntimeState>;
+
+  /** Presentation state for the Wokwi Arduino Uno board UI. */
+  arduinoBoard: ArduinoBoardRuntimeState;
 
   resistorStates: Record<string, ResistorRuntimeState>;
 

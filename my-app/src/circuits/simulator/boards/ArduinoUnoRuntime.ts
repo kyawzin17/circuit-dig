@@ -140,6 +140,13 @@ export class ArduinoUnoRuntime {
       analogPinVoltages: {},
       analogPinValues: {},
       ledStates: {},
+      arduinoBoard: {
+        led13: false,
+        ledRX: false,
+        ledTX: false,
+        ledPower: false,
+        resetPressed: false,
+      },
       resistorStates: {},
       sevenSegmentStates: {} as Record<string, SevenSegmentRuntimeState>,
       buzzerStates: {} as Record<string, BuzzerRuntimeState>,
@@ -180,6 +187,27 @@ export class ArduinoUnoRuntime {
 
   clearSerialOutput(): void {
     this.state.serialOutput = "";
+  }
+
+  markTxActivity(): void {
+    this.state.arduinoBoard.ledTX = true;
+  }
+
+  markRxActivity(): void {
+    this.state.arduinoBoard.ledRX = true;
+  }
+
+  beginFrame(): void {
+    this.state.arduinoBoard.ledTX = false;
+    this.state.arduinoBoard.ledRX = false;
+    this.state.arduinoBoard.ledPower = true;
+  }
+
+  syncBoardLeds(): void {
+    this.state.arduinoBoard.ledPower = true;
+    this.state.arduinoBoard.led13 =
+      this.state.digitalPins[13]?.level === 1 &&
+      this.state.digitalPins[13]?.mode === "output";
   }
 
   setAnalogInput(

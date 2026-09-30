@@ -1042,6 +1042,11 @@ export class SimulationEngine {
 
     this.avr.setSerialByteHandler((value) => {
       this.arduino.appendSerialOutput(value);
+      this.arduino.markTxActivity();
+    });
+
+    this.avr.setSerialReceiveHandler(() => {
+      this.arduino.markRxActivity();
     });
 
     for (const lcd of this.lcdRuntimes.values()) {
@@ -1195,6 +1200,7 @@ export class SimulationEngine {
     try {
       this.frameCount += 1;
       this.simulatedCycles += this.cyclesPerFrame;
+      this.arduino.beginFrame();
       /*
        * The circuit is resolved twice around AVR execution:
        *
@@ -1482,6 +1488,7 @@ export class SimulationEngine {
       }
 
       this.applyLedStates();
+      this.arduino.syncBoardLeds();
       this.applySevenSegmentStates();
       this.applyLcdStates();
       this.applySsd1306States();
@@ -2952,6 +2959,27 @@ export class SimulationEngine {
     };
 
     this.setStatus("stopped");
+  }
+
+  /** Simulate the physical Arduino Uno RESET button without stopping the circuit. */
+  hardwareReset(): void {
+    const wasRunning = this.clock.isRunning();
+    this.clock.stop();
+
+    this.arduino.reset();
+    this.avr.restartProgram();
+    this.servoPulseStarts.clear();
+    this.ultrasonicTriggerLevels.clear();
+    this.pirRuntime.clear();
+    this.parallelLcdGpioLevels.clear();
+    this.frameCount = 0;
+    this.simulatedCycles = 0;
+
+    this.setStatus(wasRunning ? "idle" : "stopped");
+
+    if (wasRunning && this.netlist) {
+      this.start();
+    }
   }
 
   reset(): void {

@@ -106,6 +106,7 @@ export class Avr8jsRunner {
   private spi: AVRSPI | null = null;
   private usart: AVRUSART | null = null;
   private serialByteHandler?: (value: number, cycle: number) => void;
+  private serialReceiveHandler?: (cycle: number) => void;
 
   loadProgram(
     program: Uint16Array,
@@ -169,6 +170,28 @@ export class Avr8jsRunner {
     if (this.usart) {
       this.installSerialWriteHook();
     }
+  }
+
+  setSerialReceiveHandler(
+    handler: ((cycle: number) => void) | null,
+  ): void {
+    this.serialReceiveHandler = handler ?? undefined;
+    if (this.usart) {
+      this.installSerialWriteHook();
+    }
+  }
+
+  receiveSerialByte(value: number, immediate = false): boolean {
+    return this.usart?.writeByte(value & 0xff, immediate) ?? false;
+  }
+
+  restartProgram(): void {
+    if (!this.program || !this.arduino) {
+      return;
+    }
+    const program = this.program;
+    const arduino = this.arduino;
+    this.loadProgram(program, arduino);
   }
 
   setTwiEventHandler(
@@ -502,6 +525,12 @@ export class Avr8jsRunner {
     this.usart.onByteTransmit = (value) => {
       this.serialByteHandler?.(
         value,
+        this.cpu?.cycles ?? 0,
+      );
+    };
+
+    this.usart.onRxComplete = () => {
+      this.serialReceiveHandler?.(
         this.cpu?.cycles ?? 0,
       );
     };
@@ -967,5 +996,6 @@ export class Avr8jsRunner {
     this.spi = null;
     this.usart = null;
     this.serialByteHandler = undefined;
+    this.serialReceiveHandler = undefined;
   }
 }

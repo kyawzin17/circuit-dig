@@ -863,7 +863,20 @@ const CircuitEditor = () => {
   simulationEngine.current =
     engine;
 
+  const handleArduinoHardwareReset = () => {
+    simulationEngine.current?.hardwareReset();
+  };
+
+  window.addEventListener(
+    "circuit:arduino-reset",
+    handleArduinoHardwareReset,
+  );
+
   return () => {
+    window.removeEventListener(
+      "circuit:arduino-reset",
+      handleArduinoHardwareReset,
+    );
     engine.stop();
 
     simulationEngine.current =

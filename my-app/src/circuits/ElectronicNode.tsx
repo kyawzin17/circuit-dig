@@ -287,6 +287,10 @@ const ElectronicNode = ({
   const isNeoPixel =
     componentType === "neopixel";
 
+  const isArduinoUno =
+    componentType === "arduino-uno" ||
+    componentType === "arduino";
+
   const isKeypad =
     componentType === "membrane-keypad" ||
     componentType === "keypad" ||
@@ -1650,6 +1654,57 @@ const ElectronicNode = ({
   ]);
   
   // =========================================================
+  // ARDUINO UNO BOARD CONTROLS / STATUS LEDs
+  // =========================================================
+  useEffect(() => {
+    if (!isArduinoUno) return;
+
+    const element = componentRef.current as
+      | (HTMLElement & {
+          led13?: boolean;
+          ledRX?: boolean;
+          ledTX?: boolean;
+          ledPower?: boolean;
+        })
+      | null;
+
+    if (!element) return;
+
+    const board = simulation?.arduinoBoard;
+    element.led13 = board?.led13 === true;
+    element.ledRX = board?.ledRX === true;
+    element.ledTX = board?.ledTX === true;
+    element.ledPower = board?.ledPower === true;
+  }, [
+    isArduinoUno,
+    simulation?.arduinoBoard?.led13,
+    simulation?.arduinoBoard?.ledRX,
+    simulation?.arduinoBoard?.ledTX,
+    simulation?.arduinoBoard?.ledPower,
+  ]);
+
+  useEffect(() => {
+    if (!isArduinoUno) return;
+
+    const element = componentRef.current;
+    if (!element) return;
+
+    const handleResetPress = (event: Event) => {
+      if ((event as CustomEvent<unknown>).detail !== "reset") return;
+      window.dispatchEvent(
+        new CustomEvent("circuit:arduino-reset", {
+          detail: { nodeId: id },
+        }),
+      );
+    };
+
+    element.addEventListener("button-press", handleResetPress);
+    return () => {
+      element.removeEventListener("button-press", handleResetPress);
+    };
+  }, [id, isArduinoUno]);
+
+  // =========================================================
   // RENDER
   // =========================================================
 
@@ -1741,6 +1796,7 @@ const ElectronicNode = ({
                 isSsd1306 ||
                 isNeoPixel ||
                 isDs1307 ||
+                isArduinoUno ||
                 isKeypad
                   ? componentRef
                   : undefined,
