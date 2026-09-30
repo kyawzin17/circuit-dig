@@ -31,6 +31,13 @@ type PinDefinition = {
 };
 
 type SimulationState = {
+  arduinoBoard?: {
+    led13?: boolean;
+    ledRX?: boolean;
+    ledTX?: boolean;
+    ledPower?: boolean;
+    resetPressed?: boolean;
+  };
   traceActive?: boolean;
   isOn?: boolean;
   brightness?: number;
