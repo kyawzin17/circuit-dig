@@ -115,6 +115,87 @@ export class PowerRailSolver {
       }
     }
 
+    /*
+     * Arduino Uno VIN power path.
+     *
+     * A real Uno accepts an external DC supply on VIN. A 9V battery
+     * connected to VIN + GND must therefore feed the board regulator;
+     * VIN itself remains ~9V while the board's 5V/3.3V rails remain
+     * regulated outputs. The existing fixed rails represent USB/board
+     * power, so this path adds the same regulated rails when a battery
+     * is actually connected to the Uno VIN pin.
+     */
+    for (const node of nodes) {
+      const type = String(
+        node.data?.componentType ?? node.type ?? "",
+      ).toLowerCase();
+
+      if (type !== "arduino-uno" && type !== "arduino") {
+        continue;
+      }
+
+      const vinNet = findPinNetForNode(
+        netlist,
+        node.id,
+        ["VIN"],
+      );
+      const fiveVNet = findPinNetForNode(
+        netlist,
+        node.id,
+        ["5V"],
+      );
+      const threeV3Net = findPinNetForNode(
+        netlist,
+        node.id,
+        ["3.3V"],
+      );
+      const ioRefNet = findPinNetForNode(
+        netlist,
+        node.id,
+        ["IOREF"],
+      );
+      const groundNet = findPinNetForNode(
+        netlist,
+        node.id,
+        ["GND1", "GND2", "GND3"],
+      );
+
+      if (!vinNet) continue;
+
+      const vinVoltage = netVoltages[vinNet];
+      const vinHasGroundReference =
+        groundNet ? groundNets.has(groundNet) : false;
+
+      // Arduino Uno's recommended VIN input range starts above the
+      // regulated 5V rail. Do not treat a 5V/3.3V source as VIN power.
+      const vinPowered =
+        vinVoltage !== undefined &&
+        vinVoltage >= 7 &&
+        vinVoltage <= 12 &&
+        vinHasGroundReference;
+
+      if (!vinPowered) continue;
+
+      if (fiveVNet) {
+        addVoltage(netValues, fiveVNet, 5);
+        sourceNets.set(fiveVNet, 5);
+      }
+
+      if (threeV3Net) {
+        addVoltage(netValues, threeV3Net, 3.3);
+        sourceNets.set(threeV3Net, 3.3);
+      }
+
+      if (ioRefNet) {
+        addVoltage(netValues, ioRefNet, 5);
+        sourceNets.set(ioRefNet, 5);
+      }
+
+      if (groundNet) {
+        groundNets.add(groundNet);
+      }
+    }
+
     for (const driver of powerDrivers) {
       const netId = findPinNet(
         netlist,
