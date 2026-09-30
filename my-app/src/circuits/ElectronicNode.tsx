@@ -404,51 +404,39 @@ const ElectronicNode = ({
        * This is deliberately independent from React state because the
        * SimulationEngine keeps a stable circuit topology while running.
        */
-      setKeypadContact(
-        id,
-        rowIndex,
-        columnIndex,
-        pressed,
+      /*
+       * Use the key label as the stable identity of the physical
+       * button. The Wokwi event normally supplies row/column, but
+       * deriving the coordinates from the configured key map gives
+       * release handling a safe fallback and prevents a stale contact
+       * from being interpreted as a new key press.
+       */
+      const keyIndex = keypadLabels.findIndex(
+        (label) => label.toUpperCase() === key,
       );
 
-      /*
-       * Keep the React node state in sync for UI/debugging/history.
-       * The simulator does not depend on this state for the real-time
-       * electrical scan.
-       */
-      setNodes((currentNodes) =>
-        currentNodes.map((node) => {
-          if (node.id !== id) {
-            return node;
-          }
+      const resolvedRow =
+        keyIndex >= 0
+          ? Math.floor(keyIndex / 4)
+          : rowIndex;
 
-          const current = Array.isArray(
-            node.data?.keypadPressedKeys,
-          )
-            ? node.data.keypadPressedKeys.map(
-                (value: unknown) =>
-                  String(value).toUpperCase(),
-              )
-            : [];
+      const resolvedColumn =
+        keyIndex >= 0
+          ? keyIndex % 4
+          : columnIndex;
 
-          const next = new Set(current);
+      if (
+        !Number.isInteger(resolvedRow) ||
+        !Number.isInteger(resolvedColumn)
+      ) {
+        return;
+      }
 
-          if (pressed) {
-            next.add(key);
-          } else {
-            next.delete(key);
-          }
-
-          return {
-            ...node,
-            data: {
-              ...node.data,
-              keypadPressedKeys: Array.from(next),
-              keypadPressedKey:
-                Array.from(next)[0] ?? undefined,
-            },
-          };
-        }),
+      setKeypadContact(
+        id,
+        resolvedRow,
+        resolvedColumn,
+        pressed,
       );
     };
 
