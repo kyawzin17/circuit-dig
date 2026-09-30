@@ -10,6 +10,8 @@ import {
   type TWIEventHandler,
   AVRSPI,
   spiConfig,
+  AVRUSART,
+  usart0Config,
 } from "avr8js";
 
 import type { ArduinoUnoRuntime } from "../boards/ArduinoUnoRuntime";
@@ -25,19 +27,6 @@ const PORTC = 0x28;
 const PIND = 0x29;
 const DDRD = 0x2a;
 const PORTD = 0x2b;
-
-// ATmega328P USART0 registers.
-const UCSR0A = 0xc0;
-const UCSR0B = 0xc1;
-const UCSR0C = 0xc2;
-const UBRR0L = 0xc4;
-const UBRR0H = 0xc5;
-const UDR0 = 0xc6;
-
-// USART0 status bits.
-const RXC0 = 1 << 7;
-const TXC0 = 1 << 6;
-const UDRE0 = 1 << 5;
 
 // ATmega328P ADC registers.
 const ADCL = 0x78;
@@ -115,6 +104,7 @@ export class Avr8jsRunner {
   private timer2: AVRTimer | null = null;
   private twi: AVRTWI | null = null;
   private spi: AVRSPI | null = null;
+  private usart: AVRUSART | null = null;
   private serialByteHandler?: (value: number, cycle: number) => void;
 
   loadProgram(
@@ -139,8 +129,6 @@ export class Avr8jsRunner {
     };
 
     this.installGpioWriteHooks();
-    this.installSerialWriteHook();
-    this.initializeSerialPeripheral();
 
     // Arduino UNO's Timer0 drives millis()/micros()/delay().
     this.timer0 = new AVRTimer(this.cpu, timer0Config);
@@ -158,6 +146,15 @@ export class Avr8jsRunner {
       16_000_000,
     );
 
+    // Use avr8js' real USART0 peripheral so HardwareSerial gets the
+    // correct UDRE/TXC flags and baud-rate transmission timing.
+    this.usart = new AVRUSART(
+      this.cpu,
+      usart0Config,
+      16_000_000,
+    );
+    this.installSerialWriteHook();
+
     this.syncGpioToRuntime();
   }
 
@@ -169,7 +166,7 @@ export class Avr8jsRunner {
     handler: ((value: number, cycle: number) => void) | null,
   ): void {
     this.serialByteHandler = handler ?? undefined;
-    if (this.cpu) {
+    if (this.usart) {
       this.installSerialWriteHook();
     }
   }
@@ -494,66 +491,20 @@ export class Avr8jsRunner {
   }
 
   /**
-   * The AVR8JS CPU does not emulate the ATmega328P USART peripheral for us.
-   * Arduino's HardwareSerial implementation waits for UDRE0 before every
-   * transmitted byte. If that bit is never raised, Serial.print()/println()
-   * stalls before the first byte reaches UDR0.
-   *
-   * We model the TX side that the simulator actually needs:
-   * - UDRE0 starts HIGH (TX data register is empty).
-   * - a UDR0 write is captured as one real UART byte;
-   * - UDRE0/TXC0 are immediately raised again because transmission is
-   *   considered complete at simulator level.
-   *
-   * RX is intentionally not fabricated here; this patch is only the
-   * Serial Monitor TX path.
-   */
-  private initializeSerialPeripheral(): void {
-    if (!this.cpu) return;
-
-    // TX data register starts empty on reset.
-    this.cpu.data[UCSR0A] =
-      (this.cpu.data[UCSR0A] ?? 0) | UDRE0;
-
-    this.cpu.writeHooks[UCSR0A] = (value) => {
-      // Keep Arduino's writable status bits, but never let the emulated
-      // peripheral lose the empty-TX-register state.
-      this.cpu!.data[UCSR0A] =
-        (value & 0xff) | UDRE0;
-      return true;
-    };
-
-    // These are included for completeness/documentation of the USART block.
-    // Serial.begin() writes them, but no extra behavior is required for the
-    // simulator's TX-only Serial Monitor path.
-    void UCSR0B;
-    void UCSR0C;
-    void UBRR0L;
-    void UBRR0H;
-    void RXC0;
-
-    this.cpu.writeHooks[UDR0] = (value) => {
-      this.serialByteHandler?.(
-        value & 0xff,
-        this.cpu?.cycles ?? 0,
-      );
-
-      // The byte has been accepted immediately by the simulated UART.
-      this.cpu!.data[UCSR0A] =
-        (this.cpu!.data[UCSR0A] ?? 0) |
-        UDRE0 |
-        TXC0;
-
-      return false;
-    };
-  }
-
-  /**
-   * Kept as a small compatibility wrapper because loadProgram() and
-   * setSerialByteHandler() both need to (re)install the UDR0 hook.
+   * Connect the simulator Serial Monitor to avr8js' real USART0 TX path.
+   * AVRUSART handles UDRE/TXC flags, baud timing, and UDR0 writes.
    */
   private installSerialWriteHook(): void {
-    this.initializeSerialPeripheral();
+    if (!this.usart) {
+      return;
+    }
+
+    this.usart.onByteTransmit = (value) => {
+      this.serialByteHandler?.(
+        value,
+        this.cpu?.cycles ?? 0,
+      );
+    };
   }
 
   private serviceAdc(): void {
@@ -1014,6 +965,7 @@ export class Avr8jsRunner {
     this.timer2 = null;
     this.twi = null;
     this.spi = null;
+    this.usart = null;
     this.serialByteHandler = undefined;
   }
 }
