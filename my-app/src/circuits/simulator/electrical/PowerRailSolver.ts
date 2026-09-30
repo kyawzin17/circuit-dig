@@ -162,7 +162,7 @@ export class PowerRailSolver {
 
       if (!vinNet) continue;
 
-      const vinVoltage = netVoltages[vinNet];
+      const vinVoltage = sourceNets.get(vinNet);
       const vinHasGroundReference =
         groundNet ? groundNets.has(groundNet) : false;
 
