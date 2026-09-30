@@ -1114,11 +1114,6 @@ const handleResetSimulation = () => {
     (state) => state.status
   );
 
-const simulationCode =
-  useSimulationStore(
-    (state) => state.code
-  );
-
 const compile =
   useSimulationStore(
     (state) => state.compile
