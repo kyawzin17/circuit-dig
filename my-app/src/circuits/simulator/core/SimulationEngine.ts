@@ -1639,6 +1639,11 @@ export class SimulationEngine {
       ) as Array<[string, 0 | 1]>,
     );
 
+    /*
+     * First resolve the normal circuit graph. This keeps keypad wiring
+     * electrically connected to the rest of the circuit and preserves
+     * the existing behavior for every non-keypad input.
+     */
     const state = this.digitalInputSolver.solve(
       this.circuitNodes,
       this.netlist,
@@ -1648,32 +1653,186 @@ export class SimulationEngine {
       sensorDigitalOutputs,
     );
 
+    /*
+     * A matrix keypad is scanned in time:
+     *
+     *   C1 LOW -> read R1..R4
+     *   C2 LOW -> read R1..R4
+     *   C3 LOW -> read R1..R4
+     *   C4 LOW -> read R1..R4
+     *
+     * Therefore a once-per-frame graph result can be stale while the
+     * firmware is inside Keypad::getKey(). Re-resolve only the keypad
+     * contacts against the AVR's CURRENT GPIO output state.
+     *
+     * This models the real passive switch matrix instead of returning a
+     * JavaScript key value from digitalRead().
+     */
+    const drivers = this.arduino.getDigitalDrivers();
+    const driverLevels = new Map<string, 0 | 1>(
+      drivers.map((driver) => [
+        driver.pin.toUpperCase(),
+        driver.level,
+      ]),
+    );
+
+    const inputModes = this.arduino.getDigitalInputModes();
+
+    const keypadNodes = this.circuitNodes.filter((node) => {
+      const type = String(
+        node.data?.componentType ?? node.type ?? "",
+      ).toLowerCase();
+
+      return (
+        type === "membrane-keypad" ||
+        type === "keypad" ||
+        type === "4x4-keypad"
+      );
+    });
+
+    for (const keypad of keypadNodes) {
+      const component = this.netlist.components.find(
+        (candidate) => candidate.id === keypad.id,
+      );
+
+      if (!component) {
+        continue;
+      }
+
+      const pressedContacts = getKeypadContacts(keypad.id);
+
+      for (const contact of pressedContacts) {
+        const rowTerminal =
+          component.terminals["R" + String(contact.row + 1)];
+
+        const columnTerminal =
+          component.terminals["C" + String(contact.column + 1)];
+
+        if (!rowTerminal || !columnTerminal) {
+          continue;
+        }
+
+        const rowPins =
+          this.netlist.netToPins.get(rowTerminal) ?? [];
+
+        const columnPins =
+          this.netlist.netToPins.get(columnTerminal) ?? [];
+
+        /*
+         * The pressed membrane switch connects the whole row net to
+         * the whole column net. If the currently driven column is LOW,
+         * the row is physically pulled LOW. If it is HIGH, INPUT_PULLUP
+         * keeps the row HIGH.
+         */
+        let columnIsLow = false;
+        let columnHasOutput = false;
+
+        for (const pin of columnPins) {
+          const pinId = pin.pinId.toUpperCase();
+
+          if (!/^(?:D|A)\d+$/.test(pinId)) {
+            continue;
+          }
+
+          const mode = inputModes.get(pinId) ?? "input";
+
+          if (mode !== "output") {
+            continue;
+          }
+
+          const level = driverLevels.get(pinId);
+
+          if (level === undefined) {
+            continue;
+          }
+
+          columnHasOutput = true;
+
+          if (level === 0) {
+            columnIsLow = true;
+            break;
+          }
+        }
+
+        if (!columnHasOutput || !columnIsLow) {
+          continue;
+        }
+
+        for (const pin of rowPins) {
+          const pinId = pin.pinId.toUpperCase();
+
+          if (!/^(?:D|A)\d+$/.test(pinId)) {
+            continue;
+          }
+
+          const mode = inputModes.get(pinId) ?? "input";
+
+          if (
+            mode !== "input" &&
+            mode !== "input_pullup"
+          ) {
+            continue;
+          }
+
+          const node = this.circuitNodes.find(
+            (candidate) =>
+              candidate.id === pin.nodeId,
+          );
+
+          if (!node) {
+            continue;
+          }
+
+          const type = String(
+            node.data?.componentType ?? node.type ?? "",
+          ).toLowerCase();
+
+          if (
+            type !== "arduino-uno" &&
+            type !== "arduino"
+          ) {
+            continue;
+          }
+
+          const channel = Number(pinId.slice(1));
+          const pinNumber = /^A/i.test(pinId)
+            ? 14 + channel
+            : channel;
+
+          state.pinLevels.set(
+            createPinKeyForSimulation(
+              node.id,
+              pinId,
+            ),
+            0,
+          );
+
+          this.arduino.setInputLevel(
+            pinNumber,
+            0,
+          );
+        }
+      }
+    }
+
     this.digitalInputState = state;
 
     const externalLevels: Record<string, 0 | 1> = {};
 
     for (const [pinKey, inputLevel] of state.pinLevels) {
       const separator = pinKey.lastIndexOf(":");
+
       if (separator < 0) {
         continue;
       }
 
       const pinId = pinKey.slice(separator + 1);
+
       if (!/^(?:D|A)\d+$/i.test(pinId)) {
         continue;
       }
 
       externalLevels[pinId.toUpperCase()] = inputLevel;
-
-      const channel = Number(pinId.slice(1));
-      const pinNumber = /^A/i.test(pinId)
-        ? 14 + channel
-        : channel;
-
-      this.arduino.setInputLevel(
-        pinNumber,
-        inputLevel,
-      );
     }
 
     this.avr.setExternalDigitalInputs(externalLevels);
