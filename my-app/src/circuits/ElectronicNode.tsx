@@ -402,7 +402,7 @@ const ElectronicNode = ({
       if (
         !key ||
         !keypadLabels.some(
-          (label) => label.toUpperCase() === key,
+          (label: string) => label.toUpperCase() === key,
         ) ||
         !Number.isInteger(rowIndex) ||
         !Number.isInteger(columnIndex)
@@ -423,7 +423,7 @@ const ElectronicNode = ({
        * from being interpreted as a new key press.
        */
       const keyIndex = keypadLabels.findIndex(
-        (label) => label.toUpperCase() === key,
+        (label: string) => label.toUpperCase() === key,
       );
 
       const resolvedRow =
