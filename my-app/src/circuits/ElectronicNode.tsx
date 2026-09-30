@@ -277,6 +277,11 @@ const ElectronicNode = ({
   const isNeoPixel =
     componentType === "neopixel";
 
+  const isKeypad =
+    componentType === "membrane-keypad" ||
+    componentType === "keypad" ||
+    componentType === "4x4-keypad";
+
   // DS1307 is a real Wokwi custom element too. Keep its DOM ref attached
   // so the RTC node can participate in the same component bridge lifecycle
   // as the other simulator-backed peripherals.
@@ -311,6 +316,109 @@ const ElectronicNode = ({
   const isPressed =
     data.pressed === true ||
     data.isPressed === true;
+
+  const keypadLabels = (() => {
+    const configured = Array.isArray(data.props?.keys)
+      ? data.props.keys.map((value: unknown) => String(value))
+      : [];
+
+    const defaults = [
+      "1", "2", "3", "A",
+      "4", "5", "6", "B",
+      "7", "8", "9", "C",
+      "*", "0", "#", "D",
+    ];
+
+    return configured.length === 16
+      ? configured
+      : defaults;
+  })();
+
+  const keypadPressedKeys = Array.isArray(data.keypadPressedKeys)
+    ? data.keypadPressedKeys.map((value: unknown) => String(value).toUpperCase())
+    : (
+        data.keypadPressedKey
+          ? [String(data.keypadPressedKey).toUpperCase()]
+          : []
+      );
+
+  const setKeypadKey = (
+    key: string,
+    pressed: boolean,
+  ) => {
+    if (!isKeypad) {
+      return;
+    }
+
+    const normalized = key.toUpperCase();
+
+    setNodes((currentNodes) =>
+      currentNodes.map((node) => {
+        if (node.id !== id) {
+          return node;
+        }
+
+        const current = Array.isArray(node.data?.keypadPressedKeys)
+          ? node.data.keypadPressedKeys.map((value: unknown) => String(value).toUpperCase())
+          : [];
+
+        const next = new Set(current);
+
+        if (pressed) {
+          next.add(normalized);
+        } else {
+          next.delete(normalized);
+        }
+
+        return {
+          ...node,
+          data: {
+            ...node.data,
+            keypadPressedKeys: Array.from(next),
+            keypadPressedKey: pressed ? normalized : (
+              Array.from(next)[0] ?? undefined
+            ),
+          },
+        };
+      }),
+    );
+  };
+
+  const handleKeypadKeyDown = (
+    event: React.KeyboardEvent,
+  ) => {
+    if (!isKeypad) {
+      return;
+    }
+
+    const key = event.key.toUpperCase();
+
+    if (!keypadLabels.some((label) => label.toUpperCase() === key)) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    setKeypadKey(key, true);
+  };
+
+  const handleKeypadKeyUp = (
+    event: React.KeyboardEvent,
+  ) => {
+    if (!isKeypad) {
+      return;
+    }
+
+    const key = event.key.toUpperCase();
+
+    if (!keypadLabels.some((label) => label.toUpperCase() === key)) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    setKeypadKey(key, false);
+  };
 
   const isLedOn =
     isLed &&
@@ -1107,6 +1215,42 @@ const ElectronicNode = ({
   };
 
   // =========================================================
+  // 4x4 MATRIX KEYPAD INPUT
+  // =========================================================
+  //
+  // The visual Wokwi element is presentation-only. The selected key
+  // is stored in node.data and DigitalInputSolver turns that selection
+  // into the real row/column contact closure seen by the AVR.
+  // =========================================================
+
+  const handleKeypadPointerDown = (
+    event: React.PointerEvent<HTMLButtonElement>,
+    key: string,
+  ) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setKeypadKey(key, true);
+  };
+
+  const handleKeypadPointerUp = (
+    event: React.PointerEvent<HTMLButtonElement>,
+    key: string,
+  ) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setKeypadKey(key, false);
+  };
+
+  const handleKeypadPointerCancel = (
+    event: React.PointerEvent<HTMLButtonElement>,
+    key: string,
+  ) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setKeypadKey(key, false);
+  };
+
+  // =========================================================
   // APPLY SIMULATION STATE TO WOKWI ELEMENT
   // =========================================================
 
@@ -1562,12 +1706,75 @@ const ElectronicNode = ({
                 isServo ||
                 isSsd1306 ||
                 isNeoPixel ||
-                isDs1307
+                isDs1307 ||
+                isKeypad
                   ? componentRef
                   : undefined,
             }
           )}
 
+        {isKeypad && (
+          <div
+            className="absolute left-1/2 top-full z-40 mt-2 w-44 -translate-x-1/2 rounded-lg border border-slate-300 bg-white/95 p-2 shadow-lg backdrop-blur"
+            tabIndex={0}
+            role="group"
+            aria-label="4 by 4 matrix keypad controls"
+            onKeyDown={handleKeypadKeyDown}
+            onKeyUp={handleKeypadKeyUp}
+            onPointerDown={(event) => event.stopPropagation()}
+            onPointerMove={(event) => event.stopPropagation()}
+            onPointerUp={(event) => event.stopPropagation()}
+          >
+            <div className="mb-1.5 flex items-center justify-between">
+              <span className="text-[8px] font-semibold uppercase tracking-wider text-slate-500">
+                Keypad Input
+              </span>
+              <span className="font-mono text-[9px] font-semibold text-cyan-600">
+                {keypadPressedKeys.length ? keypadPressedKeys.join(" ") : "READY"}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-4 gap-1">
+              {keypadLabels.map((label) => {
+                const key = label.toUpperCase();
+                const active = keypadPressedKeys.includes(key);
+
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    aria-label={`Key ${label}`}
+                    className={`h-7 rounded-md border text-[10px] font-semibold transition ${
+                      active
+                        ? "border-cyan-500 bg-cyan-500 text-white shadow-inner"
+                        : "border-slate-200 bg-slate-50 text-slate-700 hover:border-cyan-300 hover:bg-cyan-50"
+                    }`}
+                    onPointerDown={(event) =>
+                      handleKeypadPointerDown(event, key)
+                    }
+                    onPointerUp={(event) =>
+                      handleKeypadPointerUp(event, key)
+                    }
+                    onPointerCancel={(event) =>
+                      handleKeypadPointerCancel(event, key)
+                    }
+                    onPointerLeave={(event) => {
+                      if (event.buttons !== 0) {
+                        handleKeypadPointerCancel(event, key);
+                      }
+                    }}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="mt-1.5 text-center text-[7px] text-slate-400">
+              Click a key or focus here and use 0-9, A-D, * and #
+            </div>
+          </div>
+        )}
         {isDs1307 && (
           <div
             className="pointer-events-none absolute left-1/2 top-full z-30 mt-1 w-42.5 -translate-x-1/2 rounded-md border border-slate-700 bg-slate-950/95 px-2 py-1.5 font-mono text-[10px] shadow-lg"
