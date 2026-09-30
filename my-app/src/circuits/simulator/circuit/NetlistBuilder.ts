@@ -92,6 +92,15 @@ function getTerminalIds(node: CircuitNode): string[] {
     return ["pin1", "pin2"];
   }
 
+  // 9V battery is a real two-terminal DC source in the simulator.
+  if (
+    type === "battery-9v" ||
+    type === "9v-battery" ||
+    type === "battery9v"
+  ) {
+    return ["VCC", "GND"];
+  }
+
   if (
     type === "potentiometer" ||
     type === "pot"
