@@ -69,6 +69,52 @@ export class PowerRailSolver {
       number | undefined
     > = {};
 
+    /*
+     * External 9V battery support.
+     *
+     * The battery is a real DC source, not just a visual component:
+     *   + terminal -> +9V source
+     *   - terminal -> 0V reference
+     *
+     * Only a connected battery participates in the electrical model.
+     * This lets circuits such as 9V battery -> resistor -> LED -> GND
+     * produce real current/brightness in CurrentFlowSolver.
+     */
+    for (const node of nodes) {
+      const type = String(
+        node.data?.componentType ?? node.type ?? "",
+      ).toLowerCase();
+
+      if (
+        type !== "battery-9v" &&
+        type !== "9v-battery" &&
+        type !== "battery9v"
+      ) {
+        continue;
+      }
+
+      const positiveNet = findPinNetForNode(
+        netlist,
+        node.id,
+        ["VCC", "9v-b-vcc", "+", "positive"],
+      );
+      const negativeNet = findPinNetForNode(
+        netlist,
+        node.id,
+        ["GND", "9v-b-gnd", "-", "negative"],
+      );
+
+      if (positiveNet) {
+        addVoltage(netValues, positiveNet, 9);
+        sourceNets.set(positiveNet, 9);
+      }
+
+      if (negativeNet) {
+        addVoltage(netValues, negativeNet, 0);
+        groundNets.add(negativeNet);
+      }
+    }
+
     for (const driver of powerDrivers) {
       const netId = findPinNet(
         netlist,
@@ -223,6 +269,31 @@ export class PowerRailSolver {
       conflicts,
     };
   }
+}
+
+function findPinNetForNode(
+  netlist: Netlist,
+  nodeId: string,
+  pinIds: string[],
+): string | undefined {
+  const wanted = new Set(
+    pinIds.map((pin) => pin.toUpperCase()),
+  );
+
+  for (const [pinKey, netId] of netlist.pinToNet) {
+    const separator = pinKey.indexOf(":");
+    if (separator < 0) continue;
+
+    const currentNodeId = pinKey.slice(0, separator);
+    if (currentNodeId !== nodeId) continue;
+
+    const currentPinId = pinKey.slice(separator + 1).toUpperCase();
+    if (wanted.has(currentPinId)) {
+      return netId;
+    }
+  }
+
+  return undefined;
 }
 
 function findPinNet(
