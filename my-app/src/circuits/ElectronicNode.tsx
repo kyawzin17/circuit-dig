@@ -13,6 +13,7 @@ import {
 } from "reactflow";
 
 import { PIN_CONFIGS } from "./constants/pins";
+import { setKeypadContact } from "./simulator/electrical/KeypadInputState";
 
 type PinDefinition = {
   id: string;
@@ -370,16 +371,42 @@ const ElectronicNode = ({
 
     const setKeypadKey = (
       rawKey: unknown,
+      row: unknown,
+      column: unknown,
       pressed: boolean,
     ) => {
       const key = String(rawKey ?? "").trim().toUpperCase();
+      const rowIndex = Number(row);
+      const columnIndex = Number(column);
 
-      if (!key || !keypadLabels.some(
-        (label) => label.toUpperCase() === key,
-      )) {
+      if (
+        !key ||
+        !keypadLabels.some(
+          (label) => label.toUpperCase() === key,
+        ) ||
+        !Number.isInteger(rowIndex) ||
+        !Number.isInteger(columnIndex)
+      ) {
         return;
       }
 
+      /*
+       * Update the simulator's live physical contact immediately.
+       * This is deliberately independent from React state because the
+       * SimulationEngine keeps a stable circuit topology while running.
+       */
+      setKeypadContact(
+        id,
+        rowIndex,
+        columnIndex,
+        pressed,
+      );
+
+      /*
+       * Keep the React node state in sync for UI/debugging/history.
+       * The simulator does not depend on this state for the real-time
+       * electrical scan.
+       */
       setNodes((currentNodes) =>
         currentNodes.map((node) => {
           if (node.id !== id) {
@@ -420,14 +447,24 @@ const ElectronicNode = ({
       const detail =
         (event as CustomEvent<KeypadEventDetail>).detail;
 
-      setKeypadKey(detail?.key, true);
+      setKeypadKey(
+        detail?.key,
+        detail?.row,
+        detail?.column,
+        true,
+      );
     };
 
     const handleButtonRelease = (event: Event) => {
       const detail =
         (event as CustomEvent<KeypadEventDetail>).detail;
 
-      setKeypadKey(detail?.key, false);
+      setKeypadKey(
+        detail?.key,
+        detail?.row,
+        detail?.column,
+        false,
+      );
     };
 
     element.addEventListener(
@@ -1248,42 +1285,6 @@ const ElectronicNode = ({
           : node,
       ),
     );
-  };
-
-  // =========================================================
-  // 4x4 MATRIX KEYPAD INPUT
-  // =========================================================
-  //
-  // The visual Wokwi element is presentation-only. The selected key
-  // is stored in node.data and DigitalInputSolver turns that selection
-  // into the real row/column contact closure seen by the AVR.
-  // =========================================================
-
-  const handleKeypadPointerDown = (
-    event: React.PointerEvent<HTMLButtonElement>,
-    key: string,
-  ) => {
-    event.preventDefault();
-    event.stopPropagation();
-    setKeypadKey(key, true);
-  };
-
-  const handleKeypadPointerUp = (
-    event: React.PointerEvent<HTMLButtonElement>,
-    key: string,
-  ) => {
-    event.preventDefault();
-    event.stopPropagation();
-    setKeypadKey(key, false);
-  };
-
-  const handleKeypadPointerCancel = (
-    event: React.PointerEvent<HTMLButtonElement>,
-    key: string,
-  ) => {
-    event.preventDefault();
-    event.stopPropagation();
-    setKeypadKey(key, false);
   };
 
   // =========================================================
