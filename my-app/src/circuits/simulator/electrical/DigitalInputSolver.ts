@@ -3,6 +3,7 @@ import type { ArduinoDigitalDriver } from "../boards/ArduinoUnoRuntime";
 import type { Netlist } from "../circuit/NetlistBuilder";
 import type { PinLevel, PinMode } from "../types/simulator.types";
 import type { PowerRailState } from "./PowerRailSolver";
+import { getKeypadContacts } from "./KeypadInputState";
 
 export interface DigitalInputState {
   pinLevels: Map<string, PinLevel>;
@@ -205,43 +206,23 @@ export class DigitalInputSolver {
 
       if (isMembraneKeypad(type)) {
         /*
-         * A membrane keypad is a passive row/column switch matrix.
-         * Pressing a key electrically shorts exactly one row and one
-         * column. The firmware still performs the real scan by driving
-         * columns and reading rows; this bridge only represents the
-         * physical contact closure.
+         * The Wokwi keypad is a passive matrix. A UI key press is a
+         * physical closure between one row and one column. The live
+         * contact store is intentionally separate from React node data
+         * because SimulationEngine keeps a stable topology snapshot
+         * while the simulation is running.
          *
-         * Support both one key and multiple simultaneous keys so the
-         * circuit graph can naturally expose matrix ghosting/conflicts
-         * when several contacts are held.
+         * Wokwi reports zero-based row/column coordinates, so convert
+         * them to the physical R1..R4 / C1..C4 pin names here.
          */
-        const rawPressed = Array.isArray(
-          node.data?.keypadPressedKeys,
-        )
-          ? node.data.keypadPressedKeys
-          : (
-              node.data?.keypadPressedKey !== undefined
-                ? [node.data.keypadPressedKey]
-                : []
-            );
-
-        const pressed = new Set<string>();
-
-        for (const rawKey of rawPressed) {
-          const key = normalizeKeypadKey(rawKey);
-          if (key) {
-            pressed.add(key);
-          }
-        }
-
-        for (const key of pressed) {
-          const [row, column] = KEYPAD_MATRIX[key];
+        for (const contact of getKeypadContacts(node.id)) {
           connect(
-            createKey(node.id, row),
-            createKey(node.id, column),
+            createKey(node.id, "R" + String(contact.row + 1)),
+            createKey(node.id, "C" + String(contact.column + 1)),
           );
         }
       }
+}
     }
 
     const sourceLevels = new Map<PinKey, PinLevel>();
