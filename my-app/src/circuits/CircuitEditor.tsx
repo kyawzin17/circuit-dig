@@ -623,6 +623,27 @@ const CircuitEditor = () => {
             ).toLowerCase();
 
             if (
+              componentType === "arduino-uno" ||
+              componentType === "arduino"
+            ) {
+              return {
+                ...node,
+                data: {
+                  ...node.data,
+                  simulation: {
+                    ...(node.data?.simulation ?? {}),
+                    arduinoBoard:
+                      state.arduinoBoard,
+                    traceActive:
+                      state.diagnostics.trace?.componentIds.includes(
+                        node.id,
+                      ) === true,
+                  },
+                },
+              };
+            }
+
+            if (
               componentType === "lcd1602" ||
               componentType === "lcd-1602" ||
               componentType === "lcd1602-full" ||
