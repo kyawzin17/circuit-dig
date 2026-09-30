@@ -3,7 +3,6 @@ import type { ArduinoDigitalDriver } from "../boards/ArduinoUnoRuntime";
 import type { Netlist } from "../circuit/NetlistBuilder";
 import type { PinLevel, PinMode } from "../types/simulator.types";
 import type { PowerRailState } from "./PowerRailSolver";
-import { getKeypadContacts } from "./KeypadInputState";
 
 export interface DigitalInputState {
   pinLevels: Map<string, PinLevel>;
@@ -31,13 +30,6 @@ function isPushButton(type: string): boolean {
   return type === "pushbutton" || type === "button";
 }
 
-function isMembraneKeypad(type: string): boolean {
-  return (
-    type === "membrane-keypad" ||
-    type === "keypad" ||
-    type === "4x4-keypad"
-  );
-}
 
 function isClosedSwitch(node: Node): boolean {
   const type = typeOf(node);
@@ -176,24 +168,7 @@ export class DigitalInputSolver {
         );
       }
 
-      if (isMembraneKeypad(type)) {
-        /*
-         * The Wokwi keypad is a passive matrix. A UI key press is a
-         * physical closure between one row and one column. The live
-         * contact store is intentionally separate from React node data
-         * because SimulationEngine keeps a stable topology snapshot
-         * while the simulation is running.
-         *
-         * Wokwi reports zero-based row/column coordinates, so convert
-         * them to the physical R1..R4 / C1..C4 pin names here.
-         */
-        for (const contact of getKeypadContacts(node.id)) {
-          connect(
-            createKey(node.id, "R" + String(contact.row + 1)),
-            createKey(node.id, "C" + String(contact.column + 1)),
-          );
-        }
-      }
+
     }
 
     const sourceLevels = new Map<PinKey, PinLevel>();
