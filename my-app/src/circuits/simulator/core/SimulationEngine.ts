@@ -62,6 +62,7 @@ import {
 } from "../components/Ssd1306Runtime";
 import { NeoPixelRuntime } from "../components/NeoPixelRuntime";
 import { Ds1307Runtime } from "../components/Ds1307Runtime";
+import { clearKeypadContacts } from "../electrical/KeypadInputState";
 
 /* =========================================================
    ENGINE OPTIONS
@@ -2741,6 +2742,7 @@ export class SimulationEngine {
 
   stop(): void {
     this.clock.stop();
+    clearKeypadContacts();
     this.arduino.reset();
     this.ultrasonicTriggerLevels.clear();
     this.pirRuntime.clear();
@@ -2792,6 +2794,7 @@ export class SimulationEngine {
 
   reset(): void {
     this.clock.stop();
+    clearKeypadContacts();
     this.arduino.reset();
     this.ultrasonicTriggerLevels.clear();
     this.pirRuntime.clear();
