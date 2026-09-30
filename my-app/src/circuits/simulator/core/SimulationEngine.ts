@@ -62,7 +62,10 @@ import {
 } from "../components/Ssd1306Runtime";
 import { NeoPixelRuntime } from "../components/NeoPixelRuntime";
 import { Ds1307Runtime } from "../components/Ds1307Runtime";
-import {\n  clearKeypadContacts,\n  getKeypadContacts,\n} from "../electrical/KeypadInputState";
+import {
+  clearKeypadContacts,
+  getKeypadContacts,
+} from "../electrical/KeypadInputState";
 
 /* =========================================================
    ENGINE OPTIONS
