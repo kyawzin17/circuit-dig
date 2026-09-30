@@ -342,83 +342,119 @@ const ElectronicNode = ({
           : []
       );
 
-  const setKeypadKey = (
-    key: string,
-    pressed: boolean,
-  ) => {
+  /*
+   * The Wokwi membrane keypad is the actual interactive component.
+   * @wokwi/elements dispatches:
+   *   button-press   { detail: { key, row, column } }
+   *   button-release { detail: { key, row, column } }
+   *
+   * Keep the Wokwi element as the UI/input source. The simulator only
+   * stores the physical contact state in node.data; DigitalInputSolver
+   * then turns each pressed row/column pair into a real matrix short.
+   */
+  useEffect(() => {
     if (!isKeypad) {
       return;
     }
 
-    const normalized = key.toUpperCase();
+    const element = componentRef.current;
+    if (!element) {
+      return;
+    }
 
-    setNodes((currentNodes) =>
-      currentNodes.map((node) => {
-        if (node.id !== id) {
-          return node;
-        }
+    type KeypadEventDetail = {
+      key?: string;
+      row?: number;
+      column?: number;
+    };
 
-        const current = Array.isArray(node.data?.keypadPressedKeys)
-          ? node.data.keypadPressedKeys.map((value: unknown) => String(value).toUpperCase())
-          : [];
+    const setKeypadKey = (
+      rawKey: unknown,
+      pressed: boolean,
+    ) => {
+      const key = String(rawKey ?? "").trim().toUpperCase();
 
-        const next = new Set(current);
+      if (!key || !keypadLabels.some(
+        (label) => label.toUpperCase() === key,
+      )) {
+        return;
+      }
 
-        if (pressed) {
-          next.add(normalized);
-        } else {
-          next.delete(normalized);
-        }
+      setNodes((currentNodes) =>
+        currentNodes.map((node) => {
+          if (node.id !== id) {
+            return node;
+          }
 
-        return {
-          ...node,
-          data: {
-            ...node.data,
-            keypadPressedKeys: Array.from(next),
-            keypadPressedKey: pressed ? normalized : (
-              Array.from(next)[0] ?? undefined
-            ),
-          },
-        };
-      }),
+          const current = Array.isArray(
+            node.data?.keypadPressedKeys,
+          )
+            ? node.data.keypadPressedKeys.map(
+                (value: unknown) =>
+                  String(value).toUpperCase(),
+              )
+            : [];
+
+          const next = new Set(current);
+
+          if (pressed) {
+            next.add(key);
+          } else {
+            next.delete(key);
+          }
+
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              keypadPressedKeys: Array.from(next),
+              keypadPressedKey:
+                Array.from(next)[0] ?? undefined,
+            },
+          };
+        }),
+      );
+    };
+
+    const handleButtonPress = (event: Event) => {
+      const detail =
+        (event as CustomEvent<KeypadEventDetail>).detail;
+
+      setKeypadKey(detail?.key, true);
+    };
+
+    const handleButtonRelease = (event: Event) => {
+      const detail =
+        (event as CustomEvent<KeypadEventDetail>).detail;
+
+      setKeypadKey(detail?.key, false);
+    };
+
+    element.addEventListener(
+      "button-press",
+      handleButtonPress,
     );
-  };
+    element.addEventListener(
+      "button-release",
+      handleButtonRelease,
+    );
 
-  const handleKeypadKeyDown = (
-    event: React.KeyboardEvent,
-  ) => {
-    if (!isKeypad) {
-      return;
-    }
-
-    const key = event.key.toUpperCase();
-
-    if (!keypadLabels.some((label) => label.toUpperCase() === key)) {
-      return;
-    }
-
-    event.preventDefault();
-    event.stopPropagation();
-    setKeypadKey(key, true);
-  };
-
-  const handleKeypadKeyUp = (
-    event: React.KeyboardEvent,
-  ) => {
-    if (!isKeypad) {
-      return;
-    }
-
-    const key = event.key.toUpperCase();
-
-    if (!keypadLabels.some((label) => label.toUpperCase() === key)) {
-      return;
-    }
-
-    event.preventDefault();
-    event.stopPropagation();
-    setKeypadKey(key, false);
-  };
+    return () => {
+      element.removeEventListener(
+        "button-press",
+        handleButtonPress,
+      );
+      element.removeEventListener(
+        "button-release",
+        handleButtonRelease,
+      );
+    };
+  }, [
+    id,
+    isKeypad,
+    keypadLabels,
+    setNodes,
+  ]);
 
   const isLedOn =
     isLed &&
@@ -1713,68 +1749,7 @@ const ElectronicNode = ({
             }
           )}
 
-        {isKeypad && (
-          <div
-            className="absolute left-1/2 top-full z-40 mt-2 w-44 -translate-x-1/2 rounded-lg border border-slate-300 bg-white/95 p-2 shadow-lg backdrop-blur"
-            tabIndex={0}
-            role="group"
-            aria-label="4 by 4 matrix keypad controls"
-            onKeyDown={handleKeypadKeyDown}
-            onKeyUp={handleKeypadKeyUp}
-            onPointerDown={(event) => event.stopPropagation()}
-            onPointerMove={(event) => event.stopPropagation()}
-            onPointerUp={(event) => event.stopPropagation()}
-          >
-            <div className="mb-1.5 flex items-center justify-between">
-              <span className="text-[8px] font-semibold uppercase tracking-wider text-slate-500">
-                Keypad Input
-              </span>
-              <span className="font-mono text-[9px] font-semibold text-cyan-600">
-                {keypadPressedKeys.length ? keypadPressedKeys.join(" ") : "READY"}
-              </span>
-            </div>
-
-            <div className="grid grid-cols-4 gap-1">
-              {keypadLabels.map((label) => {
-                const key = label.toUpperCase();
-                const active = keypadPressedKeys.includes(key);
-
-                return (
-                  <button
-                    key={key}
-                    type="button"
-                    aria-label={`Key ${label}`}
-                    className={`h-7 rounded-md border text-[10px] font-semibold transition ${
-                      active
-                        ? "border-cyan-500 bg-cyan-500 text-white shadow-inner"
-                        : "border-slate-200 bg-slate-50 text-slate-700 hover:border-cyan-300 hover:bg-cyan-50"
-                    }`}
-                    onPointerDown={(event) =>
-                      handleKeypadPointerDown(event, key)
-                    }
-                    onPointerUp={(event) =>
-                      handleKeypadPointerUp(event, key)
-                    }
-                    onPointerCancel={(event) =>
-                      handleKeypadPointerCancel(event, key)
-                    }
-                    onPointerLeave={(event) => {
-                      if (event.buttons !== 0) {
-                        handleKeypadPointerCancel(event, key);
-                      }
-                    }}
-                  >
-                    {label}
-                  </button>
-                );
-              })}
-            </div>
-
-            <div className="mt-1.5 text-center text-[7px] text-slate-400">
-              Click a key or focus here and use 0-9, A-D, * and #
-            </div>
-          </div>
-        )}
+        {/* The Wokwi membrane-keypad element is the real UI/input source. */}
         {isDs1307 && (
           <div
             className="pointer-events-none absolute left-1/2 top-full z-30 mt-1 w-42.5 -translate-x-1/2 rounded-md border border-slate-700 bg-slate-950/95 px-2 py-1.5 font-mono text-[10px] shadow-lg"
