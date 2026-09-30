@@ -7,4 +7,5 @@ export default [
           { name: 'C1', x: 115 + 27, y: 290, signals: [], dir: "bottom" },
           { name: 'C2', x: 124.5 + 27, y: 290, signals: [], dir: "bottom" },
           { name: 'C3', x: 134 + 27, y: 290, signals: [], dir: "bottom" },
+          { name: 'C4', x: 143.5 + 27, y: 290, signals: [], dir: "bottom" },
         ]
