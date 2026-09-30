@@ -779,7 +779,15 @@ export class Avr8jsRunner {
     return this.cpu?.cycles ?? 0;
   }
 
-  private syncGpioToRuntime(): void {
+  /**
+   * Synchronize the emulated AVR GPIO registers into the circuit runtime.
+   *
+   * This is intentionally public for cycle-sensitive peripherals such as
+   * matrix keypads: a firmware scan changes a column output and the input
+   * side of the same electrical circuit must be recomputed immediately,
+   * before the next AVR instruction executes.
+   */
+  syncGpioToRuntime(): void {
     if (!this.cpu || !this.arduino) return;
 
     const data = this.cpu.data;
