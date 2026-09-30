@@ -160,6 +160,17 @@ function getTerminalIds(node: CircuitNode): string[] {
   }
 
   if (
+    type === "membrane-keypad" ||
+    type === "keypad" ||
+    type === "4x4-keypad"
+  ) {
+    return [
+      "R1", "R2", "R3", "R4",
+      "C1", "C2", "C3", "C4",
+    ];
+  }
+
+  if (
     type === "lcd1602" ||
     type === "lcd-1602" ||
     type === "lcd1602-full"
