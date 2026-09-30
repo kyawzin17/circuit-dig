@@ -1658,7 +1658,7 @@ export class SimulationEngine {
       }
 
       const pinId = pinKey.slice(separator + 1);
-      if (!/^(?:D|A)\\d+$/i.test(pinId)) {
+      if (!/^(?:D|A)\d+$/i.test(pinId)) {
         continue;
       }
 
