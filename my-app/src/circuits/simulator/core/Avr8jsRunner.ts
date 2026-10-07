@@ -49,6 +49,11 @@ const TCCR2A = 0xb0;
 const OCR2A = 0xb3;
 const OCR2B = 0xb4;
 
+const TCNT0 = 0x46;
+const TCNT1L = 0x84;
+const TCNT1H = 0x85;
+const TCNT2 = 0xb2;
+
 export interface AvrGpioChange {
   pin: string;
   level: 0 | 1;
@@ -472,9 +477,121 @@ export class Avr8jsRunner {
       if (this.scheduledDigitalPulses.length > 0) {
         this.applyScheduledDigitalPulses();
       }
+
+      /*
+       * Timer compare outputs are generated inside the AVR timer
+       * peripheral; they do not write PORTx. Sample those OC pins at a
+       * small deterministic interval so the electrical layer sees the
+       * actual HIGH/LOW PWM waveform instead of 5V * duty as a fake DC
+       * voltage. 32 CPU cycles is far below one PWM period on an UNO.
+       */
+      if ((this.cpu.cycles & 31) === 0) {
+        this.syncHardwarePwmOutputs();
+      }
     }
 
+    this.syncHardwarePwmOutputs();
     this.syncGpioToRuntime();
+  }
+
+  /**
+   * Read the ATmega328P timer compare output state for Arduino UNO PWM
+   * pins. This follows the AVR's non-inverting/inverting OC behavior for
+   * the 8-bit Fast/Phase-Correct modes used by analogWrite().
+   */
+  private syncHardwarePwmOutputs(): void {
+    if (!this.cpu || !this.arduino) return;
+
+    const read16 = (low: number, high: number) =>
+      (this.cpu!.data[low] ?? 0) |
+      ((this.cpu!.data[high] ?? 0) << 8);
+
+    const timerPwm = (
+      pin: number,
+      tccra: number,
+      timer: number,
+      ocr: number,
+      bitA: number,
+      bitB: number,
+    ) => {
+      const control = this.cpu!.data[tccra] ?? 0;
+      const comA = (control >> bitA) & 0x3;
+      const comB = (control >> bitB) & 0x3;
+
+      if (comA === 0 && comB === 0) return;
+
+      const counter = timer;
+      const compareA = ocr & 0xff;
+      const compareB = (ocr >> 8) & 0xff;
+
+      const update = (
+        pinNumber: number,
+        com: number,
+        compare: number,
+      ) => {
+        if (com === 0) return;
+
+        /*
+         * For the PWM modes configured by Arduino's analogWrite(),
+         * non-inverting OCxA/B is HIGH while TCNT < OCR. COM=3 is the
+         * corresponding inverting form.
+         */
+        const nonInverting = com === 2;
+        const high = nonInverting
+          ? counter < compare
+          : counter >= compare;
+
+        this.arduino!.setPwmOutputLevel(
+          pinNumber,
+          high ? 1 : 0,
+        );
+      };
+
+      update(bitA === 6 ? 6 : 0, comA, compareA);
+      update(bitB === 5 ? 3 : 0, comB, compareB);
+    };
+
+    // Timer0: D6=OC0A, D5=OC0B, Fast PWM in Arduino analogWrite().
+    const t0 = this.cpu.data[TCNT0] ?? 0;
+    const t0a = this.cpu.data[OCR0A] ?? 0;
+    const t0b = this.cpu.data[OCR0B] ?? 0;
+    const t0Control = this.cpu.data[TCCR0A] ?? 0;
+    const t0ComA = (t0Control >> 6) & 0x3;
+    const t0ComB = (t0Control >> 4) & 0x3;
+    if (t0ComA) {
+      this.arduino.setPwmOutputLevel(6, t0ComA === 2 ? (t0 < t0a ? 1 : 0) : (t0 >= t0a ? 1 : 0));
+    }
+    if (t0ComB) {
+      this.arduino.setPwmOutputLevel(5, t0ComB === 2 ? (t0 < t0b ? 1 : 0) : (t0 >= t0b ? 1 : 0));
+    }
+
+    // Timer1: D9=OC1A, D10=OC1B. UNO analogWrite uses 8-bit phase-correct.
+    const t1 = read16(TCNT1L, TCNT1H);
+    const t1a = read16(OCR1AL, OCR1AH) & 0xff;
+    const t1b = read16(OCR1BL, OCR1BH) & 0xff;
+    const t1Control = this.cpu.data[TCCR1A] ?? 0;
+    const t1ComA = (t1Control >> 6) & 0x3;
+    const t1ComB = (t1Control >> 4) & 0x3;
+    if (t1ComA) {
+      this.arduino.setPwmOutputLevel(9, t1ComA === 2 ? (t1 < t1a ? 1 : 0) : (t1 >= t1a ? 1 : 0));
+    }
+    if (t1ComB) {
+      this.arduino.setPwmOutputLevel(10, t1ComB === 2 ? (t1 < t1b ? 1 : 0) : (t1 >= t1b ? 1 : 0));
+    }
+
+    // Timer2: D3=OC2B, D11=OC2A. UNO analogWrite uses phase-correct.
+    const t2 = this.cpu.data[TCNT2] ?? 0;
+    const t2a = this.cpu.data[OCR2A] ?? 0;
+    const t2b = this.cpu.data[OCR2B] ?? 0;
+    const t2Control = this.cpu.data[TCCR2A] ?? 0;
+    const t2ComA = (t2Control >> 6) & 0x3;
+    const t2ComB = (t2Control >> 4) & 0x3;
+    if (t2ComA) {
+      this.arduino.setPwmOutputLevel(11, t2ComA === 2 ? (t2 < t2a ? 1 : 0) : (t2 >= t2a ? 1 : 0));
+    }
+    if (t2ComB) {
+      this.arduino.setPwmOutputLevel(3, t2ComB === 2 ? (t2 < t2b ? 1 : 0) : (t2 >= t2b ? 1 : 0));
+    }
   }
 
   private installGpioWriteHooks(): void {
