@@ -277,6 +277,24 @@ export class ArduinoUnoRuntime {
     return this.state.digitalPins[pin]?.level ?? 0;
   }
 
+  /**
+   * Update the instantaneous output level produced by an AVR timer.
+   * Unlike setPwmDuty(), this does not change the configured duty cycle;
+   * it only reflects the current HIGH/LOW phase of the hardware waveform.
+   */
+  setPwmOutputLevel(pin: number, level: PinLevel): void {
+    const runtimePin = this.state.digitalPins[pin];
+    if (!runtimePin || runtimePin.mode !== "output") {
+      return;
+    }
+
+    if (runtimePin.pwmDuty === undefined) {
+      return;
+    }
+
+    runtimePin.level = level;
+  }
+
   setInputLevel(
     pin: number,
     level: PinLevel,
