@@ -117,6 +117,35 @@ function testAvrGpioBridge() {
   assert.equal(avrInput.getGpioLevel("D2"), 0);
 }
 
+function testAdcReferences() {
+  const uno = new ArduinoUnoRuntime();
+  const avr = new Avr8jsRunner();
+  avr.loadProgram(new Uint16Array([0x0000]), uno);
+  avr.setExternalAnalogInputs({ A0: 2.5, AREF: 2.5 });
+
+  const cpu = avr.getCPU();
+  assert.ok(cpu);
+
+  // ADMUX: REFS=01 (external AREF), ADC0 selected.
+  cpu!.data[0x7c] = 0x40;
+  // ADEN + ADSC.
+  cpu!.data[0x7a] = 0xc0;
+  avr.runCycles(1);
+
+  const externalReferenceResult =
+    (cpu!.data[0x79] << 8) | cpu!.data[0x78];
+  assert.equal(externalReferenceResult, 1023);
+
+  // REFS=00 (AVcc=5V): 2.5V should be approximately half scale.
+  cpu!.data[0x7c] = 0x00;
+  cpu!.data[0x7a] = 0xc0;
+  avr.runCycles(1);
+
+  const avccResult =
+    (cpu!.data[0x79] << 8) | cpu!.data[0x78];
+  assert.ok(Math.abs(avccResult - 512) <= 1);
+}
+
 function testPwm() {
   const uno = new ArduinoUnoRuntime();
   assert.deepEqual(uno.getPwmPins(), ["D3", "D5", "D6", "D9", "D10", "D11"]);
@@ -197,6 +226,7 @@ function run() {
     ["GPIO + INPUT_PULLUP", testGpioAndPullup],
     ["analog pins as GPIO", testAnalogGpio],
     ["AVR8JS GPIO bridge", testAvrGpioBridge],
+    ["ADC reference selection", testAdcReferences],
     ["PWM timers + duty", testPwm],
     ["power + AREF semantics", testPowerModel],
     ["runtime reset", testReset],
