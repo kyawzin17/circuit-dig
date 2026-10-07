@@ -110,7 +110,7 @@ function findSinkNets(
   // This is essential for common-anode 7-segment displays:
   // 5V/common -> segment -> resistor -> GPIO LOW.
   for (const driver of drivers) {
-    if (driver.level !== 0 || driver.pwmDuty !== undefined) {
+    if (driver.level !== 0) {
       continue;
     }
 
@@ -173,11 +173,12 @@ function findSourceNets(
   }
 
   for (const driver of drivers) {
-    const pwmActive =
-      driver.pwmDuty !== undefined &&
-      driver.pwmDuty > 0;
-
-    if (driver.level !== 1 && !pwmActive) {
+    /*
+     * PWM is a real HIGH/LOW waveform. The runtime exposes its current
+     * timer phase through driver.level, so only the HIGH phase is a
+     * source and the LOW phase is a sink.
+     */
+    if (driver.level !== 1) {
       continue;
     }
 
@@ -806,10 +807,9 @@ export class CurrentFlowSolver {
       );
 
     /*
-     * PWM is still a real electrical source, but its average
-     * current is scaled by the hardware duty cycle. We keep
-     * the source voltage at 5V and scale the resulting current
-     * rather than pretending PWM is a lower DC supply voltage.
+     * PWM voltage is instantaneous (5V during HIGH, 0V during LOW).
+     * We still use duty cycle when reporting average current/brightness,
+     * because that is what a real load experiences over many PWM periods.
      */
     const sourceDuties = new Map<string, number>();
 
