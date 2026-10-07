@@ -73,6 +73,7 @@ import PicoNode from "./nodes/Respberrypipico.tsx";
 import { useSimulationStore } from "../stores/simulationStore"; // Simulation Store for Simulation Engine ()
 import { SimulationEngine } from "./simulator/core/SimulationEngine.ts"; // Simulation Engine Component
 import type { SimulationDiagnostics } from "./simulator/types/simulator.types";
+import { validateCircuitConnection } from "./simulator/validation/CircuitValidator.ts";
 import {
   getSavedProject,
   saveCircuitProject,
@@ -88,6 +89,13 @@ type CircuitEdgeData = {
 
   targetNodeId: string;
   targetPinId: string | null;
+
+  validation?: {
+    isValid: boolean;
+    severity?: "error" | "warning";
+    code?: string;
+    message?: string;
+  };
 
   simulation?: {
     isActive: boolean;
@@ -1381,6 +1389,16 @@ const stop =
           targetPinId,
         );
 
+      const currentEdges =
+        edgesRef.current;
+
+      const validation =
+        validateCircuitConnection(
+          params,
+          nodesRef.current,
+          currentEdges,
+        );
+
       const connectionData =
         createConnectionData(params);
 
@@ -1397,7 +1415,10 @@ const stop =
 
         type: "editable",
 
-        data: connectionData,
+        data: {
+          ...connectionData,
+          validation,
+        },
 
         style: {
           strokeWidth: 2,
@@ -1458,6 +1479,15 @@ const stop =
             newConnection.targetHandle ??
             null;
 
+          const validation =
+            validateCircuitConnection(
+              newConnection,
+              nodesRef.current,
+              currentEdges.filter(
+                (candidate) => candidate.id !== oldEdge.id,
+              ),
+            );
+
           const updatedData: CircuitEdgeData = {
             ...(edge.data ?? {
               points: null,
@@ -1466,6 +1496,8 @@ const stop =
               targetNodeId: "",
               targetPinId: null,
             }),
+
+            validation,
 
             sourceNodeId:
               newConnection.source ?? "",  // Guard against null
