@@ -1133,7 +1133,8 @@ const stop =
   );
 
   const [selectedNode, setSelectedNode] =
-    useState<any>(null);\n\n  const validatedEdges = useMemo(
+    useState<any>(null);
+     const validatedEdges = useMemo(
     () =>
       (edges as CircuitEdge[]).map((edge) => {
         const connection: Connection = {
