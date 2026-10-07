@@ -1580,23 +1580,23 @@ const stop =
           yOffset: "-15px",
         },
 
-        "arduino-mega": {
-          label: "Arduino Mega",
-          tag: "wokwi-arduino-mega",
-          props: {},
-          pins: arduinoMegaPins,
-          scale: 0.2,
-          yOffset: "-15px",
-        },
+        // "arduino-mega": {
+        //   label: "Arduino Mega",
+        //   tag: "wokwi-arduino-mega",
+        //   props: {},
+        //   pins: arduinoMegaPins,
+        //   scale: 0.2,
+        //   yOffset: "-15px",
+        // },
 
-        "arduino-nano": {
-          label: "Arduino Nano",
-          tag: "wokwi-arduino-nano",
-          props: {},
-          pins: arduinoNanoPins,
-          scale: 0.2,
-          yOffset: "-15px",
-        },
+        // "arduino-nano": {
+        //   label: "Arduino Nano",
+        //   tag: "wokwi-arduino-nano",
+        //   props: {},
+        //   pins: arduinoNanoPins,
+        //   scale: 0.2,
+        //   yOffset: "-15px",
+        // },
 
         "esp32": {
           label: "ESP32 DevKit",

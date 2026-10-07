@@ -258,10 +258,10 @@ const COLOR_MAP: Record<number, string> = {
     <aside
       className="
         w-[320px]
-        h-[calc(100vh-64px)]
+        h-full
         fixed
         custom-scrollbar 
-        -right-1 top-16 border-3 rounded-md border-green
+        -right-1 top-0 border-3 rounded-md border-green
         bg-[#0d1726]
         border-l
         border-[#1e3148]

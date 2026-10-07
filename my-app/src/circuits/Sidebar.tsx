@@ -321,25 +321,25 @@ const Sidebar = () => {
       category: "microcontroller",
     },
 
-    {
-      type: "arduino-mega",
-      name: "Arduino Mega",
-      tag: "wokwi-arduino-mega",
-      props: {},
-      scale: 0.2,
-      yOffset: "-10px",
-      category: "microcontroller",
-    },
+    // {
+    //   type: "arduino-mega",
+    //   name: "Arduino Mega",
+    //   tag: "wokwi-arduino-mega",
+    //   props: {},
+    //   scale: 0.2,
+    //   yOffset: "-10px",
+    //   category: "microcontroller",
+    // },
 
-    {
-      type: "arduino-nano",
-      name: "Arduino Nano",
-      tag: "wokwi-arduino-nano",
-      props: {},
-      scale: 0.3,
-      yOffset: "0px",
-      category: "microcontroller",
-    },
+    // {
+    //   type: "arduino-nano",
+    //   name: "Arduino Nano",
+    //   tag: "wokwi-arduino-nano",
+    //   props: {},
+    //   scale: 0.3,
+    //   yOffset: "0px",
+    //   category: "microcontroller",
+    // },
 
 
     // =========================
