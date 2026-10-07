@@ -506,51 +506,6 @@ export class Avr8jsRunner {
       (this.cpu!.data[low] ?? 0) |
       ((this.cpu!.data[high] ?? 0) << 8);
 
-    const timerPwm = (
-      pin: number,
-      tccra: number,
-      timer: number,
-      ocr: number,
-      bitA: number,
-      bitB: number,
-    ) => {
-      const control = this.cpu!.data[tccra] ?? 0;
-      const comA = (control >> bitA) & 0x3;
-      const comB = (control >> bitB) & 0x3;
-
-      if (comA === 0 && comB === 0) return;
-
-      const counter = timer;
-      const compareA = ocr & 0xff;
-      const compareB = (ocr >> 8) & 0xff;
-
-      const update = (
-        pinNumber: number,
-        com: number,
-        compare: number,
-      ) => {
-        if (com === 0) return;
-
-        /*
-         * For the PWM modes configured by Arduino's analogWrite(),
-         * non-inverting OCxA/B is HIGH while TCNT < OCR. COM=3 is the
-         * corresponding inverting form.
-         */
-        const nonInverting = com === 2;
-        const high = nonInverting
-          ? counter < compare
-          : counter >= compare;
-
-        this.arduino!.setPwmOutputLevel(
-          pinNumber,
-          high ? 1 : 0,
-        );
-      };
-
-      update(bitA === 6 ? 6 : 0, comA, compareA);
-      update(bitB === 5 ? 3 : 0, comB, compareB);
-    };
-
     // Timer0: D6=OC0A, D5=OC0B, Fast PWM in Arduino analogWrite().
     const t0 = this.cpu.data[TCNT0] ?? 0;
     const t0a = this.cpu.data[OCR0A] ?? 0;
