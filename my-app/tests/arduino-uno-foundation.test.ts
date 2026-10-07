@@ -137,6 +137,18 @@ function testPwm() {
   approx(uno.getPwmDuty(9), 0.5);
   assert.equal(uno.getDigitalInputModes().get("D9"), "output");
 
+  /*
+   * PWM duty is configuration; the electrical voltage must follow the
+   * instantaneous timer output, not 5V * duty as a fake DC level.
+   */
+  uno.setPwmOutputLevel(9, 0);
+  assert.equal(uno.digitalRead(9), 0);
+  approx(uno.getDigitalPinVoltage("D9"), 0);
+
+  uno.setPwmOutputLevel(9, 1);
+  assert.equal(uno.digitalRead(9), 1);
+  approx(uno.getDigitalPinVoltage("D9"), 5);
+
   uno.setPwmDuty(9, 1);
   assert.equal(uno.digitalRead(9), 1);
   approx(uno.getDigitalPinVoltage("D9"), 5);
