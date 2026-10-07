@@ -1466,9 +1466,6 @@ const stop =
       const currentNodes =
         nodesRef.current;
 
-      const currentEdges =
-        edgesRef.current;
-
       const nextEdges = addEdge(
         newEdge,
         currentEdges
