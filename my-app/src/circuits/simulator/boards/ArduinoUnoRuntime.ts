@@ -126,9 +126,16 @@ export class ArduinoUnoRuntime {
         voltage: 0,
         rail: "GND",
       },
+      /*
+       * AREF is the ADC reference pin, not a 5V power output.
+       * In the default AVcc reference mode the ADC uses the MCU's
+       * internal AVcc reference, while the physical AREF pin is not
+       * a source. Keep it at 0V here so the power solver cannot
+       * accidentally power a circuit through AREF.
+       */
       AREF: {
         pin: "AREF",
-        voltage: 5,
+        voltage: 0,
         rail: "IOREF",
       },
     };
@@ -329,20 +336,31 @@ export class ArduinoUnoRuntime {
   }
 
   getPwmFrequencyHz(pin: string): number | undefined {
-    if (pin === "D5" || pin === "D6") {
-      return 16_000_000 / 64 / 256;
-    }
+    /*
+     * Arduino AVR core default timer configuration on a 16 MHz UNO R3:
+     *
+     *   D3/D11  -> Timer2 phase-correct 8-bit PWM  ~490.20 Hz
+     *   D5/D6   -> Timer0 fast 8-bit PWM          ~976.56 Hz
+     *   D9/D10  -> Timer1 phase-correct 8-bit PWM  ~490.20 Hz
+     *
+     * Do not collapse all PWM pins into one frequency. Applications
+     * such as tone generation, servo timing and frequency-sensitive
+     * peripherals depend on timer-specific behavior.
+     */
+    switch (pin) {
+      case "D3":
+      case "D11":
+      case "D9":
+      case "D10":
+        return 16_000_000 / (64 * 510);
 
-    if (
-      pin === "D3" ||
-      pin === "D11" ||
-      pin === "D9" ||
-      pin === "D10"
-    ) {
-      return 16_000_000 / 64 / 256;
-    }
+      case "D5":
+      case "D6":
+        return 16_000_000 / (64 * 256);
 
-    return undefined;
+      default:
+        return undefined;
+    }
   }
 
   getDigitalPinVoltage(pin: string): number | undefined {

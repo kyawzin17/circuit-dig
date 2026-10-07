@@ -1,3 +1,4 @@
+import { Cross, CrossIcon } from 'lucide-react';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { type EdgeProps, BaseEdge, EdgeLabelRenderer, Position, useReactFlow, useStore } from 'reactflow';
 
@@ -254,8 +255,8 @@ export default function EditableEdge({
             ? "#ef4444"
             : (style.stroke || '#0a1161'),
           strokeWidth: isInvalid
-            ? 7
-            : (isTraceActive ? 8 : 6),
+            ? 3
+            : (isTraceActive ? 4 : 2),
           filter: isTraceActive ? "drop-shadow(0 0 4px rgba(34,211,238,0.85))" : undefined,
         }}
       />
@@ -265,7 +266,7 @@ export default function EditableEdge({
           d={edgePath}
           fill="none"
           stroke={flowColor}
-          strokeWidth={isTraceActive ? 5 : 3}
+          strokeWidth={isTraceActive ? 4 : 2}
           strokeLinecap="round"
           strokeLinejoin="round"
           className="circuit-wire-flow"
@@ -285,7 +286,7 @@ export default function EditableEdge({
           d={`M ${seg.p1.x},${seg.p1.y} L ${seg.p2.x},${seg.p2.y}`}
           fill="none"
           stroke={hoveredIndex === index ? "rgba(239,68,68,0.3)" : "transparent"}
-          strokeWidth={seg.isDraggable ? 10 : 0} 
+          strokeWidth={seg.isDraggable ? 4 : 0} 
           style={{ cursor: !seg.isDraggable ? 'default' : seg.isVertical ? 'col-resize' : 'row-resize' }}
           onMouseEnter={() => seg.isDraggable && setHoveredIndex(index)}
           onMouseLeave={() => setHoveredIndex(null)}
@@ -307,25 +308,26 @@ export default function EditableEdge({
                 "px, " +
                 labelPoint.y +
                 "px) translate(-50%, -50%)",
-              width: "24px",
-              height: "24px",
+              width: "16px",
+              height: "16px",
               borderRadius: "9999px",
-              background: "#ef4444",
+              background: "transparent",
               color: "#ffffff",
-              border: "2px solid #ffffff",
+              border: "1.5px solid #ef4444",
               boxShadow: "0 2px 8px rgba(0,0,0,0.28)",
+              backgroundColor: "#ffffff",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              fontSize: "17px",
               fontWeight: 900,
+              padding: "0px",
               lineHeight: 1,
               pointerEvents: "auto",
               cursor: "help",
               zIndex: 2000,
             }}
           >
-            ×
+            <CrossIcon size={10} strokeWidth={3} className="text-red-500  rotate-45" />
           </div>
         )}
 
