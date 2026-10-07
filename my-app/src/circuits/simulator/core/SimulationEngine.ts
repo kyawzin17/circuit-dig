@@ -1274,6 +1274,45 @@ export class SimulationEngine {
             externalAnalogInputs[pin] = voltage;
           }
 
+          /*
+           * AREF is an ADC reference input, not one of the A0..A5
+           * analog channels. Feed the AVR runner with the voltage
+           * actually present on the AREF net so analogReference(EXTERNAL)
+           * follows circuit topology.
+           */
+          const arduinoNodeId =
+            this.circuitNodes.find((node) => {
+              const type = String(
+                node.data?.componentType ??
+                  node.type ??
+                  "",
+              ).toLowerCase();
+
+              return (
+                type === "arduino-uno" ||
+                type === "arduino"
+              );
+            })?.id;
+
+          if (arduinoNodeId && this.netlist) {
+            const arefNet =
+              this.netlist.pinToNet.get(
+                createPinKeyForSimulation(
+                  arduinoNodeId,
+                  "AREF",
+                ),
+              );
+
+            const arefVoltage =
+              arefNet !== undefined
+                ? this.powerState.netVoltages[arefNet]
+                : undefined;
+
+            if (typeof arefVoltage === "number") {
+              externalAnalogInputs.AREF = arefVoltage;
+            }
+          }
+
           this.avr.setExternalAnalogInputs(
             externalAnalogInputs,
           );
