@@ -8,7 +8,9 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "server": "tsx server/index.ts",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "tsx tests/arduino-uno-foundation.test.ts",
+    "test:uno": "tsx tests/arduino-uno-foundation.test.ts"
   },
   "dependencies": {
     "@emailjs/browser": "^4.4.1",
