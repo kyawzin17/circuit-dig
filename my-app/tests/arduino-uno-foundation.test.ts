@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { ArduinoUnoRuntime } from "../src/circuits/simulator/boards/ArduinoUnoRuntime";
+import { Avr8jsRunner } from "../src/circuits/simulator/core/Avr8jsRunner";
 import { ARDUINO_UNO_PIN_MAP } from "../src/circuits/simulator/mapping/ArduinoUnoPinMap";
 
 function approx(actual: number | undefined, expected: number, tolerance = 1e-9) {
@@ -56,6 +57,78 @@ function testAnalogGpio() {
 
   uno.applyPortRegister("C", 0, 0);
   assert.equal(uno.getDigitalInputModes().get("A0"), "input");
+}
+
+function testAvrGpioBridge() {
+  const uno = new ArduinoUnoRuntime();
+  const avr = new Avr8jsRunner();
+
+  /*
+   * Minimal real AVR machine code:
+   *   LDI r16, 0x20
+   *   OUT DDRB, r16
+   *   OUT PORTB, r16
+   *
+   * DDRB bit 5 + PORTB bit 5 = Arduino D13 HIGH.
+   */
+  avr.loadProgram(
+    new Uint16Array([
+      0xe220, // ldi r16, 0x20
+      0xb904, // out DDRB, r16
+      0xb905, // out PORTB, r16
+      0x0000, // nop
+    ]),
+    uno,
+  );
+
+  avr.runCycles(20);
+
+  assert.equal(uno.getDigitalInputModes().get("D13"), "output");
+  assert.equal(uno.digitalRead(13), 1);
+  assert.equal(avr.getGpioLevel("D13"), 1);
+
+  /*
+   * D2 is PORTD bit 2. With DDRD=0 and PORTD=1 the real AVR GPIO
+   * is INPUT_PULLUP. The external circuit can then pull the PIN low.
+   */
+  const avrInput = new Avr8jsRunner();
+  const unoInput = new ArduinoUnoRuntime();
+
+  avrInput.loadProgram(
+    new Uint16Array([
+      0xe004, // ldi r16, 0x04
+      0xb90a, // out DDRD, r16 (then immediately overwritten below)
+      0xe004, // ldi r16, 0x04
+      0xb90b, // out PORTD, r16
+      0x0000,
+    ]),
+    unoInput,
+  );
+
+  /*
+   * Correct the first instruction sequence to leave DDRD bit 2 clear:
+   * reload a tiny program that only writes PORTD bit 2.
+   */
+  avrInput.loadProgram(
+    new Uint16Array([
+      0xe004, // ldi r16, 0x04
+      0xb90b, // out PORTD, r16
+      0x0000,
+    ]),
+    unoInput,
+  );
+
+  avrInput.setExternalDigitalInputs({ D2: 1 });
+  avrInput.runCycles(10);
+
+  assert.equal(
+    unoInput.getDigitalInputModes().get("D2"),
+    "input_pullup",
+  );
+  assert.equal(avrInput.getGpioLevel("D2"), 1);
+
+  avrInput.setExternalDigitalInput("D2", 0);
+  assert.equal(avrInput.getGpioLevel("D2"), 0);
 }
 
 function testPwm() {
@@ -125,6 +198,7 @@ function run() {
     ["pin mapping", testPinMapping],
     ["GPIO + INPUT_PULLUP", testGpioAndPullup],
     ["analog pins as GPIO", testAnalogGpio],
+    ["AVR8JS GPIO bridge", testAvrGpioBridge],
     ["PWM timers + duty", testPwm],
     ["power + AREF semantics", testPowerModel],
     ["runtime reset", testReset],
