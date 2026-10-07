@@ -441,11 +441,11 @@ export class ArduinoUnoRuntime {
         rail: "3.3V",
         kind: "source",
       },
-      {
-        pin: "IOREF",
-        rail: "IOREF",
-        kind: "source",
-      },
+      /*
+       * IOREF is a logic-voltage reference output for shields. It is
+       * deliberately NOT treated as a general power source; doing so
+       * would let a circuit draw current from IOREF as if it were 5V.
+       */
       {
         pin: "GND1",
         rail: "GND",
