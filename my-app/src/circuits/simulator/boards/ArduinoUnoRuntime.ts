@@ -402,8 +402,14 @@ export class ArduinoUnoRuntime {
 
     if (runtimePin.mode === "output") {
       if (runtimePin.pwmDuty !== undefined) {
-        return this.getLogicHighVoltage() *
-          runtimePin.pwmDuty;
+        /*
+         * PWM is a time-domain HIGH/LOW signal. The electrical solver
+         * consumes the instantaneous timer phase from runtimePin.level;
+         * duty is kept separately for frequency/brightness calculations.
+         */
+        return runtimePin.level === 1
+          ? this.getLogicHighVoltage()
+          : 0;
       }
 
       return runtimePin.level === 1
