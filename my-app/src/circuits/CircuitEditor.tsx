@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, useEffect } from "react";
+import React, { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import html2canvas from "@html2canvas/html2canvas";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
@@ -1133,7 +1133,44 @@ const stop =
   );
 
   const [selectedNode, setSelectedNode] =
-    useState<any>(null);
+    useState<any>(null);\n\n  const validatedEdges = useMemo(
+    () =>
+      (edges as CircuitEdge[]).map((edge) => {
+        const connection: Connection = {
+          source: edge.source,
+          sourceHandle: edge.sourceHandle ?? null,
+          target: edge.target,
+          targetHandle: edge.targetHandle ?? null,
+        };
+
+        const validation =
+          validateCircuitConnection(
+            connection,
+            nodes,
+            (edges as CircuitEdge[]).filter(
+              (candidate) => candidate.id !== edge.id,
+            ),
+          );
+
+        return {
+          ...edge,
+          data: {
+            ...(edge.data ?? {}),
+            validation,
+          },
+          style: {
+            ...edge.style,
+            stroke:
+              validation.isValid === false
+                ? "#ef4444"
+                : edge.style?.stroke,
+          },
+        };
+      }),
+    [edges, nodes],
+  );
+
+
 
   useEffect(() => {
     if (!reactFlowInstance || !projectIdFromUrl) {
@@ -2783,7 +2820,7 @@ const toggleCode = useCallback(() => {
 
         <ReactFlow
           nodes={nodes}
-          edges={edges}
+          edges={validatedEdges}
 
           onNodesChange={
             onNodesChange
