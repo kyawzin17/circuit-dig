@@ -30,7 +30,7 @@ function testPinMapping() {
 function testGpioAndPullup() {
   const uno = new ArduinoUnoRuntime();
 
-  uno.applyPortRegister("D", 1 << 5, 1 << 5);
+  uno.applyPortRegister("B", 1 << 5, 1 << 5);
   assert.equal(uno.getDigitalInputModes().get("D13"), "output");
   assert.equal(uno.digitalRead(13), 1);
   approx(uno.getDigitalPinVoltage("D13"), 5);
