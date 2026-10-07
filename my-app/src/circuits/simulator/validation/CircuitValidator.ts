@@ -21,7 +21,6 @@ type PinLike = {
   id?: string;
   label?: string;
   type?: string;
-  direction?: string;
   voltage?: {
     nominal?: number;
     min?: number;
@@ -30,9 +29,8 @@ type PinLike = {
 };
 
 type NodeLike = Node & {
-  data?: {
+  data: {
     pins?: PinLike[];
-    componentType?: string;
   };
 };
 
