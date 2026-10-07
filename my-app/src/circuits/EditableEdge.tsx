@@ -193,6 +193,18 @@ export default function EditableEdge({
     setEdges((eds) => eds.map((edge) => edge.id === id ? { ...edge, data: { ...edge.data, points: newPts } } : edge));
   };
 
+  const validation = data?.validation as
+    | {
+        isValid?: boolean;
+        severity?: "error" | "warning";
+        code?: string;
+        message?: string;
+      }
+    | undefined;
+
+  const isInvalid =
+    validation?.isValid === false;
+
   const simulation = data?.simulation as
     | {
         isActive?: boolean;
@@ -226,7 +238,9 @@ export default function EditableEdge({
     const p2 = points[i + 1];
     return { p1, p2, isVertical: Math.abs(p1.x - p2.x) < 0.1, isDraggable: true}; //i !== 0 && i !== points.length - 2
   });
-  const wireColor = style.stroke || '#ff0000';
+  const wireColor = isInvalid
+    ? "#ef4444"
+    : (style.stroke || '#ff0000');
 
   return (
     <>
@@ -235,8 +249,12 @@ export default function EditableEdge({
         markerEnd={markerEnd}
         markerStart={markerStart}
         style={{
-          stroke: style.stroke || '#0a1161',
-          strokeWidth: isTraceActive ? 8 : 6,
+          stroke: isInvalid
+            ? "#ef4444"
+            : (style.stroke || '#0a1161'),
+          strokeWidth: isInvalid
+            ? 7
+            : (isTraceActive ? 8 : 6),
           filter: isTraceActive ? "drop-shadow(0 0 4px rgba(34,211,238,0.85))" : undefined,
           ...style,
         }}
@@ -276,6 +294,41 @@ export default function EditableEdge({
         />
       ))}
      <EdgeLabelRenderer>
+        {isInvalid && (
+          <div
+            title={validation?.message ?? "Invalid circuit connection"}
+            style={{
+              position: "absolute",
+              left: 0,
+              top: 0,
+              transform:
+                "translate(" +
+                labelPoint.x +
+                "px, " +
+                labelPoint.y +
+                "px) translate(-50%, -50%)",
+              width: "24px",
+              height: "24px",
+              borderRadius: "9999px",
+              background: "#ef4444",
+              color: "#ffffff",
+              border: "2px solid #ffffff",
+              boxShadow: "0 2px 8px rgba(0,0,0,0.28)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: "17px",
+              fontWeight: 900,
+              lineHeight: 1,
+              pointerEvents: "auto",
+              cursor: "help",
+              zIndex: 2000,
+            }}
+          >
+            ×
+          </div>
+        )}
+
         {isActive && (
           <div
             className="circuit-wire-current-badge"
