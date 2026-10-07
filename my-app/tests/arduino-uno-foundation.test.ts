@@ -73,7 +73,7 @@ function testAvrGpioBridge() {
    */
   avr.loadProgram(
     new Uint16Array([
-      0xe220, // ldi r16, 0x20
+      0xe200, // ldi r16, 0x20
       0xb904, // out DDRB, r16
       0xb905, // out PORTB, r16
       0x0000, // nop
