@@ -249,6 +249,7 @@ export default function EditableEdge({
         markerEnd={markerEnd}
         markerStart={markerStart}
         style={{
+          ...style,
           stroke: isInvalid
             ? "#ef4444"
             : (style.stroke || '#0a1161'),
@@ -256,7 +257,6 @@ export default function EditableEdge({
             ? 7
             : (isTraceActive ? 8 : 6),
           filter: isTraceActive ? "drop-shadow(0 0 4px rgba(34,211,238,0.85))" : undefined,
-          ...style,
         }}
       />
 
