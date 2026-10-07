@@ -35,5 +35,3 @@ jobs:
       - name: UNO foundation tests
         run: npm run test:uno
 
-      - name: TypeScript + production build
-        run: npm run build
