@@ -94,21 +94,7 @@ function testAvrGpioBridge() {
   const avrInput = new Avr8jsRunner();
   const unoInput = new ArduinoUnoRuntime();
 
-  avrInput.loadProgram(
-    new Uint16Array([
-      0xe004, // ldi r16, 0x04
-      0xb90a, // out DDRD, r16 (then immediately overwritten below)
-      0xe004, // ldi r16, 0x04
-      0xb90b, // out PORTD, r16
-      0x0000,
-    ]),
-    unoInput,
-  );
-
-  /*
-   * Correct the first instruction sequence to leave DDRD bit 2 clear:
-   * reload a tiny program that only writes PORTD bit 2.
-   */
+  /* DDRD remains 0; PORTD bit 2 enables the real AVR pull-up. */
   avrInput.loadProgram(
     new Uint16Array([
       0xe004, // ldi r16, 0x04
