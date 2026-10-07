@@ -514,10 +514,25 @@ export class Avr8jsRunner {
     const t0ComA = (t0Control >> 6) & 0x3;
     const t0ComB = (t0Control >> 4) & 0x3;
     if (t0ComA) {
-      this.arduino.setPwmOutputLevel(6, t0ComA === 2 ? (t0 < t0a ? 1 : 0) : (t0 >= t0a ? 1 : 0));
+      // Re-assert PWM mode after Arduino core writes DDR/PORT. Those GPIO
+      // writes intentionally clear pwmDuty, but the timer COM bits are the
+      // real source of truth once hardware PWM is enabled.
+      this.arduino.setPwmDuty(6, t0a / 255);
+      this.arduino.setPwmOutputLevel(
+        6,
+        t0ComA === 2
+          ? (t0 < t0a ? 1 : 0)
+          : (t0 >= t0a ? 1 : 0),
+      );
     }
     if (t0ComB) {
-      this.arduino.setPwmOutputLevel(5, t0ComB === 2 ? (t0 < t0b ? 1 : 0) : (t0 >= t0b ? 1 : 0));
+      this.arduino.setPwmDuty(5, t0b / 255);
+      this.arduino.setPwmOutputLevel(
+        5,
+        t0ComB === 2
+          ? (t0 < t0b ? 1 : 0)
+          : (t0 >= t0b ? 1 : 0),
+      );
     }
 
     // Timer1: D9=OC1A, D10=OC1B. UNO analogWrite uses 8-bit phase-correct.
@@ -528,10 +543,22 @@ export class Avr8jsRunner {
     const t1ComA = (t1Control >> 6) & 0x3;
     const t1ComB = (t1Control >> 4) & 0x3;
     if (t1ComA) {
-      this.arduino.setPwmOutputLevel(9, t1ComA === 2 ? (t1 < t1a ? 1 : 0) : (t1 >= t1a ? 1 : 0));
+      this.arduino.setPwmDuty(9, t1a / 255);
+      this.arduino.setPwmOutputLevel(
+        9,
+        t1ComA === 2
+          ? (t1 < t1a ? 1 : 0)
+          : (t1 >= t1a ? 1 : 0),
+      );
     }
     if (t1ComB) {
-      this.arduino.setPwmOutputLevel(10, t1ComB === 2 ? (t1 < t1b ? 1 : 0) : (t1 >= t1b ? 1 : 0));
+      this.arduino.setPwmDuty(10, t1b / 255);
+      this.arduino.setPwmOutputLevel(
+        10,
+        t1ComB === 2
+          ? (t1 < t1b ? 1 : 0)
+          : (t1 >= t1b ? 1 : 0),
+      );
     }
 
     // Timer2: D3=OC2B, D11=OC2A. UNO analogWrite uses phase-correct.
@@ -542,10 +569,22 @@ export class Avr8jsRunner {
     const t2ComA = (t2Control >> 6) & 0x3;
     const t2ComB = (t2Control >> 4) & 0x3;
     if (t2ComA) {
-      this.arduino.setPwmOutputLevel(11, t2ComA === 2 ? (t2 < t2a ? 1 : 0) : (t2 >= t2a ? 1 : 0));
+      this.arduino.setPwmDuty(11, t2a / 255);
+      this.arduino.setPwmOutputLevel(
+        11,
+        t2ComA === 2
+          ? (t2 < t2a ? 1 : 0)
+          : (t2 >= t2a ? 1 : 0),
+      );
     }
     if (t2ComB) {
-      this.arduino.setPwmOutputLevel(3, t2ComB === 2 ? (t2 < t2b ? 1 : 0) : (t2 >= t2b ? 1 : 0));
+      this.arduino.setPwmDuty(3, t2b / 255);
+      this.arduino.setPwmOutputLevel(
+        3,
+        t2ComB === 2
+          ? (t2 < t2b ? 1 : 0)
+          : (t2 >= t2b ? 1 : 0),
+      );
     }
   }
 
