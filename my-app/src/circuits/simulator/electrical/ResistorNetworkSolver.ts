@@ -22,6 +22,7 @@ export interface ElectricalNetworkResult {
   branchCurrentMa: Map<string, number>;
   branchVoltageDrop: Map<string, number>;
   branchPowerMw: Map<string, number>;
+  totalSourceCurrentMa: number;
   activeNets: Set<string>;
   activeComponents: Set<string>;
   converged: boolean;
@@ -174,6 +175,7 @@ function branchKey(branch: ElectricalBranch): string {
 export function solveElectricalNetwork(
   branches: ElectricalBranch[],
   fixedVoltages: Map<string, number>,
+  sourceNets: Set<string> = new Set(),
 ): ElectricalNetworkResult {
   const adjacency = new Map<string, Set<string>>();
   for (const branch of branches) {
@@ -212,6 +214,7 @@ export function solveElectricalNetwork(
   const branchCurrentMa = new Map<string, number>();
   const branchVoltageDrop = new Map<string, number>();
   const branchPowerMw = new Map<string, number>();
+  let totalSourceCurrentA = 0;
   const activeNets = new Set<string>();
   const activeComponents = new Set<string>();
 
@@ -225,6 +228,11 @@ export function solveElectricalNetwork(
     const currentA = branch.directed ? Math.max(0, rawCurrentA) : rawCurrentA;
     const currentMa = Math.abs(currentA) * 1000;
     const voltageDrop = Math.abs(va - vb);
+
+    for (const sourceNet of sourceNets) {
+      if (branch.fromNet === sourceNet) totalSourceCurrentA += currentA;
+      else if (branch.toNet === sourceNet) totalSourceCurrentA -= currentA;
+    }
 
     branchCurrentMa.set(branch.componentId, Math.max(branchCurrentMa.get(branch.componentId) ?? 0, currentMa));
     branchVoltageDrop.set(branch.componentId, Math.max(branchVoltageDrop.get(branch.componentId) ?? 0, voltageDrop));
@@ -248,6 +256,7 @@ export function solveElectricalNetwork(
     branchCurrentMa,
     branchVoltageDrop,
     branchPowerMw,
+    totalSourceCurrentMa: Math.max(0, totalSourceCurrentA * 1000),
     activeNets,
     activeComponents,
     converged: true,
