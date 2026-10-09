@@ -70,32 +70,54 @@ function solveWithActiveSet(
   branches: ElectricalBranch[],
   fixedVoltages: Map<string, number>,
 ): Map<string, number> | undefined {
-  const unknownNets = nets.filter((net) => !fixedVoltages.has(net));
-  const netIndex = new Map(unknownNets.map((net, i) => [net, i]));
-  const active = new Set(branches.filter((branch) => !branch.directed).map((branch) => branch.componentId + "|" + branch.fromNet + "|" + branch.toNet));
-
-  // Include all directed branches initially, then switch them off/on according
-  // to their forward-bias condition. Repeated component IDs are allowed.
+  const active = new Set<string>();
   for (const branch of branches) {
     if (branch.directed) active.add(branchKey(branch));
   }
 
   let voltages = new Map(fixedVoltages);
-  for (const net of unknownNets) voltages.set(net, 0);
 
   for (let iteration = 0; iteration < 30; iteration++) {
+    const conductingBranches = branches.filter(
+      (branch) => !branch.directed || active.has(branchKey(branch)),
+    );
+
+    // A reverse-biased diode can disconnect a floating island. Do not let
+    // that physically open branch make the whole nodal matrix singular.
+    const activeAdjacency = new Map<string, Set<string>>();
+    for (const branch of conductingBranches) {
+      if (branch.fromNet === branch.toNet) continue;
+      if (!activeAdjacency.has(branch.fromNet)) activeAdjacency.set(branch.fromNet, new Set());
+      if (!activeAdjacency.has(branch.toNet)) activeAdjacency.set(branch.toNet, new Set());
+      activeAdjacency.get(branch.fromNet)!.add(branch.toNet);
+      activeAdjacency.get(branch.toNet)!.add(branch.fromNet);
+    }
+
+    const connected = new Set<string>();
+    const queue = [...fixedVoltages.keys()].filter((net) => nets.includes(net));
+    queue.forEach((net) => connected.add(net));
+    while (queue.length) {
+      const net = queue.shift()!;
+      for (const next of activeAdjacency.get(net) ?? []) {
+        if (connected.has(next)) continue;
+        connected.add(next);
+        queue.push(next);
+      }
+    }
+
+    const unknownNets = nets.filter((net) => !fixedVoltages.has(net) && connected.has(net));
+    const netIndex = new Map(unknownNets.map((net, i) => [net, i]));
     const n = unknownNets.length;
     const matrix = Array.from({ length: n }, () => Array(n).fill(0));
     const rhs = Array(n).fill(0);
 
-    for (const branch of branches) {
-      if (branch.directed && !active.has(branchKey(branch))) continue;
+    for (const branch of conductingBranches) {
+      if (!connected.has(branch.fromNet) || !connected.has(branch.toNet)) continue;
       const ia = netIndex.get(branch.fromNet);
       const ib = netIndex.get(branch.toNet);
       if (ia === undefined && ib === undefined) continue;
 
-      const resistance = branchResistance(branch);
-      const conductance = 1 / resistance;
+      const conductance = 1 / branchResistance(branch);
       const drop = branch.directed ? Math.max(0, branch.voltageDrop) : 0;
 
       if (ia !== undefined) {
@@ -120,8 +142,12 @@ function solveWithActiveSet(
     let changed = false;
     for (const branch of branches) {
       if (!branch.directed) continue;
-      const forwardVoltage = (voltages.get(branch.fromNet) ?? 0) - (voltages.get(branch.toNet) ?? 0);
-      const shouldBeActive = forwardVoltage > Math.max(0, branch.voltageDrop) + 1e-9;
+      const fromVoltage = voltages.get(branch.fromNet);
+      const toVoltage = voltages.get(branch.toNet);
+      const shouldBeActive =
+        fromVoltage !== undefined &&
+        toVoltage !== undefined &&
+        fromVoltage - toVoltage > Math.max(0, branch.voltageDrop) + 1e-9;
       const key = branchKey(branch);
       if (shouldBeActive && !active.has(key)) {
         active.add(key);
