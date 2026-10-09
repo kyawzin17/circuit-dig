@@ -9,9 +9,10 @@
     "lint": "eslint .",
     "server": "tsx server/index.ts",
     "preview": "vite preview",
-    "test": "tsx tests/arduino-uno-foundation.test.ts && tsx tests/resistor-model.test.ts",
+    "test": "tsx tests/arduino-uno-foundation.test.ts && tsx tests/resistor-model.test.ts && tsx tests/resistor-network.test.ts",
     "test:uno": "tsx tests/arduino-uno-foundation.test.ts",
-    "test:resistor": "tsx tests/resistor-model.test.ts"
+    "test:resistor": "tsx tests/resistor-model.test.ts",
+    "test:resistor-network": "tsx tests/resistor-network.test.ts"
   },
   "dependencies": {
     "@emailjs/browser": "^4.4.1",
