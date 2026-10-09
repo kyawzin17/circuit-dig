@@ -149,6 +149,7 @@ export class SimulationEngine {
     componentBrightness: {},
     componentCurrentMa: {},
     componentVoltageDrop: {},
+    componentPowerMw: {},
     conflicts: [],
   };
 
