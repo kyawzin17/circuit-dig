@@ -20,14 +20,14 @@ export function parseResistanceOhms(value: unknown): number | undefined {
 
   const normalized = value
     .trim()
-    .replace(/\\s+/g, "")
+    .replace(/\s+/g, "")
     .replace(/Ω/gi, "")
     .replace(/ohms?/gi, "");
 
   if (!normalized) return undefined;
 
   // SPICE-style decimal notation: 4k7 = 4.7kΩ, 2M2 = 2.2MΩ.
-  const engineering = normalized.match(/^([0-9]+(?:\\.[0-9]*)?|\\.[0-9]+)([RrKkMmGgTt])([0-9]+)$/);
+  const engineering = normalized.match(/^([0-9]+(?:\.[0-9]*)?|\.[0-9]+)([RrKkMmGgTt])([0-9]+)$/);
   if (engineering) {
     const base = Number(engineering[1] + "." + engineering[3]);
     const multiplier = prefixMultiplier(engineering[2]);
@@ -35,7 +35,7 @@ export function parseResistanceOhms(value: unknown): number | undefined {
     return Number.isFinite(result) && result > 0 ? result : undefined;
   }
 
-  const suffixed = normalized.match(/^([0-9]+(?:\\.[0-9]*)?|\\.[0-9]+)([RrKkMmGgTt]?)$/);
+  const suffixed = normalized.match(/^([0-9]+(?:\.[0-9]*)?|\.[0-9]+)([RrKkMmGgTt]?)$/);
   if (suffixed) {
     const base = Number(suffixed[1]);
     const result = base * (suffixed[2] ? prefixMultiplier(suffixed[2]) : 1);
