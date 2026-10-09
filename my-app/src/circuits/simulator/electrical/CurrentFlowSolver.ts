@@ -18,6 +18,7 @@ export interface CurrentFlowState {
   componentBrightness: Record<string, number>;
   componentCurrentMa: Record<string, number>;
   componentVoltageDrop: Record<string, number>;
+  componentPowerMw: Record<string, number>;
   currentMa?: number;
   sourceVoltage?: number;
   voltageDrop?: number;
@@ -782,6 +783,7 @@ export class CurrentFlowSolver {
     const componentBrightness: Record<string, number> = {};
     const componentCurrentMa: Record<string, number> = {};
     const componentVoltageDrop: Record<string, number> = {};
+    const componentPowerMw: Record<string, number> = {};
     const conflicts: string[] = [];
 
     const groundNets =
@@ -1068,6 +1070,15 @@ export class CurrentFlowSolver {
     for (const [componentId, voltageDrop] of network.branchVoltageDrop) {
       componentVoltageDrop[componentId] = voltageDrop;
     }
+    for (const [componentId, powerMw] of network.branchPowerMw) {
+      componentPowerMw[componentId] = powerMw;
+    }
+    for (const edge of componentEdges) {
+      if (edge.componentType !== "led") continue;
+      const currentMa = network.branchCurrentMa.get(edge.componentId);
+      if (currentMa === undefined) continue;
+      componentBrightness[edge.componentId] = Math.max(0, Math.min(1, currentMa / 20));
+    }
     for (const componentId of network.activeComponents) {
       activeComponents.add(componentId);
     }
@@ -1100,6 +1111,7 @@ export class CurrentFlowSolver {
       componentBrightness,
       componentCurrentMa,
       componentVoltageDrop,
+      componentPowerMw,
       currentMa: firstCurrentMa,
       sourceVoltage:
         firstCurrentMa === undefined
