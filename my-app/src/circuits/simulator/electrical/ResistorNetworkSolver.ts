@@ -107,7 +107,7 @@ function solveWithActiveSet(
     }
 
     const unknownNets = nets.filter((net) => !fixedVoltages.has(net) && connected.has(net));
-    const netIndex = new Map(unknownNets.map((net, i) => [net, i]));
+    const netIndex = new Map(unknownNets.map((net, i) => [net, i] as const));
     const n = unknownNets.length;
     const matrix = Array.from({ length: n }, () => Array(n).fill(0));
     const rhs = Array(n).fill(0);
