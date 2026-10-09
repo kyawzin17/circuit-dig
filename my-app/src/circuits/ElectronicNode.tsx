@@ -836,6 +836,7 @@ const ElectronicNode = ({
       potentiometerPosition * 1023,
     );
 
+
     const handleInput = () => {
       const rawValue =
         Number(element.value);

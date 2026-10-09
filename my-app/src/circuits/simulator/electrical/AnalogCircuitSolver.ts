@@ -270,7 +270,7 @@ export class AnalogCircuitSolver {
         continue;
       }
 
-      const node =
+   const node =
         nodes.find(
           (candidate) =>
             candidate.id === component.id,
@@ -303,6 +303,7 @@ export class AnalogCircuitSolver {
           sourceVoltages,
         );
 
+      
       if (
         typeof vcc !== "number" ||
         typeof gnd !== "number"
@@ -312,6 +313,8 @@ export class AnalogCircuitSolver {
 
       const position =
         readPotentiometerPosition(node);
+
+       
 
       const signalVoltage =
         gnd +

@@ -388,6 +388,7 @@ export class Avr8jsRunner {
     this.analogInputs = {
       ...voltages,
     };
+    console.log("Analog inputs set:", this.analogInputs);
   }
 
   runCycles(
@@ -709,7 +710,7 @@ export class Avr8jsRunner {
 
     const adcValue =
       Math.round(normalized * 1023);
-
+    
     const leftAdjust =
       (admux & (1 << 5)) !== 0;
 
