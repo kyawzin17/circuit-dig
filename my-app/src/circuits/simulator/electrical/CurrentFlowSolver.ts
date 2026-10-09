@@ -767,7 +767,11 @@ function solveNetworkForCurrentFlow(
     if (!sinkNets.has(net)) fixedVoltages.set(net, voltage);
   }
 
-  return solveElectricalNetwork(branches, fixedVoltages);
+  return solveElectricalNetwork(
+    branches,
+    fixedVoltages,
+    new Set([...sourceNets.keys()].filter((net) => !sinkNets.has(net))),
+  );
 }
 
 export class CurrentFlowSolver {
@@ -1112,7 +1116,9 @@ export class CurrentFlowSolver {
       componentCurrentMa,
       componentVoltageDrop,
       componentPowerMw,
-      currentMa: firstCurrentMa,
+      currentMa: network.totalSourceCurrentMa > 0
+        ? network.totalSourceCurrentMa
+        : firstCurrentMa,
       sourceVoltage:
         firstCurrentMa === undefined
           ? undefined
