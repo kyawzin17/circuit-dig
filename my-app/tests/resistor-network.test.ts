@@ -21,6 +21,7 @@ function testSeriesResistors() {
   approx(result.branchCurrentMa.get("r2"), 2.5);
   approx(result.branchVoltageDrop.get("r1"), 2.5);
   approx(result.branchVoltageDrop.get("r2"), 2.5);
+  approx(result.branchPowerMw.get("r1"), 6.25);
 }
 
 function testParallelResistors() {
@@ -85,6 +86,25 @@ function testReverseLedBlocksCurrent() {
   approx(result.branchCurrentMa.get("led1"), 0);
 }
 
+function testReverseLedWithFloatingAnode() {
+  const result = solveElectricalNetwork([
+    branch("r1", "VCC", "CATHODE", 220),
+    {
+      componentId: "led1",
+      componentType: "led",
+      fromNet: "ANODE",
+      toNet: "CATHODE",
+      resistanceOhm: 1,
+      voltageDrop: 2,
+      directed: true,
+    },
+  ], new Map([["VCC", 5], ["GND", 0]]));
+
+  approx(result.branchCurrentMa.get("r1"), 0);
+  assert.equal(result.netVoltages.has("ANODE"), false);
+  assert.equal(result.branchCurrentMa.has("led1"), false);
+}
+
 function testOpenCircuitIslandIsUnresolved() {
   const result = solveElectricalNetwork([
     branch("r1", "FLOAT1", "FLOAT2", 1000),
@@ -101,9 +121,10 @@ for (const [name, testCase] of [
   ["mixed series/parallel network", testUnequalParallelAndSeries],
   ["LED forward-drop approximation", testLedForwardDropApproximation],
   ["reverse-biased LED blocks current", testReverseLedBlocksCurrent],
+  ["reverse LED with floating anode", testReverseLedWithFloatingAnode],
   ["floating open-circuit island", testOpenCircuitIslandIsUnresolved],
 ] as const) {
   testCase();
   console.log(`PASS  ${name}`);
 }
-console.log("RESISTOR NETWORK: PASS (6/6)");
+console.log("RESISTOR NETWORK: PASS (7/7)");
