@@ -207,7 +207,10 @@ export function solveElectricalNetwork(
       : currentMa * (branch.directed ? Math.max(0, branch.voltageDrop) : voltageDrop);
     branchPowerMw.set(branch.componentId, Math.max(branchPowerMw.get(branch.componentId) ?? 0, powerMw));
 
-    if (currentMa > CURRENT_EPSILON_A * 1000 || voltageDrop > 1e-6) {
+    const isElectricallyActive = branch.directed
+      ? currentMa > CURRENT_EPSILON_A * 1000
+      : currentMa > CURRENT_EPSILON_A * 1000 || voltageDrop > 1e-6;
+    if (isElectricallyActive) {
       activeComponents.add(branch.componentId);
       activeNets.add(branch.fromNet);
       activeNets.add(branch.toNet);
