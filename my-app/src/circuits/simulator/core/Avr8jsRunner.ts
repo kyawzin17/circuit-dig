@@ -647,93 +647,6 @@ export class Avr8jsRunner {
     };
   }
 
-  // private serviceAdc(): void {
-  //   if (!this.cpu) {
-  //     return;
-  //   }
-
-  //   const data = this.cpu.data;
-  //   const adcsra = data[ADCSRA] ?? 0;
-
-  //   const adcEnabled =
-  //     (adcsra & (1 << 7)) !== 0;
-  //   const conversionStarted =
-  //     (adcsra & (1 << 6)) !== 0;
-
-  //   if (!adcEnabled || !conversionStarted) {
-  //     return;
-  //   }
-
-  //   const admux = data[ADMUX] ?? 0;
-  //   const channel = admux & 0x0f;
-
-  //   const pinName =
-  //     channel >= 0 && channel <= 5
-  //       ? "A" + channel
-  //       : null;
-
-  //   const inputVoltage =
-  //     pinName !== null
-  //       ? this.analogInputs[pinName] ?? 0
-  //       : 0;
-
-  //   const referenceSelect =
-  //     (admux >> 6) & 0b11;
-
-  //   /*
-  //    * ATmega328P ADMUX reference selection:
-  //    *   00 = AVcc
-  //    *   01 = AREF (external)
-  //    *   11 = internal 1.1V
-  //    *
-  //    * AREF must not be treated as a generic 5V rail. For EXTERNAL
-  //    * reference mode, use the actual voltage present on the AREF pin.
-  //    * An un-driven AREF pin therefore produces an invalid/zero
-  //    * reference instead of silently behaving like AVcc.
-  //    */
-  //   const referenceVoltage =
-  //     referenceSelect === 0b01
-  //       ? this.analogInputs.AREF ?? 0
-  //       : referenceSelect === 0b11
-  //         ? 1.1
-  //         : 5.0;
-
-  //   const normalized =
-  //     Math.max(
-  //       0,
-  //       Math.min(
-  //         1,
-  //         inputVoltage / referenceVoltage,
-  //       ),
-  //     );
-
-  //   const adcValue =
-  //     Math.round(normalized * 1023);
-    
-  //   const leftAdjust =
-  //     (admux & (1 << 5)) !== 0;
-
-  //   if (leftAdjust) {
-  //     data[ADCL] =
-  //       (adcValue & 0x03) << 6;
-  //     data[ADCH] =
-  //       (adcValue >> 2) & 0xff;
-  //   } else {
-  //     data[ADCL] =
-  //       adcValue & 0xff;
-  //     data[ADCH] =
-  //       (adcValue >> 8) & 0x03;
-  //   }
-
-  //   /*
-  //    * ADC conversion complete:
-  //    * - clear ADSC
-  //    * - set ADIF
-  //    */
-  //   data[ADCSRA] =
-  //     (adcsra & ~(1 << 6)) |
-  //     (1 << 4);
-  // }
 private serviceAdc(): void {
     if (!this.cpu) {
       return;
@@ -767,19 +680,39 @@ private serviceAdc(): void {
     const referenceSelect =
       (admux >> 6) & 0b11;
 
-    const referenceVoltage =
-      referenceSelect === 0b11
-        ? 1.1
-        : 5.0;
+    /*
+     * ATmega328P ADMUX REFS1:0:
+     *   00 = external AREF
+     *   01 = AVcc (Arduino UNO default)
+     *   10 = reserved
+     *   11 = internal 1.1V reference
+     */
+    let referenceVoltage: number;
+    switch (referenceSelect) {
+      case 0b00:
+        referenceVoltage = this.analogInputs.AREF ?? 0;
+        break;
+      case 0b01:
+        referenceVoltage = 5.0;
+        break;
+      case 0b11:
+        referenceVoltage = 1.1;
+        break;
+      default:
+        referenceVoltage = 0;
+        break;
+    }
 
+    // An absent/invalid reference must not produce NaN or Infinity in ADC data.
+    const safeInputVoltage =
+      Number.isFinite(inputVoltage) ? inputVoltage : 0;
     const normalized =
-      Math.max(
-        0,
-        Math.min(
-          1,
-          inputVoltage / referenceVoltage,
-        ),
-      );
+      referenceVoltage > 0 && Number.isFinite(referenceVoltage)
+        ? Math.max(
+            0,
+            Math.min(1, safeInputVoltage / referenceVoltage),
+          )
+        : 0;
 
     const adcValue =
       Math.round(normalized * 1023);
