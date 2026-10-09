@@ -3,6 +3,7 @@ import type { ArduinoDigitalDriver } from "../boards/ArduinoUnoRuntime";
 import type { Netlist } from "../circuit/NetlistBuilder";
 import type { PowerRailState } from "./PowerRailSolver";
 import { parseResistanceOhms } from "./ResistorModel";
+import { solveElectricalNetwork, type ElectricalBranch } from "./ResistorNetworkSolver";
 
 export interface WireFlowState {
   isActive: boolean;
@@ -723,6 +724,51 @@ function findPathToGround(
   return null;
 }
 
+function solveNetworkForCurrentFlow(
+  componentEdges: ComponentEdge[],
+  sourceNets: Map<string, number>,
+  sinkNets: Set<string>,
+) {
+  const directedTypes = new Set([
+    "led",
+    "diode",
+    "lcd1602-backlight",
+    "7segment",
+    "rgb-led",
+  ]);
+  const branches: ElectricalBranch[] = [];
+  const seen = new Set<string>();
+
+  for (const edge of componentEdges) {
+    if (!edge.fromNet || !edge.toNet || edge.fromNet === edge.toNet) continue;
+    const directed = directedTypes.has(edge.componentType);
+    const unorderedNets = [edge.fromNet, edge.toNet].sort();
+    const key = directed
+      ? [edge.componentId, edge.componentType, edge.fromNet, edge.toNet].join("|")
+      : [edge.componentId, edge.componentType, ...unorderedNets].join("|");
+    if (seen.has(key)) continue;
+    seen.add(key);
+    branches.push({
+      componentId: edge.componentId,
+      componentType: edge.componentType,
+      fromNet: edge.fromNet,
+      toNet: edge.toNet,
+      resistanceOhm: edge.resistanceOhm,
+      voltageDrop: edge.voltageDrop,
+      directed,
+    });
+  }
+
+  const fixedVoltages = new Map<string, number>();
+  for (const net of sinkNets) fixedVoltages.set(net, 0);
+  for (const [net, voltage] of sourceNets) {
+    // A net cannot simultaneously be an ideal source and a sink.
+    if (!sinkNets.has(net)) fixedVoltages.set(net, voltage);
+  }
+
+  return solveElectricalNetwork(branches, fixedVoltages);
+}
+
 export class CurrentFlowSolver {
   solve(
     nodes: Node[],
@@ -1003,6 +1049,48 @@ export class CurrentFlowSolver {
         isActive: false,
         netId,
       };
+    }
+
+    /*
+     * Replace the single-BFS-path estimate with nodal analysis. This solves
+     * resistor networks with series/parallel branches together, while the
+     * existing UI/state contract remains unchanged.
+     */
+    const network = solveNetworkForCurrentFlow(
+      componentEdges,
+      sourceNets,
+      sinkNets,
+    );
+
+    for (const [componentId, currentMa] of network.branchCurrentMa) {
+      componentCurrentMa[componentId] = currentMa;
+    }
+    for (const [componentId, voltageDrop] of network.branchVoltageDrop) {
+      componentVoltageDrop[componentId] = voltageDrop;
+    }
+    for (const componentId of network.activeComponents) {
+      activeComponents.add(componentId);
+    }
+    for (const netId of network.activeNets) {
+      activeNets.add(netId);
+    }
+
+    // Mark wires on solved active nets. Individual wire current depends on
+    // junction topology; use the largest adjacent component current as a
+    // useful animation estimate, not as a claim of exact wire-branch current.
+    for (const [wireId, netId] of netlist.wireToNet) {
+      if (network.activeNets.has(netId)) {
+        wireStates[wireId] = {
+          isActive: true,
+          currentMa: Math.max(
+            0,
+            ...componentEdges
+              .filter((edge) => edge.fromNet === netId || edge.toNet === netId)
+              .map((edge) => componentCurrentMa[edge.componentId] ?? 0),
+          ),
+          netId,
+        };
+      }
     }
 
     return {
