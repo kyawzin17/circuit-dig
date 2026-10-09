@@ -10,7 +10,8 @@
     "server": "tsx server/index.ts",
     "preview": "vite preview",
     "test": "tsx tests/arduino-uno-foundation.test.ts",
-    "test:uno": "tsx tests/arduino-uno-foundation.test.ts"
+    "test:uno": "tsx tests/arduino-uno-foundation.test.ts",
+    "test:resistor": "tsx tests/resistor-model.test.ts"
   },
   "dependencies": {
     "@emailjs/browser": "^4.4.1",
