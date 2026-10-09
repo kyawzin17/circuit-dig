@@ -2,6 +2,7 @@ import type { Node } from "reactflow";
 import type { ArduinoDigitalDriver } from "../boards/ArduinoUnoRuntime";
 import type { Netlist } from "../circuit/NetlistBuilder";
 import type { PowerRailState } from "./PowerRailSolver";
+import { parseResistanceOhms } from "./ResistorModel";
 
 export interface WireFlowState {
   isActive: boolean;
@@ -39,60 +40,6 @@ function normalizeType(node: Node): string {
       node.type ??
       "",
   ).toLowerCase();
-}
-
-function parseResistance(value: unknown): number {
-  if (typeof value === "number") {
-    return Number.isFinite(value) && value > 0
-      ? value
-      : 0;
-  }
-
-  if (typeof value !== "string") {
-    return 0;
-  }
-
-  const normalized = value
-    .trim()
-    .replace(/\s+/g, "")
-    .replace(/Ω/gi, "")
-    .replace(/ohm/gi, "");
-
-  if (!normalized) {
-    return 0;
-  }
-
-  const match = normalized.match(
-    /^([0-9]*\.?[0-9]+)([kmgt]?)(?:Ω|ohm)?$/i,
-  );
-
-  if (!match) {
-    const parsed = Number(normalized);
-    return Number.isFinite(parsed) && parsed > 0
-      ? parsed
-      : 0;
-  }
-
-  const base = Number(match[1]);
-
-  if (!Number.isFinite(base) || base <= 0) {
-    return 0;
-  }
-
-  const suffix = match[2].toLowerCase();
-
-  const multiplier =
-    suffix === "k"
-      ? 1_000
-      : suffix === "m"
-        ? 1_000_000
-        : suffix === "g"
-          ? 1_000_000_000
-          : suffix === "t"
-            ? 1_000_000_000_000
-            : 1;
-
-  return base * multiplier;
 }
 
 function isGroundPin(pinId: string): boolean {
@@ -227,13 +174,18 @@ function buildComponentEdges(
         continue;
       }
 
-      const resistance =
-        parseResistance(
-          node.data?.props &&
-            typeof node.data.props === "object"
-            ? (node.data.props as Record<string, unknown>).value
-            : undefined,
-        ) || 1000;
+      const resistance = parseResistanceOhms(
+        node.data?.props &&
+          typeof node.data.props === "object"
+          ? (node.data.props as Record<string, unknown>).value
+          : undefined,
+      );
+
+      // Invalid values are treated as an open component, not silently
+      // replaced with 1kΩ. This avoids reporting physically false current.
+      if (resistance === undefined) {
+        continue;
+      }
 
       edges.push({
         componentId: node.id,
@@ -845,6 +797,18 @@ export class CurrentFlowSolver {
       );
     }
 
+    // Surface malformed resistor values to the diagnostics layer.
+    for (const node of nodes) {
+      if (normalizeType(node) !== "resistor") continue;
+      const props =
+        node.data?.props && typeof node.data.props === "object"
+          ? (node.data.props as Record<string, unknown>)
+          : {};
+      if (parseResistanceOhms(props.value) === undefined) {
+        conflicts.push("INVALID_RESISTANCE:" + node.id);
+      }
+    }
+
     const componentEdges =
       buildComponentEdges(
         nodes,
@@ -968,8 +932,12 @@ export class CurrentFlowSolver {
               previous === undefined
                 ? pathCurrentMa
                 : Math.max(previous, pathCurrentMa);
+            const actualVoltageDrop =
+              edge.componentType === "resistor"
+                ? (pathCurrentMa / 1000) * edge.resistanceOhm
+                : edge.voltageDrop;
             componentVoltageDrop[edge.componentId] =
-              Math.max(componentVoltageDrop[edge.componentId] ?? 0, edge.voltageDrop);
+              Math.max(componentVoltageDrop[edge.componentId] ?? 0, actualVoltageDrop);
 
             if (edge.componentType === "led") {
               componentBrightness[
