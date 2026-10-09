@@ -14,7 +14,7 @@ function testSeriesResistors() {
   const result = solveElectricalNetwork([
     branch("r1", "VCC", "MID", 1000),
     branch("r2", "MID", "GND", 1000),
-  ], new Map([["VCC", 5], ["GND", 0]]));
+  ], new Map([["VCC", 5], ["GND", 0]]), new Set(["VCC"]));
 
   approx(result.netVoltages.get("MID"), 2.5);
   approx(result.branchCurrentMa.get("r1"), 2.5);
@@ -22,16 +22,18 @@ function testSeriesResistors() {
   approx(result.branchVoltageDrop.get("r1"), 2.5);
   approx(result.branchVoltageDrop.get("r2"), 2.5);
   approx(result.branchPowerMw.get("r1"), 6.25);
+  approx(result.totalSourceCurrentMa, 2.5);
 }
 
 function testParallelResistors() {
   const result = solveElectricalNetwork([
     branch("r1", "VCC", "GND", 1000),
     branch("r2", "VCC", "GND", 1000),
-  ], new Map([["VCC", 5], ["GND", 0]]));
+  ], new Map([["VCC", 5], ["GND", 0]]), new Set(["VCC"]));
 
   approx(result.branchCurrentMa.get("r1"), 5);
   approx(result.branchCurrentMa.get("r2"), 5);
+  approx(result.totalSourceCurrentMa, 10);
 }
 
 function testUnequalParallelAndSeries() {
