@@ -647,7 +647,7 @@ export class Avr8jsRunner {
     };
   }
 
-  // private serviceAdc(): void {
+private serviceAdc(): void {
   //   if (!this.cpu) {
   //     return;
   //   }
@@ -767,10 +767,16 @@ private serviceAdc(): void {
     const referenceSelect =
       (admux >> 6) & 0b11;
 
+    // ATmega328P ADMUX reference selection:
+    // 00 = AVcc, 01 = external AREF, 10 = reserved, 11 = internal 1.1V.
+    // External AREF must use the voltage resolved at the AREF pin; it is
+    // not interchangeable with the 5V AVcc rail.
     const referenceVoltage =
-      referenceSelect === 0b11
-        ? 1.1
-        : 5.0;
+      referenceSelect === 0b01
+        ? (this.analogInputs.AREF ?? 0)
+        : referenceSelect === 0b11
+          ? 1.1
+          : 5.0;
 
     const normalized =
       Math.max(
