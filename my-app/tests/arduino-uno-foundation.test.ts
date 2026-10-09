@@ -126,8 +126,8 @@ function testAdcReferences() {
   const cpu = avr.getCPU();
   assert.ok(cpu);
 
-  // ADMUX: REFS=01 (external AREF), ADC0 selected.
-  cpu!.data[0x7c] = 0x40;
+  // ADMUX: REFS=00 (external AREF), ADC0 selected.
+  cpu!.data[0x7c] = 0x00;
   // ADEN + ADSC.
   cpu!.data[0x7a] = 0xc0;
   avr.runCycles(1);
@@ -136,8 +136,8 @@ function testAdcReferences() {
     (cpu!.data[0x79] << 8) | cpu!.data[0x78];
   assert.equal(externalReferenceResult, 1023);
 
-  // REFS=00 (AVcc=5V): 2.5V should be approximately half scale.
-  cpu!.data[0x7c] = 0x00;
+  // REFS=01 (AVcc=5V, Arduino analogRead default): 2.5V is half scale.
+  cpu!.data[0x7c] = 0x40;
   cpu!.data[0x7a] = 0xc0;
   avr.runCycles(1);
 
