@@ -66,6 +66,25 @@ function testLedForwardDropApproximation() {
   approx(result.branchCurrentMa.get("led1"), 13.5746606, 1e-4);
 }
 
+function testReverseLedBlocksCurrent() {
+  const result = solveElectricalNetwork([
+    branch("r1", "VCC", "CATHODE", 220),
+    {
+      componentId: "led1",
+      componentType: "led",
+      fromNet: "ANODE",
+      toNet: "CATHODE",
+      resistanceOhm: 1,
+      voltageDrop: 2,
+      directed: true,
+    },
+  ], new Map([["VCC", 5], ["ANODE", 0]]));
+
+  // The anode is held at 0V while the cathode is pulled toward +5V.
+  approx(result.branchCurrentMa.get("r1"), 0);
+  approx(result.branchCurrentMa.get("led1"), 0);
+}
+
 function testOpenCircuitIslandIsUnresolved() {
   const result = solveElectricalNetwork([
     branch("r1", "FLOAT1", "FLOAT2", 1000),
@@ -81,9 +100,10 @@ for (const [name, testCase] of [
   ["parallel resistor network", testParallelResistors],
   ["mixed series/parallel network", testUnequalParallelAndSeries],
   ["LED forward-drop approximation", testLedForwardDropApproximation],
+  ["reverse-biased LED blocks current", testReverseLedBlocksCurrent],
   ["floating open-circuit island", testOpenCircuitIslandIsUnresolved],
 ] as const) {
   testCase();
   console.log(`PASS  ${name}`);
 }
-console.log("RESISTOR NETWORK: PASS (5/5)");
+console.log("RESISTOR NETWORK: PASS (6/6)");
