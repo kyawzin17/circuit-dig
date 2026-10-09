@@ -680,12 +680,12 @@ export class Avr8jsRunner {
     const referenceSelect =
       (admux >> 6) & 0b11;
 
-    // ATmega328P ADMUX reference selection:
-    // 00 = AVcc, 01 = external AREF, 10 = reserved, 11 = internal 1.1V.
-    // External AREF must use the voltage resolved at the AREF pin; it is
-    // not interchangeable with the 5V AVcc rail.
+    // ATmega328P ADMUX REFS1:0 selection:
+    // 00 = external AREF, 01 = AVcc (Arduino analogRead default),
+    // 10 = reserved, 11 = internal 1.1V.
+    // External AREF must use the actual voltage present at the AREF pin.
     const referenceVoltage =
-      referenceSelect === 0b01
+      referenceSelect === 0b00
         ? (this.analogInputs.AREF ?? 0)
         : referenceSelect === 0b11
           ? 1.1
