@@ -9,7 +9,7 @@
     "lint": "eslint .",
     "server": "tsx server/index.ts",
     "preview": "vite preview",
-    "test": "tsx tests/arduino-uno-foundation.test.ts",
+    "test": "tsx tests/arduino-uno-foundation.test.ts && tsx tests/resistor-model.test.ts",
     "test:uno": "tsx tests/arduino-uno-foundation.test.ts",
     "test:resistor": "tsx tests/resistor-model.test.ts"
   },
