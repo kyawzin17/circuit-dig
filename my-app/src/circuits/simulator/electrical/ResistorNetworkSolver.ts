@@ -21,6 +21,7 @@ export interface ElectricalNetworkResult {
   netVoltages: Map<string, number>;
   branchCurrentMa: Map<string, number>;
   branchVoltageDrop: Map<string, number>;
+  branchPowerMw: Map<string, number>;
   activeNets: Set<string>;
   activeComponents: Set<string>;
   converged: boolean;
@@ -184,6 +185,7 @@ export function solveElectricalNetwork(
 
   const branchCurrentMa = new Map<string, number>();
   const branchVoltageDrop = new Map<string, number>();
+  const branchPowerMw = new Map<string, number>();
   const activeNets = new Set<string>();
   const activeComponents = new Set<string>();
 
@@ -200,6 +202,10 @@ export function solveElectricalNetwork(
 
     branchCurrentMa.set(branch.componentId, Math.max(branchCurrentMa.get(branch.componentId) ?? 0, currentMa));
     branchVoltageDrop.set(branch.componentId, Math.max(branchVoltageDrop.get(branch.componentId) ?? 0, voltageDrop));
+    const powerMw = branch.componentType === "resistor"
+      ? (currentMa * currentMa * branch.resistanceOhm) / 1000
+      : currentMa * (branch.directed ? Math.max(0, branch.voltageDrop) : voltageDrop);
+    branchPowerMw.set(branch.componentId, Math.max(branchPowerMw.get(branch.componentId) ?? 0, powerMw));
 
     if (currentMa > CURRENT_EPSILON_A * 1000 || voltageDrop > 1e-6) {
       activeComponents.add(branch.componentId);
@@ -212,6 +218,7 @@ export function solveElectricalNetwork(
     netVoltages: allVoltages,
     branchCurrentMa,
     branchVoltageDrop,
+    branchPowerMw,
     activeNets,
     activeComponents,
     converged: true,
