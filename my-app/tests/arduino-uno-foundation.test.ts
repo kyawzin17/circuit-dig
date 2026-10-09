@@ -126,24 +126,39 @@ function testAdcReferences() {
   const cpu = avr.getCPU();
   assert.ok(cpu);
 
-  // ADMUX: REFS=01 (external AREF), ADC0 selected.
-  cpu!.data[0x7c] = 0x40;
-  // ADEN + ADSC.
-  cpu!.data[0x7a] = 0xc0;
+  // REFS=00 selects external AREF: 2.5V input / 2.5V reference = full scale.
+  cpu!.data[0x7c] = 0x00;
+  cpu!.data[0x7a] = 0xc0; // ADEN + ADSC.
   avr.runCycles(1);
-
   const externalReferenceResult =
     (cpu!.data[0x79] << 8) | cpu!.data[0x78];
   assert.equal(externalReferenceResult, 1023);
 
-  // REFS=00 (AVcc=5V): 2.5V should be approximately half scale.
-  cpu!.data[0x7c] = 0x00;
+  // REFS=01 selects AVcc (5V): 2.5V input should be approximately half scale.
+  cpu!.data[0x7c] = 0x40;
   cpu!.data[0x7a] = 0xc0;
   avr.runCycles(1);
-
   const avccResult =
     (cpu!.data[0x79] << 8) | cpu!.data[0x78];
   assert.ok(Math.abs(avccResult - 512) <= 1);
+
+  // REFS=11 selects the internal 1.1V reference.
+  avr.setExternalAnalogInputs({ A0: 1.1 });
+  cpu!.data[0x7c] = 0xc0;
+  cpu!.data[0x7a] = 0xc0;
+  avr.runCycles(1);
+  const internalReferenceResult =
+    (cpu!.data[0x79] << 8) | cpu!.data[0x78];
+  assert.equal(internalReferenceResult, 1023);
+
+  // An un-driven external AREF must be handled deterministically, not as NaN.
+  avr.setExternalAnalogInputs({ A0: 2.5 });
+  cpu!.data[0x7c] = 0x00;
+  cpu!.data[0x7a] = 0xc0;
+  avr.runCycles(1);
+  const missingReferenceResult =
+    (cpu!.data[0x79] << 8) | cpu!.data[0x78];
+  assert.equal(missingReferenceResult, 0);
 }
 
 function testPwm() {
