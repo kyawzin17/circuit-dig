@@ -1613,15 +1613,16 @@ const stop =
   ======================================================= */
 
   const onDrop = useCallback(
-    (event: React.DragEvent) => {
-      event.preventDefault();
+    (event: React.DragEvent | null, clickedType?: string) => {
+      event?.preventDefault();
 
       if (!reactFlowInstance) {
         return;
       }
 
       const type =
-        event.dataTransfer.getData(
+        clickedType ||
+        event?.dataTransfer.getData(
           "application/reactflow"
         );
 
@@ -1876,11 +1877,20 @@ const stop =
          POSITION
       =================================================== */
 
+      // Drag-and-drop uses the pointer location. Sidebar clicks add
+      // the component at the center of the visible canvas.
+      const canvasBounds = reactFlowWrapper.current?.getBoundingClientRect();
+      const screenPosition = event
+        ? { x: event.clientX, y: event.clientY }
+        : canvasBounds
+          ? {
+              x: canvasBounds.left + canvasBounds.width / 2,
+              y: canvasBounds.top + canvasBounds.height / 2,
+            }
+          : { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+
       const position =
-        reactFlowInstance.screenToFlowPosition({
-          x: event.clientX,
-          y: event.clientY,
-        });
+        reactFlowInstance.screenToFlowPosition(screenPosition);
 
       /* ===================================================
          INSTANCE NUMBER
@@ -2057,6 +2067,13 @@ const stop =
       setNodes,
       pushToHistory,
     ]
+  );
+
+  const onSidebarComponentClick = useCallback(
+    (componentType: string) => {
+      onDrop(null, componentType);
+    },
+    [onDrop]
   );
 
   /* =======================================================
@@ -2627,7 +2644,7 @@ const toggleCode = useCallback(() => {
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-slate-100">
-      <Sidebar />
+      <Sidebar onComponentClick={onSidebarComponentClick} />
       {/* Main Canvas */}
       <div
         ref={reactFlowWrapper}
