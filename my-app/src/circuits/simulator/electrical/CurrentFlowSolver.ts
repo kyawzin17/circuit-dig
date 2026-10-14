@@ -110,7 +110,10 @@ function findSinkNets(
   // This is essential for common-anode 7-segment displays:
   // 5V/common -> segment -> resistor -> GPIO LOW.
   for (const driver of drivers) {
-    if (driver.level !== 0) {
+    // PWM LOW is a normal part of the waveform, not a second
+    // sink competing with the averaged HIGH source registered by
+    // PowerRailSolver. Keep OUTPUT LOW sinks only for non-PWM pins.
+    if (driver.level !== 0 || (driver.pwmDuty !== undefined && driver.pwmDuty > 0)) {
       continue;
     }
 
