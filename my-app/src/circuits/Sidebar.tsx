@@ -88,7 +88,7 @@ type ComponentItem = {
 
 type ComponentCardProps = {
   component: ComponentItem;
-
+  onClick: (nodeType: string) => void;
   onDragStart: (
     event: React.DragEvent<HTMLDivElement>,
     nodeType: string
@@ -98,6 +98,7 @@ type ComponentCardProps = {
 
 function ComponentCard({
   component,
+  onClick,
   onDragStart,
 }: ComponentCardProps) {
 
@@ -105,6 +106,7 @@ function ComponentCard({
 
     <div
       draggable
+      onClick={() => onClick(component.type)}
       onDragStart={(event) =>
         onDragStart(
           event,
@@ -269,7 +271,11 @@ function ComponentCard({
   );
 }
 
-const Sidebar = () => {
+type SidebarProps = {
+  onComponentClick: (nodeType: string) => void;
+};
+
+const Sidebar = ({ onComponentClick }: SidebarProps) => {
 
   const [searchTerm, setSearchTerm] =
     useState("");
@@ -960,6 +966,7 @@ const Sidebar = () => {
                     component={
                       component
                     }
+                    onClick={onComponentClick}
                     onDragStart={
                       onDragStart
                     }
