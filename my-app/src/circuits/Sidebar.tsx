@@ -114,8 +114,19 @@ function ComponentCard({
       className="
         group
         relative
+        w-full
+        md:w-auto
+        h-auto
+        md:h-38
+        flex
+        flex-row
+        md:flex-col
+        items-center
+        justify-start
+        md:justify-center
 
-        h-38
+        p-2
+        md:p-0
 
         bg-[#0a192b]
 
@@ -148,7 +159,10 @@ function ComponentCard({
 
       <div
         className="
-          h-27
+          h-12
+          md:h-27
+          w-12
+          md:w-27
           flex
           items-center
           justify-center
@@ -166,8 +180,10 @@ function ComponentCard({
             alt={component.name}
             draggable={false}
             className="
-              max-w-22
-              max-h-18.75
+              max-w-10
+              md:max-w-22
+              max-h-8
+              md:max-h-18.75
               object-contain
               select-none
               transition-transform
@@ -217,20 +233,13 @@ function ComponentCard({
 
       <div
         className="
-          absolute
-          bottom-0
-          left-0
-          w-full
-
-          h-11
-
-          flex
-          items-center
-          justify-center
-
-          border-t
+          text-start
+          md:w-full
+          md:text-center
+          border-l
+          md:border-l-0
+          md:border-t
           border-[#152d48]/60
-
           px-2
         "
       >
@@ -933,7 +942,8 @@ const Sidebar = () => {
           <div
             className="
               grid
-              grid-cols-2
+              grid-cols-1
+              md:grid-cols-2
               gap-3
             "
           >
@@ -953,6 +963,7 @@ const Sidebar = () => {
                     onDragStart={
                       onDragStart
                     }
+
                   />
 
                 )

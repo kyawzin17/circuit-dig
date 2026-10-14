@@ -49,9 +49,10 @@ import { batteryPins } from "./pins/battery9VPins.ts";
 // * ----------> Icons <----------
 import { ChevronDown, ZoomIn, ZoomOut, Maximize, Check, Undo, Redo } from "lucide-react";
 import { MdDeleteForever } from "react-icons/md";
+import { VscDebugAll, VscNewFolder } from "react-icons/vsc";
 import { FaRegSave } from "react-icons/fa";
 import { FolderOpen } from "lucide-react";
-import { FaArrowsRotate } from "react-icons/fa6";
+import { FaArrowsRotate, FaPlay, FaStop } from "react-icons/fa6";
 import { LuGrid2X2X, LuGrid2X2Plus, LuCode } from "react-icons/lu";
 
 // * ----------> Components <----------
@@ -2730,7 +2731,8 @@ const toggleCode = useCallback(() => {
             className={`flex h-9 items-center gap-2 rounded-lg px-3 text-sm font-medium transition bg-blue-500 text-white hover:bg-blue-600`}
             title="Code"
           >
-            <LuCode />Code
+            <LuCode className="lg:hidden" size={18} />
+            <span className="text-xs hidden lg:inline-block">Code</span>
           </button>
 
         <div className="mx-1 h-6 w-px bg-slate-200" />
@@ -2742,8 +2744,8 @@ const toggleCode = useCallback(() => {
             className="flex h-9 items-center gap-2 rounded-lg px-3 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
             title="Save circuit project"
           >
-            <FaRegSave size={16} />
-            <span>Save</span>
+            <FaRegSave className="lg:hidden" size={16} />
+            <span className="text-xs hidden lg:inline-block">Save</span>
           </button>
 
           <button
@@ -2752,17 +2754,20 @@ const toggleCode = useCallback(() => {
             className="flex h-9 items-center gap-2 rounded-lg px-3 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
             title="Open saved projects"
           >
-            <FolderOpen size={16} />
-            <span>Projects</span>
+            <FolderOpen className="lg:hidden" size={18} />
+            <span className="text-xs hidden lg:inline-block">Projects</span>
           </button>
 
           <button
             type="button"
             onClick={handleNewProject}
-            className="flex h-9 items-center gap-2 rounded-lg px-3 text-sm font-medium text-slate-500 transition hover:bg-slate-100 hover:text-slate-800"
+            className="flex h-9 items-center gap-2 rounded-lg px-3 text-sm font-medium text-slate-700 transition hover:bg-slate-100 hover:text-slate-800"
             title="Create a new circuit"
           >
-            New
+           <VscNewFolder className="lg:hidden" size={18} />
+            <span className="text-xs hidden lg:inline-block">
+              New
+            </span>
           </button>
 
           <button
@@ -2773,7 +2778,10 @@ const toggleCode = useCallback(() => {
             }`}
             title="Simulation debugger"
           >
-            Debug
+            <VscDebugAll className="lg:hidden" size={18} />
+            <span className="text-xs hidden lg:inline-block">
+              Debug
+            </span>
           </button>
 
           {/* Play */}
@@ -2796,13 +2804,15 @@ const toggleCode = useCallback(() => {
             {simulationStatus === "running"
               ? (
               <>
-                <span className="text-xs">
+                <FaStop className="lg:hidden" size={16} />
+                <span className="text-xs hidden lg:inline-block">
                   Stop
                 </span>
               </>
             ) : (
               <>
-                <span className="text-xs">
+                <FaPlay className="lg:hidden" size={16} />
+                <span className="text-xs hidden lg:inline-block">
                   Run
                 </span>
               </>
